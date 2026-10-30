@@ -71,14 +71,40 @@ namespace Silverdash360.Model
         /// <summary>From the profile's played titles, when it has been played.</summary>
         public PlayedTitle Played { get; set; }
 
-        /// <summary>The package that starts the title, if it's installed.</summary>
+        private bool launchItemFound;
+        private ContentItem launchItem;
+        private string searchText;
+
+        /// <summary>
+        /// The package that starts the title, if it's installed. Worked out
+        /// once: it's asked for a lot, and the content doesn't change after
+        /// the library is built.
+        /// </summary>
         public ContentItem LaunchItem
         {
             get
             {
-                return Content.Where(c => ContentType.IsLaunchable(c.Type) && !c.IsCorrupt)
-                              .OrderBy(c => LaunchPriority(c.Type))
-                              .FirstOrDefault();
+                if (!launchItemFound)
+                {
+                    launchItem = Content.Where(c => ContentType.IsLaunchable(c.Type) && !c.IsCorrupt)
+                                        .OrderBy(c => LaunchPriority(c.Type))
+                                        .FirstOrDefault();
+                    launchItemFound = true;
+                }
+                return launchItem;
+            }
+        }
+
+        /// <summary>The name, publisher and title ID in lower case, for search.</summary>
+        public string SearchText
+        {
+            get
+            {
+                if (searchText == null)
+                {
+                    searchText = ((Name ?? "") + " " + Publisher + " " + TitleIdText).ToLowerInvariant();
+                }
+                return searchText;
             }
         }
 

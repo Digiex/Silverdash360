@@ -67,6 +67,51 @@ namespace Silverdash360.Model
         {
             return string.Format("{0:X8}/{1:X8}/{2} \"{3}\"", TitleId, Type, FileName, DisplayName);
         }
+
+        /// <summary>
+        /// Writes the record with its runs of zeros left out: names fill a
+        /// fraction of their fields, so most of the 512 bytes are zeros.
+        /// </summary>
+        public void WriteRecord(BinaryWriter w)
+        {
+            byte[] r = Record;
+            int at = 0;
+            while (at < r.Length)
+            {
+                int zeros = 0;
+                while (at + zeros < r.Length && r[at + zeros] == 0)
+                {
+                    zeros++;
+                }
+                int bytes = 0;
+                while (at + zeros + bytes < r.Length && r[at + zeros + bytes] != 0)
+                {
+                    bytes++;
+                }
+                w.Write((ushort)zeros);
+                w.Write((ushort)bytes);
+                w.Write(r, at + zeros, bytes);
+                at += zeros + bytes;
+            }
+        }
+
+        public static ContentItem ReadRecord(BinaryReader r)
+        {
+            byte[] record = new byte[RecordSize];
+            int at = 0;
+            while (at < RecordSize)
+            {
+                at += r.ReadUInt16();
+                int bytes = r.ReadUInt16();
+                if (at + bytes > RecordSize)
+                {
+                    throw new IOException("A cached record is damaged.");
+                }
+                r.Read(record, at, bytes);
+                at += bytes;
+            }
+            return new ContentItem(record);
+        }
     }
 
     /// <summary>
@@ -89,24 +134,25 @@ namespace Silverdash360.Model
         private const int TitleThumbnail = 0x571A - 0x344;
         private const int ThumbnailMax = 0x4000;
 
-        public ContentMetadata(byte[] m, bool thumbnails)
+        /// <summary>Parses the metadata starting at offset o of a buffer.</summary>
+        public ContentMetadata(byte[] m, int o, bool thumbnails)
         {
-            ContentType = BigEndian.U32(m, 0x00);
-            MetadataVersion = BigEndian.U32(m, 0x04);
-            ContentSize = (long)BigEndian.U64(m, 0x08);
-            MediaId = BigEndian.U32(m, 0x10);
-            Version = BigEndian.U32(m, 0x14);
-            BaseVersion = BigEndian.U32(m, 0x18);
-            TitleId = BigEndian.U32(m, 0x1C);
-            DataSize = (long)BigEndian.U64(m, 0x3A1 - 0x344);
-            DisplayName = FirstLanguage(m, DisplayNames);
-            Description = FirstLanguage(m, Descriptions);
-            Publisher = BigEndian.Utf16(m, PublisherName, 0x40);
-            TitleName = BigEndian.Utf16(m, TitleNameOffset, 0x40);
+            ContentType = BigEndian.U32(m, o + 0x00);
+            MetadataVersion = BigEndian.U32(m, o + 0x04);
+            ContentSize = (long)BigEndian.U64(m, o + 0x08);
+            MediaId = BigEndian.U32(m, o + 0x10);
+            Version = BigEndian.U32(m, o + 0x14);
+            BaseVersion = BigEndian.U32(m, o + 0x18);
+            TitleId = BigEndian.U32(m, o + 0x1C);
+            DataSize = (long)BigEndian.U64(m, o + 0x3A1 - 0x344);
+            DisplayName = FirstLanguage(m, o + DisplayNames);
+            Description = FirstLanguage(m, o + Descriptions);
+            Publisher = BigEndian.Utf16(m, o + PublisherName, 0x40);
+            TitleName = BigEndian.Utf16(m, o + TitleNameOffset, 0x40);
             if (thumbnails)
             {
-                ThumbnailPng = Png(m, Thumbnail, BigEndian.U32(m, ThumbnailSize));
-                TitleThumbnailPng = Png(m, TitleThumbnail, BigEndian.U32(m, TitleThumbnailSize));
+                ThumbnailPng = Png(m, o + Thumbnail, BigEndian.U32(m, o + ThumbnailSize));
+                TitleThumbnailPng = Png(m, o + TitleThumbnail, BigEndian.U32(m, o + TitleThumbnailSize));
             }
         }
 
@@ -131,8 +177,6 @@ namespace Silverdash360.Model
             get { return string.Format("{0}.{1}.{2}.{3}", Version >> 28, (Version >> 24) & 0xF, (Version >> 8) & 0xFFFF, Version & 0xFF); }
         }
 
-        // English first, then the first language that has text. The header
-        // has 9 languages of 0x80 characters each.
         private ContentMetadata()
         {
         }
@@ -173,6 +217,8 @@ namespace Silverdash360.Model
             };
         }
 
+        // English first, then the first language that has text. The header
+        // has 9 languages of 0x80 characters each.
         private static string FirstLanguage(byte[] m, int offset)
         {
             for (int i = 0; i < 9; i++)

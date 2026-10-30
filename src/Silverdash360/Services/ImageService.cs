@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Silverdash360.Core;
@@ -27,7 +28,25 @@ namespace Silverdash360.Services
         // The image ID of a title's own image in its achievement data.
         private const ulong TitleImageId = 0x8000;
 
-        public const int MaxImages = 300;
+        /// <summary>Decoded images kept: a few screens of tiles, in the console's small memory.</summary>
+        public const int MaxImages = 120;
+
+        // Requests waiting for the worker. Scrolling fast through thousands
+        // of titles asks for far more art than can be read; the newest
+        // requests (the tiles on screen now) go first and the oldest are
+        // dropped.
+        private const int MaxQueued = 40;
+
+        private sealed class Request
+        {
+            public string Key;
+            public Func<byte[]> Read;
+        }
+
+        private readonly object queueLock = new object();
+        private readonly LinkedList<Request> queue = new LinkedList<Request>();
+        private readonly AutoResetEvent queued = new AutoResetEvent(false);
+        private Thread worker;
 
         private readonly IContentSource source;
         private readonly Dictionary<string, ImageSource> cache = new Dictionary<string, ImageSource>();
@@ -140,20 +159,84 @@ namespace Silverdash360.Services
                 return;
             }
             pending.Add(key, new List<Action<ImageSource>> { done });
-            Background.Run(read, delegate(byte[] png, Exception error)
+            Enqueue(new Request { Key = key, Read = read });
+        }
+
+        // On the UI thread, when the worker has read a PNG.
+        private void Finish(string key, byte[] png)
+        {
+            List<Action<ImageSource>> callbacks;
+            if (!pending.TryGetValue(key, out callbacks))
             {
-                image = Decode(png);
-                Keep(key, image);
-                List<Action<ImageSource>> callbacks = pending[key];
-                pending.Remove(key);
-                if (image != null)
+                return;
+            }
+            pending.Remove(key);
+            ImageSource image = Decode(png);
+            Keep(key, image);
+            if (image != null)
+            {
+                foreach (Action<ImageSource> callback in callbacks)
                 {
-                    foreach (Action<ImageSource> callback in callbacks)
+                    callback(image);
+                }
+            }
+        }
+
+        private void Enqueue(Request request)
+        {
+            List<string> dropped = new List<string>();
+            lock (queueLock)
+            {
+                queue.AddLast(request);
+                while (queue.Count > MaxQueued)
+                {
+                    dropped.Add(queue.First.Value.Key);
+                    queue.RemoveFirst();
+                }
+                if (worker == null)
+                {
+                    worker = new Thread(Work) { IsBackground = true, Name = "Images" };
+                    worker.Start();
+                }
+            }
+            // Asked for again, a dropped image is read then.
+            foreach (string key in dropped)
+            {
+                pending.Remove(key);
+            }
+            queued.Set();
+        }
+
+        // One reader, newest request first.
+        private void Work()
+        {
+            while (true)
+            {
+                Request request = null;
+                lock (queueLock)
+                {
+                    if (queue.Count > 0)
                     {
-                        callback(image);
+                        request = queue.Last.Value;
+                        queue.RemoveLast();
                     }
                 }
-            });
+                if (request == null)
+                {
+                    queued.WaitOne();
+                    continue;
+                }
+                byte[] png = null;
+                try
+                {
+                    png = request.Read();
+                }
+                catch (Exception e)
+                {
+                    Log.Write("Couldn't read art for {0}: {1}", request.Key, e.Message);
+                }
+                Background.OnUi(() => Finish(request.Key, png));
+            }
         }
 
         private static ImageSource Decode(byte[] png)

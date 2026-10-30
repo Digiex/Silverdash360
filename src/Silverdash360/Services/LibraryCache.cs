@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using Microsoft.Xna.Framework.Storage;
 using Silverdash360.Core;
 using Silverdash360.Model;
@@ -9,18 +10,21 @@ namespace Silverdash360.Services
 {
     /// <summary>
     /// Keeps what was read from the console's packages (their records and
-    /// header metadata) in the title's storage container, so the next start
-    /// shows the library at once and reads only the headers of new packages.
-    /// Call it from a background thread: storage blocks.
+    /// header metadata) and the executables found, so the next start shows the
+    /// library at once and reads only the headers of new packages. It lives
+    /// in the title's storage container. Records are written without their
+    /// runs of zeros and thumbnails aren't kept, so with thousands of packages
+    /// it stays around half a kilobyte a package. Call it from a background
+    /// thread: storage blocks.
     /// </summary>
     public sealed class LibraryCache
     {
         private const string ContainerName = "Silverdash360";
         private const string FileName = "library.bin";
         private const uint Magic = 0x53443343; // "SD3C"
-        private const int FormatVersion = 3;
+        private const int FormatVersion = 4;
         private const int BlockSize = 0x10000;
-        private static readonly TimeSpan OpenTimeout = TimeSpan.FromSeconds(15);
+        private static readonly TimeSpan OpenTimeout = TimeSpan.FromSeconds(60);
 
         /// <summary>A package's identity: where it's stored and its file name.</summary>
         public static string KeyOf(ContentItem item)
@@ -40,18 +44,17 @@ namespace Silverdash360.Services
         public Contents Load()
         {
             Contents contents = new Contents();
-            List<ContentItem> items = contents.Content;
             try
             {
+                MemoryStream bytes = new MemoryStream();
                 using (StorageContainer container = Open())
                 {
                     if (container == null || !container.FileExists(FileName))
                     {
                         return contents;
                     }
-                    // Read to the end: the encrypted stream's Length counts
+                    // Read to the end: a container stream's Length can count
                     // more than the file holds.
-                    MemoryStream bytes = new MemoryStream();
                     using (Stream stream = container.OpenFile(FileName, FileMode.Open))
                     {
                         byte[] block = new byte[BlockSize];
@@ -61,42 +64,43 @@ namespace Silverdash360.Services
                             bytes.Write(block, 0, got);
                         }
                     }
-                    bytes.Position = 0;
-                    using (BinaryReader reader = new BinaryReader(bytes))
+                }
+                bytes.Position = 0;
+                using (BinaryReader reader = new BinaryReader(bytes))
+                {
+                    if (reader.ReadUInt32() != Magic || reader.ReadInt32() != FormatVersion)
                     {
-                        if (reader.ReadUInt32() != Magic || reader.ReadInt32() != FormatVersion)
+                        return contents;
+                    }
+                    int count = reader.ReadInt32();
+                    for (int i = 0; i < count; i++)
+                    {
+                        ContentItem item = ContentItem.ReadRecord(reader);
+                        if (reader.ReadBoolean())
                         {
-                            return contents;
+                            item.Metadata = ContentMetadata.Read(reader);
                         }
-                        int count = reader.ReadInt32();
-                        for (int i = 0; i < count; i++)
+                        contents.Content.Add(item);
+                    }
+                    int executables = reader.ReadInt32();
+                    for (int i = 0; i < executables; i++)
+                    {
+                        contents.Executables.Add(new ExecutableItem
                         {
-                            ContentItem item = new ContentItem(reader.ReadBytes(ContentItem.RecordSize));
-                            if (reader.ReadBoolean())
-                            {
-                                item.Metadata = ContentMetadata.Read(reader);
-                            }
-                            items.Add(item);
-                        }
-                        int executables = reader.ReadInt32();
-                        for (int i = 0; i < executables; i++)
-                        {
-                            contents.Executables.Add(new ExecutableItem
-                            {
-                                Path = reader.ReadString(),
-                                DevicePath = reader.ReadString(),
-                                DeviceFolder = reader.ReadString(),
-                                Name = reader.ReadString(),
-                                Collection = reader.ReadString(),
-                                Drive = reader.ReadString(),
-                                TitleId = reader.ReadUInt32(),
-                                Size = reader.ReadInt64(),
-                                Modified = new DateTime(reader.ReadInt64()),
-                            });
-                        }
+                            Path = reader.ReadString(),
+                            DevicePath = reader.ReadString(),
+                            DeviceFolder = reader.ReadString(),
+                            Name = reader.ReadString(),
+                            Collection = reader.ReadString(),
+                            Drive = reader.ReadString(),
+                            TitleId = reader.ReadUInt32(),
+                            Size = reader.ReadInt64(),
+                            Modified = new DateTime(reader.ReadInt64()),
+                        });
                     }
                 }
-                Log.Write("Library cache: {0} packages", items.Count);
+                Log.Write("Library cache: {0} packages, {1} executables", contents.Content.Count,
+                          contents.Executables.Count);
             }
             catch (Exception e)
             {
@@ -107,7 +111,11 @@ namespace Silverdash360.Services
             return contents;
         }
 
-        public void Save(IList<ContentItem> items, IList<ExecutableItem> executables)
+        /// <summary>
+        /// Saves the library. pace, when given, is called between blocks so a
+        /// background save leaves the console to the UI.
+        /// </summary>
+        public void Save(IList<ContentItem> items, IList<ExecutableItem> executables, Action pace)
         {
             try
             {
@@ -118,7 +126,7 @@ namespace Silverdash360.Services
                 writer.Write(items.Count);
                 foreach (ContentItem item in items)
                 {
-                    writer.Write(item.Record);
+                    item.WriteRecord(writer);
                     writer.Write(item.Metadata != null);
                     if (item.Metadata != null)
                     {
@@ -151,10 +159,15 @@ namespace Silverdash360.Services
                         for (int at = 0; at < bytes.Length; at += BlockSize)
                         {
                             stream.Write(bytes, at, Math.Min(BlockSize, bytes.Length - at));
+                            if (pace != null)
+                            {
+                                pace();
+                            }
                         }
                     }
                 }
-                Log.Write("Library cache saved: {0} packages, {1} bytes", items.Count, bytes.Length);
+                Log.Write("Library cache saved: {0} packages, {1} executables, {2} bytes", items.Count,
+                          executables.Count, bytes.Length);
             }
             catch (Exception e)
             {
@@ -186,10 +199,17 @@ namespace Silverdash360.Services
         {
             StorageDevice device = new StorageDevice();
             IAsyncResult opening = device.BeginOpenContainer(ContainerName, ContainerName, null, null);
-            if (!opening.AsyncWaitHandle.WaitOne((int)OpenTimeout.TotalMilliseconds))
+            // Polled rather than waited on: the wait handle could report a
+            // timeout at once while the open went on.
+            DateTime giveUp = DateTime.UtcNow + OpenTimeout;
+            while (!opening.IsCompleted)
             {
-                Log.Write("Library cache: the storage container didn't open");
-                return null;
+                if (DateTime.UtcNow > giveUp)
+                {
+                    Log.Write("Library cache: the storage container didn't open");
+                    return null;
+                }
+                Thread.Sleep(20);
             }
             return device.EndOpenContainer(opening);
         }

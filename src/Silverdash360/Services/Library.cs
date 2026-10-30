@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Silverdash360.Core;
 using Silverdash360.Model;
 
@@ -17,7 +18,15 @@ namespace Silverdash360.Services
         private readonly ProfileService profiles;
         private readonly LibraryCache cache;
         private readonly ExecutableScanner executables;
-        private List<TitleEntry> titles = new List<TitleEntry>();
+        // Pauses between steps of a background refresh, in milliseconds. A
+        // refresh with nothing cached runs flat out; one behind a library
+        // already on screen leaves the console to the UI.
+        private const int PaceEnumeration = 40;
+        private const int PaceHeader = 60;
+        private const int PaceExecutable = 15;
+        private const int PaceSave = 40;
+
+        private LoadResult current = LoadResult.Empty;
 
         public Library(IContentSource source, ProfileService profiles, LibraryCache cache, ExecutableScanner executables)
         {
@@ -48,43 +57,28 @@ namespace Silverdash360.Services
         /// <summary>The profile the played titles came from, or null.</summary>
         public Gamer Gamer { get; private set; }
 
-        public IList<TitleEntry> Titles { get { return titles; } }
-
-        public IEnumerable<TitleEntry> Games
-        {
-            get { return Sorted(titles.Where(t => t.Kind == TitleKind.Game)); }
-        }
-
-        public IEnumerable<TitleEntry> Apps
-        {
-            get { return Sorted(titles.Where(t => t.Kind == TitleKind.App)); }
-        }
+        // The lists are sorted once, in the background, when the library is
+        // read: with thousands of titles, sorting on every look slowed the UI.
+        public IList<TitleEntry> Titles { get { return current.Titles; } }
+        public IList<TitleEntry> Games { get { return current.Games; } }
+        public IList<TitleEntry> Apps { get { return current.Apps; } }
 
         /// <summary>Played titles, most recent first, then installed ones.</summary>
-        public IEnumerable<TitleEntry> Recent
-        {
-            get
-            {
-                return titles.Where(t => t.Kind != TitleKind.Other && (t.LastPlayed != null || t.IsInstalled))
-                             .OrderByDescending(t => t.LastPlayed ?? DateTime.MinValue)
-                             .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase);
-            }
-        }
+        public IList<TitleEntry> Recent { get { return current.Recent; } }
 
-        public IEnumerable<ContentItem> AllContent
-        {
-            get { return titles.SelectMany(t => t.Content); }
-        }
+        public IList<ContentItem> AllContent { get { return current.Content; } }
 
         public TitleEntry Find(uint titleId)
         {
-            return titles.FirstOrDefault(t => t.TitleId == titleId);
+            TitleEntry title;
+            return current.ById.TryGetValue(titleId, out title) ? title : null;
         }
 
         /// <summary>The title with a <see cref="TitleEntry.Key"/>.</summary>
         public TitleEntry Find(string key)
         {
-            return titles.FirstOrDefault(t => t.Key == key);
+            TitleEntry title;
+            return current.ByKey.TryGetValue(key, out title) ? title : null;
         }
 
         /// <summary>
@@ -99,13 +93,11 @@ namespace Silverdash360.Services
             {
                 return new List<TitleEntry>();
             }
-            return titles
-                .Where(t => t.Kind != TitleKind.Other)
-                .Select(t => new { Title = t, Text = (t.Name + " " + t.Publisher + " " + t.TitleIdText).ToLowerInvariant() })
-                .Where(x => words.All(w => x.Text.Contains(w)))
-                .OrderBy(x => x.Title.Name.ToLowerInvariant().StartsWith(words[0]) ? 0 : 1)
-                .ThenBy(x => x.Title.Name, StringComparer.OrdinalIgnoreCase)
-                .Select(x => x.Title)
+            // Search text is made once per title, not per keystroke.
+            return current.Titles
+                .Where(t => t.Kind != TitleKind.Other && words.All(w => t.SearchText.Contains(w)))
+                .OrderBy(t => t.SearchText.StartsWith(words[0]) ? 0 : 1)
+                .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }
 
@@ -138,18 +130,37 @@ namespace Silverdash360.Services
 
         private sealed class LoadResult
         {
+            public static readonly LoadResult Empty = new LoadResult
+            {
+                Titles = new List<TitleEntry>(),
+                Games = new List<TitleEntry>(),
+                Apps = new List<TitleEntry>(),
+                Recent = new List<TitleEntry>(),
+                Content = new List<ContentItem>(),
+                ById = new Dictionary<uint, TitleEntry>(),
+                ByKey = new Dictionary<string, TitleEntry>(),
+            };
+
             public List<TitleEntry> Titles;
+            public List<TitleEntry> Games;
+            public List<TitleEntry> Apps;
+            public List<TitleEntry> Recent;
+            public List<ContentItem> Content;
+            public Dictionary<uint, TitleEntry> ById;
+            public Dictionary<string, TitleEntry> ByKey;
             public Gamer Gamer;
         }
 
+        // A null result is a refresh that found what's shown already.
         private void Publish(LoadResult result)
         {
-            if (result != null)
+            if (result == null)
             {
-                titles = result.Titles;
-                Gamer = result.Gamer;
-                IsLoaded = true;
+                return;
             }
+            current = result;
+            Gamer = result.Gamer;
+            IsLoaded = true;
             if (Changed != null)
             {
                 Changed(this, EventArgs.Empty);
@@ -181,6 +192,8 @@ namespace Silverdash360.Services
             // What earlier runs read from package and executable headers.
             Dictionary<string, ContentMetadata> known = new Dictionary<string, ContentMetadata>();
             Dictionary<string, ExecutableItem> knownExecutables = new Dictionary<string, ExecutableItem>();
+            int cachedCount = 0;
+            bool shown = IsLoaded;
             if (full)
             {
                 cache.Clear();
@@ -200,25 +213,48 @@ namespace Silverdash360.Services
                 {
                     knownExecutables[item.Path] = item;
                 }
-                if (!IsLoaded && (cached.Content.Count > 0 || cached.Executables.Count > 0))
+                cachedCount = cached.Content.Count;
+                if (cached.Content.Count > 0 || cached.Executables.Count > 0)
                 {
-                    LoadResult quick = Build(cached.Content, cached.Executables, gamer, played);
-                    Background.OnUi(() => Publish(quick));
+                    if (!IsLoaded)
+                    {
+                        LoadResult quick = Build(cached.Content, cached.Executables, gamer, played);
+                        Background.OnUi(() => Publish(quick));
+                    }
+                    shown = true;
                 }
             }
+
+            // With the library on screen, the rest of the refresh can take its
+            // time; the console is a lot slower than a PC running xenia.
+            Action pace = shown ? () => Thread.Sleep(PaceEnumeration) : (Action)null;
+            Action paceHeader = shown ? () => Thread.Sleep(PaceHeader) : (Action)null;
+            Action paceExecutable = shown ? () => Thread.Sleep(PaceExecutable) : (Action)null;
+            Action paceSave = shown ? () => Thread.Sleep(PaceSave) : (Action)null;
 
             // Common content (games, apps, add-ons) is stored under XUID 0, the
             // profile's own (saves) under its XUID.
             Report("Looking for content...", null);
-            List<ContentItem> content = source.Enumerate(0, count => Report("Looking for content... " + count + " found", null));
+            List<ContentItem> content = source.Enumerate(0, count => Report("Looking for content... " + count + " found", null), pace);
             if (gamer != null)
             {
-                content.AddRange(source.Enumerate(gamer.Xuid, null));
+                content.AddRange(source.Enumerate(gamer.Xuid, null, pace));
             }
-            content = content.Where(c => c.TitleId != 0).ToList();
+            // Once each: a package reported twice would show twice.
+            Dictionary<string, bool> seen = new Dictionary<string, bool>();
+            content = content.Where(c =>
+            {
+                string key = LibraryCache.KeyOf(c);
+                if (c.TitleId == 0 || seen.ContainsKey(key))
+                {
+                    return false;
+                }
+                seen[key] = true;
+                return true;
+            }).ToList();
 
             Report("Looking in the Apps and Games folders...", null);
-            List<ExecutableItem> found = executables.Scan(knownExecutables);
+            List<ExecutableItem> found = executables.Scan(knownExecutables, paceExecutable);
 
             // Headers have the names, description, publisher and art. Saves
             // have little worth the read.
@@ -245,20 +281,28 @@ namespace Silverdash360.Services
                     Report(string.Format("Reading {0} of {1} packages...", i + 1, unread.Count), (double)i / unread.Count);
                 }
                 unread[i].Metadata = source.ReadMetadata(unread[i], false);
+                if (paceHeader != null)
+                {
+                    paceHeader();
+                }
             }
 
             // Saved whenever the set of packages or executables changed.
             bool executablesChanged = found.Count != knownExecutables.Count ||
                                       found.Any(e => !knownExecutables.ContainsKey(e.Path) ||
                                                      knownExecutables[e.Path].TitleId != e.TitleId);
-            if (unread.Count > 0 || known.Count != content.Count(c => c.Metadata != null) || executablesChanged)
+            bool changed = unread.Count > 0 || content.Count != cachedCount ||
+                           known.Count != content.Count(c => c.Metadata != null) || executablesChanged;
+            if (changed)
             {
                 Report("Saving the library...", 1);
-                cache.Save(content, found);
+                cache.Save(content, found, paceSave);
             }
-            Log.Write("Library: {0} packages, {1} headers read, {2} executables, in {3} ms", content.Count,
-                      unread.Count, found.Count, (int)(DateTime.UtcNow - started).TotalMilliseconds);
-            return Build(content, found, gamer, played);
+            Log.Write("Library: {0} packages, {1} headers read, {2} executables, {3}, in {4} ms", content.Count,
+                      unread.Count, found.Count, changed ? "changed" : "unchanged",
+                      (int)(DateTime.UtcNow - started).TotalMilliseconds);
+            // What's on screen came from the same packages: nothing to redo.
+            return changed || !shown ? Build(content, found, gamer, played) : null;
         }
 
         // Titles from packages, executables and the profile's played titles.
@@ -320,7 +364,31 @@ namespace Silverdash360.Services
                 t.Name = NameOf(t);
                 t.Kind = Classify(t);
             }
-            return new LoadResult { Titles = all, Gamer = gamer };
+            LoadResult result = new LoadResult
+            {
+                Titles = all,
+                Games = Sorted(all.Where(t => t.Kind == TitleKind.Game)),
+                Apps = Sorted(all.Where(t => t.Kind == TitleKind.App)),
+                Recent = all.Where(t => t.Kind != TitleKind.Other && (t.LastPlayed != null || t.IsInstalled))
+                            .OrderByDescending(t => t.LastPlayed ?? DateTime.MinValue)
+                            .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+                            .ToList(),
+                Content = all.SelectMany(t => t.Content).ToList(),
+                ById = new Dictionary<uint, TitleEntry>(),
+                ByKey = new Dictionary<string, TitleEntry>(),
+                Gamer = gamer,
+            };
+            foreach (TitleEntry t in all)
+            {
+                if (!result.ById.ContainsKey(t.TitleId))
+                {
+                    result.ById[t.TitleId] = t;
+                }
+                result.ByKey[t.Key] = t;
+                // Made now, in the background, rather than on the first search.
+                string ignored = t.SearchText;
+            }
+            return result;
         }
 
         private TitleKind Classify(TitleEntry title)
@@ -366,10 +434,11 @@ namespace Silverdash360.Services
             return "Title " + t.TitleIdText;
         }
 
-        private static IEnumerable<TitleEntry> Sorted(IEnumerable<TitleEntry> source)
+        private static List<TitleEntry> Sorted(IEnumerable<TitleEntry> source)
         {
             return source.OrderByDescending(t => t.IsInstalled)
-                         .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase);
+                         .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+                         .ToList();
         }
     }
 

@@ -21,6 +21,7 @@ namespace Silverdash360.Services
         private const int HeaderRead = 0x1000;
 
         private readonly XboxFileSystem files;
+        private Action pace;
 
         public ExecutableScanner(XboxFileSystem files)
         {
@@ -42,8 +43,9 @@ namespace Silverdash360.Services
         /// The executables on the drives. Ones in known with the same size and
         /// time keep their title ID without their header being read again.
         /// </summary>
-        public List<ExecutableItem> Scan(IDictionary<string, ExecutableItem> known)
+        public List<ExecutableItem> Scan(IDictionary<string, ExecutableItem> known, Action pace)
         {
+            this.pace = pace;
             List<ExecutableItem> found = new List<ExecutableItem>();
             foreach (Drive drive in files.AvailableDrives)
             {
@@ -117,6 +119,10 @@ namespace Silverdash360.Services
                     item.TitleId = ReadTitleId(path);
                 }
                 found.Add(item);
+                if (pace != null)
+                {
+                    pace();
+                }
             }
         }
 

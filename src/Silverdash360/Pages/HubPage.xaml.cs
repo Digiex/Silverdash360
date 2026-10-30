@@ -24,6 +24,10 @@ namespace Silverdash360.Pages
     {
         private static int current;
 
+        // Sections the library changed under since they were last refreshed.
+        // Kept with the sections, which outlive the page.
+        private static readonly Dictionary<IDashboardModule, bool> stale = new Dictionary<IDashboardModule, bool>();
+
         private readonly DispatcherTimer clock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
         private readonly List<TextBlock> headers = new List<TextBlock>();
         private readonly Storyboard sliding = new Storyboard();
@@ -130,14 +134,27 @@ namespace Silverdash360.Pages
             }
         }
 
+        // Only the section on screen is refreshed now; the others when they're
+        // shown, so a change doesn't build tiles nobody sees.
         private void OnLibraryChanged(object sender, EventArgs e)
         {
             foreach (IDashboardModule module in Modules)
             {
-                module.Refresh();
+                stale[module] = true;
             }
+            RefreshIfStale(Modules[current]);
             ShowGamer();
             Modules[current].Activate();
+        }
+
+        private static void RefreshIfStale(IDashboardModule module)
+        {
+            bool isStale;
+            if (stale.TryGetValue(module, out isStale) && isStale)
+            {
+                stale[module] = false;
+                module.Refresh();
+            }
         }
 
         private void OnStatus(object sender, StatusEventArgs e)
@@ -184,6 +201,7 @@ namespace Silverdash360.Pages
                 headers[i].FontWeight = i == current ? FontWeights.Bold : FontWeights.Normal;
             }
             FrameworkElement view = module.View;
+            RefreshIfStale(module);
             ContentControl oldHost = view.Parent as ContentControl;
             if (oldHost != null && oldHost != SectionHost)
             {
