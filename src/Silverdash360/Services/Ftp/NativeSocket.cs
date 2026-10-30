@@ -1,0 +1,187 @@
+using System;
+using System.IO;
+using System.Text;
+using Silverdash360.Native;
+
+namespace Silverdash360.Services.Ftp
+{
+    /// <summary>
+    /// A blocking TCP socket on the console's Winsock. Calls block their
+    /// thread, so the server runs every socket on threads of its own.
+    /// </summary>
+    public sealed class NativeSocket : IDisposable
+    {
+        private static readonly object StartLock = new object();
+        private static bool started;
+
+        private uint handle;
+
+        private NativeSocket(uint handle)
+        {
+            this.handle = handle;
+        }
+
+        /// <summary>Starts the network stack for plain sockets; safe to call again.</summary>
+        public static void StartNetworking()
+        {
+            lock (StartLock)
+            {
+                if (started)
+                {
+                    return;
+                }
+                using (NativeBuffer parameters = new NativeBuffer(16))
+                using (NativeBuffer data = new NativeBuffer(0x200))
+                {
+                    // XNetStartupParams: its size, then the flags.
+                    parameters.Bytes[0] = 13;
+                    parameters.Bytes[1] = Net.StartupBypassSecurity;
+                    Net.XNetStartup(Net.CallerTitle, parameters.Address);
+                    int result = Net.WSAStartup(Net.CallerTitle, 0x0202, data.Address);
+                    if (result != 0)
+                    {
+                        throw new IOException("The network didn't start: " + result + ".");
+                    }
+                }
+                started = true;
+            }
+        }
+
+        /// <summary>A socket listening on a port, 0 for any free one.</summary>
+        public static NativeSocket Listen(int port, int backlog)
+        {
+            NativeSocket socket = Create();
+            try
+            {
+                using (NativeBuffer address = Address(0, (ushort)port))
+                {
+                    Check(Net.bind(Net.CallerTitle, socket.handle, address.Address, 16), "bind");
+                }
+                Check(Net.listen(Net.CallerTitle, socket.handle, backlog), "listen");
+                return socket;
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        }
+
+        private static NativeSocket Create()
+        {
+            StartNetworking();
+            uint handle = Net.socket(Net.CallerTitle, Net.AfInet, Net.SockStream, Net.IpProtoTcp);
+            if (handle == Net.InvalidSocket)
+            {
+                throw new IOException("Couldn't make a socket: " + Net.WSAGetLastError() + ".");
+            }
+            NativeSocket socket = new NativeSocket(handle);
+            // Plain TCP rather than the console's secure protocol. The result
+            // isn't checked: where sockets are plain already it isn't needed.
+            socket.SetOption(Net.SoInsecure, 1);
+            socket.SetOption(Net.SoReuseAddr, 1);
+            return socket;
+        }
+
+        private void SetOption(int name, int value)
+        {
+            using (NativeBuffer option = new NativeBuffer(4))
+            {
+                option.SetU32(0, (uint)value);
+                Net.setsockopt(Net.CallerTitle, handle, Net.SolSocket, name, option.Address, 4);
+            }
+        }
+
+        /// <summary>Waits for a connection; throws when the socket is closed.</summary>
+        public NativeSocket Accept()
+        {
+            uint accepted = Net.accept(Net.CallerTitle, handle, 0, 0);
+            if (accepted == Net.InvalidSocket)
+            {
+                throw new IOException("accept failed: " + Net.WSAGetLastError() + ".");
+            }
+            return new NativeSocket(accepted);
+        }
+
+        /// <summary>The local IPv4 address and port.</summary>
+        public void LocalEndPoint(out uint address, out int port)
+        {
+            using (NativeBuffer name = new NativeBuffer(16))
+            using (NativeBuffer length = new NativeBuffer(4))
+            {
+                length.SetU32(0, 16);
+                Check(Net.getsockname(Net.CallerTitle, handle, name.Address, length.Address), "getsockname");
+                port = name.U16(2);
+                address = name.U32(4);
+            }
+        }
+
+        /// <summary>Receives up to count bytes into a pinned buffer; 0 when the peer closed.</summary>
+        public int Receive(NativeBuffer buffer, int count)
+        {
+            int received = Net.recv(Net.CallerTitle, handle, buffer.Address, count, 0);
+            if (received < 0)
+            {
+                throw new IOException("recv failed: " + Net.WSAGetLastError() + ".");
+            }
+            return received;
+        }
+
+        public void Send(NativeBuffer buffer, int count)
+        {
+            int sent = 0;
+            while (sent < count)
+            {
+                int result = Net.send(Net.CallerTitle, handle, buffer[sent], count - sent, 0);
+                if (result <= 0)
+                {
+                    throw new IOException("send failed: " + Net.WSAGetLastError() + ".");
+                }
+                sent += result;
+            }
+        }
+
+        public void Send(string text)
+        {
+            byte[] bytes = Encoding.UTF8.GetBytes(text);
+            using (NativeBuffer buffer = new NativeBuffer(bytes))
+            {
+                Send(buffer, bytes.Length);
+            }
+        }
+
+        public void Dispose()
+        {
+            uint closing = handle;
+            handle = Net.InvalidSocket;
+            if (closing != Net.InvalidSocket)
+            {
+                Net.shutdown(Net.CallerTitle, closing, Net.ShutdownBoth);
+                Net.closesocket(Net.CallerTitle, closing);
+            }
+        }
+
+        private static NativeBuffer Address(uint ip, ushort port)
+        {
+            // sockaddr_in: family, port, address, 8 bytes of zeros; big-endian.
+            NativeBuffer address = new NativeBuffer(16);
+            address.SetU16(0, Net.AfInet);
+            address.SetU16(2, port);
+            address.SetU32(4, ip);
+            return address;
+        }
+
+        private static void Check(int result, string call)
+        {
+            if (result == Net.SocketError)
+            {
+                throw new IOException(call + " failed: " + Net.WSAGetLastError() + ".");
+            }
+        }
+
+        public static string FormatAddress(uint ip)
+        {
+            return string.Format("{0}.{1}.{2}.{3}", ip >> 24, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, ip & 0xFF);
+        }
+    }
+}

@@ -18,7 +18,9 @@ param(
     [string[]]$Steps = @('16:shot'),
     [int]$Seconds = 20,
     # xenia_edge.exe: this, else the XENIA_EDGE environment variable, else PATH.
-    [string]$Xenia = $env:XENIA_EDGE
+    [string]$Xenia = $env:XENIA_EDGE,
+    # More xenia options, such as --systemlink_transport=off for the FTP server.
+    [string[]]$ExtraArgs = @()
 )
 
 $ErrorActionPreference = 'Stop'
@@ -35,7 +37,7 @@ if (-not (Test-Path -LiteralPath $xex)) {
     throw "Build the dashboard first: .\tools\Build.ps1"
 }
 
-$extra = @()
+$extra = @($ExtraArgs)
 if ($ContentRoot) {
     $extra += "--content_root=$((Resolve-Path -LiteralPath $ContentRoot).Path)"
 }

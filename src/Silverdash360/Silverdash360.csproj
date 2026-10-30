@@ -45,6 +45,8 @@
   <ItemGroup>
     <Compile Include="Native\NativeBuffer.cs" />
     <Compile Include="Native\Xam.cs" />
+    <Compile Include="Native\KernelFiles.cs" />
+    <Compile Include="Native\Net.cs" />
     <Compile Include="Core\Background.cs" />
     <Compile Include="Core\Log.cs" />
     <Compile Include="Model\ContentItem.cs" />
@@ -57,6 +59,11 @@
     <Compile Include="Services\ProfileService.cs" />
     <Compile Include="Services\SystemService.cs" />
     <Compile Include="Services\TitleClassifier.cs" />
+    <Compile Include="Services\Files\XboxFileSystem.cs" />
+    <Compile Include="Services\Ftp\FtpServer.cs" />
+    <Compile Include="Services\Ftp\FtpSession.cs" />
+    <Compile Include="Services\Ftp\NativeSocket.cs" />
+    <Compile Include="Controls\FocusHelper.cs" />
     <Compile Include="Controls\OnScreenKeyboard.cs" />
     <Compile Include="Controls\Theme.cs" />
     <Compile Include="Controls\TileGrid.cs" />

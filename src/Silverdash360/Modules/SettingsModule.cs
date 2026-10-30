@@ -5,6 +5,7 @@ using System.Windows;
 using Silverdash360.Controls;
 using Silverdash360.Model;
 using Silverdash360.Services;
+using Silverdash360.Services.Ftp;
 
 namespace Silverdash360.Modules
 {
@@ -72,6 +73,7 @@ namespace Silverdash360.Modules
             {
                 new Entry { Title = "Storage", Detail = SystemService.FormatSize(content.Sum(c => c.BestSize)) + " in " + content.Count + " items", Run = Context.OpenStorage },
                 new Entry { Title = "Search", Detail = "Find a game or app", Run = Context.OpenSearch },
+                new Entry { Title = "FTP server", Detail = FtpDetail(), Run = ToggleFtp },
                 new Entry { Title = "Refresh library", Detail = library.IsLoading ? "Reading..." : "Read the console's content again", Run = library.Refresh },
                 new Entry { Title = "Sign in", Detail = library.Gamer != null ? "Signed in as " + library.Gamer.Gamertag : "Not signed in", Run = Context.Profiles.ShowSignin },
                 new Entry { Title = "System version", Detail = Safe(() => system.SystemVersion) },
@@ -85,6 +87,37 @@ namespace Silverdash360.Modules
             int selected = Math.Max(0, list.SelectedIndex);
             list.Items = entries.Cast<object>().ToList();
             list.SelectedIndex = selected;
+        }
+
+        private string FtpDetail()
+        {
+            FtpServer ftp = Context.Ftp;
+            if (!ftp.IsRunning)
+            {
+                return "Off. Press A to share the console's drives.";
+            }
+            return string.Format("ftp://{0}:{1}  user {2}  password {3}", ftp.Address ?? "this console",
+                                 ftp.ListeningPort, FtpServer.UserName, ftp.Password);
+        }
+
+        private void ToggleFtp()
+        {
+            try
+            {
+                if (Context.Ftp.IsRunning)
+                {
+                    Context.Ftp.Stop();
+                }
+                else
+                {
+                    Context.Ftp.Start();
+                }
+            }
+            catch (Exception e)
+            {
+                Context.ShowStatus("The FTP server didn't start: " + e.Message);
+            }
+            Refresh();
         }
 
         private static string Safe(Func<string> read)

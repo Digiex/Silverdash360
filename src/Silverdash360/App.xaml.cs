@@ -6,6 +6,8 @@ using Microsoft.Xbox.Controls;
 using Silverdash360.Core;
 using Silverdash360.Modules;
 using Silverdash360.Services;
+using Silverdash360.Services.Files;
+using Silverdash360.Services.Ftp;
 
 namespace Silverdash360
 {
@@ -29,7 +31,8 @@ namespace Silverdash360
             Log.Write("Starting");
             ProfileService profiles = new ProfileService();
             Context = new DashboardContext(new Library(new XamContentSource(), profiles), profiles,
-                                           new ImageService(), new SystemService());
+                                           new ImageService(), new SystemService(), new FtpServer(new XboxFileSystem()));
+            Context.Ftp.Message += text => Background.OnUi(() => Context.ShowStatus(text));
             Modules = ModuleRegistry.CreateAll(Context);
 
             // XboxApplicationFrame also starts GamerServices and plays the

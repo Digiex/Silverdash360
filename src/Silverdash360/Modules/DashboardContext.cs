@@ -1,24 +1,28 @@
 using System;
 using Silverdash360.Model;
 using Silverdash360.Services;
+using Silverdash360.Services.Ftp;
 
 namespace Silverdash360.Modules
 {
     /// <summary>The services and navigation every section and page shares.</summary>
     public sealed class DashboardContext
     {
-        public DashboardContext(Library library, ProfileService profiles, ImageService images, SystemService system)
+        public DashboardContext(Library library, ProfileService profiles, ImageService images, SystemService system,
+                                FtpServer ftp)
         {
             Library = library;
             Profiles = profiles;
             Images = images;
             System = system;
+            Ftp = ftp;
         }
 
         public Library Library { get; private set; }
         public ProfileService Profiles { get; private set; }
         public ImageService Images { get; private set; }
         public SystemService System { get; private set; }
+        public FtpServer Ftp { get; private set; }
 
         /// <summary>Goes to a page by its URI; set by the app.</summary>
         public Action<Uri> Navigate { get; set; }

@@ -89,7 +89,7 @@ namespace Silverdash360.Modules
             System.Windows.Controls.Control control = element as System.Windows.Controls.Control;
             if (control != null)
             {
-                control.Dispatcher.BeginInvoke(() => control.Focus());
+                FocusHelper.Focus(control);
             }
         }
     }

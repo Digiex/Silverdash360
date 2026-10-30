@@ -50,7 +50,7 @@ namespace Silverdash360.Pages
         {
             base.OnNavigatedTo(e);
             Keyboard.Text = lastQuery;
-            Dispatcher.BeginInvoke(() => Keyboard.Focus());
+            FocusHelper.Focus(Keyboard);
         }
 
         private void Search()

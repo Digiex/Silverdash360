@@ -89,7 +89,7 @@ namespace Silverdash360.Pages
         {
             base.OnNavigatedTo(e);
             ShowFilter(lastFilter);
-            Dispatcher.BeginInvoke(() => Items.Focus());
+            FocusHelper.Focus(Items);
         }
 
         private void ShowFilter(int index)

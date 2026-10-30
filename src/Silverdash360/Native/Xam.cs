@@ -120,7 +120,7 @@ namespace Silverdash360.Native
     }
 
     /// <summary>The kernel (xboxkrnl.exe), by ordinal.</summary>
-    public static class Kernel
+    public static partial class Kernel
     {
         // 3: ULONG DbgPrint(PCSZ format, ...)
         [DllImport("xboxkrnl.exe", EntryPoint = "#3", CharSet = CharSet.Ansi)]

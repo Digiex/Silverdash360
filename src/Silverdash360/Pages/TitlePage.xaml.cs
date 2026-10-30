@@ -106,7 +106,7 @@ namespace Silverdash360.Pages
                 return;
             }
             ShowTitle();
-            Dispatcher.BeginInvoke(() => Actions.Focus());
+            FocusHelper.Focus(Actions);
         }
 
         private void ShowTitle()
