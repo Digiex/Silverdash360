@@ -67,6 +67,47 @@ namespace Silverdash360.Services.Ftp
             }
         }
 
+        /// <summary>A socket connected to an IPv4 address and port.</summary>
+        public static NativeSocket Connect(uint ip, int port)
+        {
+            NativeSocket socket = Create();
+            try
+            {
+                using (NativeBuffer address = Address(ip, (ushort)port))
+                {
+                    Check(Net.connect(Net.CallerTitle, socket.handle, address.Address, 16), "connect");
+                }
+                return socket;
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Waits until the socket has something to read, or for a listening
+        /// socket a connection to accept; false when the time ran out.
+        /// </summary>
+        public bool WaitReadable(int milliseconds)
+        {
+            using (NativeBuffer set = new NativeBuffer(4 + 64 * 4))
+            using (NativeBuffer timeout = new NativeBuffer(8))
+            {
+                set.SetU32(0, 1);
+                set.SetU32(4, handle);
+                timeout.SetU32(0, (uint)(milliseconds / 1000));
+                timeout.SetU32(4, (uint)(milliseconds % 1000 * 1000));
+                int ready = Net.select(Net.CallerTitle, 0, set.Address, 0, 0, timeout.Address);
+                if (ready < 0)
+                {
+                    throw new IOException("select failed: " + Net.WSAGetLastError() + ".");
+                }
+                return ready > 0;
+            }
+        }
+
         private static NativeSocket Create()
         {
             StartNetworking();

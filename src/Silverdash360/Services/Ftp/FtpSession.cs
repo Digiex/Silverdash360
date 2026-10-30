@@ -10,12 +10,14 @@ using Silverdash360.Services.Files;
 namespace Silverdash360.Services.Ftp
 {
     /// <summary>
-    /// One client's connection. Passive mode only (PASV and EPSV), which every
-    /// current client uses; files are sent as they are whatever TYPE says.
+    /// One client's connection, in passive (PASV, EPSV) or active (PORT, EPRT)
+    /// mode. Files are sent as they are whatever TYPE says.
     /// </summary>
     internal sealed class FtpSession
     {
         private const int TransferSize = 0x10000;
+        /// <summary>How long to wait for a data connection, in milliseconds.</summary>
+        private const int DataTimeout = 30000;
         private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
 
         private readonly FtpServer server;
@@ -23,6 +25,8 @@ namespace Silverdash360.Services.Ftp
         private readonly NativeBuffer input = new NativeBuffer(1024);
         private readonly StringBuilder pending = new StringBuilder();
         private NativeSocket passive;
+        private uint activeAddress;
+        private int activePort;
         private string directory = "/";
         private string user;
         private bool loggedIn;
@@ -152,8 +156,10 @@ namespace Silverdash360.Services.Ftp
                     EnterPassive(true);
                     break;
                 case "PORT":
+                    SetActive(argument, false);
+                    break;
                 case "EPRT":
-                    Reply(502, "Use passive mode.");
+                    SetActive(argument, true);
                     break;
                 case "LIST":
                 case "NLST":
@@ -264,8 +270,13 @@ namespace Silverdash360.Services.Ftp
             uint ignored, ip;
             int port, controlPort;
             passive.LocalEndPoint(out ignored, out port);
-            // Clients connect back to the address they reached us on.
+            // Clients connect back to the address they reached us on. The
+            // console reports 0.0.0.0 for it, so take its own address then.
             control.LocalEndPoint(out ip, out controlPort);
+            if (ip == 0)
+            {
+                ip = server.IpAddress;
+            }
             if (extended)
             {
                 Reply(229, "Entering Extended Passive Mode (|||" + port + "|)");
@@ -286,18 +297,80 @@ namespace Silverdash360.Services.Ftp
             }
         }
 
-        // The data connection the client opens to the passive port.
+        // Active mode: where PORT or EPRT asked us to connect to.
+        private void SetActive(string argument, bool extended)
+        {
+            ClosePassive();
+            try
+            {
+                if (extended)
+                {
+                    // |1|address|port|
+                    string[] parts = argument.Split(argument.Length > 0 ? argument[0] : '|');
+                    if (parts.Length < 4 || parts[1] != "1")
+                    {
+                        Reply(522, "IPv4 only (1).");
+                        return;
+                    }
+                    activeAddress = ParseAddress(parts[2].Split('.'));
+                    activePort = int.Parse(parts[3], Invariant);
+                }
+                else
+                {
+                    // h1,h2,h3,h4,p1,p2
+                    string[] parts = argument.Split(',');
+                    activeAddress = ParseAddress(parts);
+                    activePort = int.Parse(parts[4], Invariant) << 8 | int.Parse(parts[5], Invariant);
+                }
+                Reply(200, "OK.");
+            }
+            catch (Exception)
+            {
+                activePort = 0;
+                Reply(501, "That isn't an address.");
+            }
+        }
+
+        private static uint ParseAddress(string[] parts)
+        {
+            return (uint)(byte.Parse(parts[0], Invariant) << 24 | byte.Parse(parts[1], Invariant) << 16 |
+                          byte.Parse(parts[2], Invariant) << 8 | byte.Parse(parts[3], Invariant));
+        }
+
+        // The data connection: the client connects to the passive port, or
+        // in active mode we connect to the client. Either gives up after a
+        // while, so a client that can't connect doesn't hold the session.
         private NativeSocket OpenData()
         {
-            if (passive == null)
+            if (passive == null && activePort == 0)
             {
-                Reply(425, "Use PASV first.");
+                Reply(425, "Use PASV or PORT first.");
                 return null;
             }
             Reply(150, "Opening the data connection.");
-            NativeSocket data = passive.Accept();
-            ClosePassive();
-            return data;
+            try
+            {
+                if (passive != null)
+                {
+                    if (!passive.WaitReadable(DataTimeout))
+                    {
+                        Reply(425, "The data connection didn't arrive.");
+                        return null;
+                    }
+                    return passive.Accept();
+                }
+                return NativeSocket.Connect(activeAddress, activePort);
+            }
+            catch (IOException e)
+            {
+                Reply(425, "No data connection: " + e.Message);
+                return null;
+            }
+            finally
+            {
+                ClosePassive();
+                activePort = 0;
+            }
         }
 
         private void SendListing(string argument, bool namesOnly)

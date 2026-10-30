@@ -61,6 +61,16 @@ namespace Silverdash360.Native
         [DllImport("xam.xex", EntryPoint = "#11")]
         public static extern int bind(uint caller, uint s, uint name, int length);
 
+        // 0xC: int connect(DWORD caller, SOCKET, const sockaddr*, int length)
+        [DllImport("xam.xex", EntryPoint = "#12")]
+        public static extern int connect(uint caller, uint s, uint name, int length);
+
+        // 0xF: int select(DWORD caller, int nfds, fd_set* read, fd_set* write,
+        //   fd_set* except, const timeval*). An fd_set is a count and 64
+        //   sockets, a timeval seconds and microseconds.
+        [DllImport("xam.xex", EntryPoint = "#15")]
+        public static extern int select(uint caller, int nfds, uint read, uint write, uint except, uint timeout);
+
         // 0xD: int listen(DWORD caller, SOCKET, int backlog)
         [DllImport("xam.xex", EntryPoint = "#13")]
         public static extern int listen(uint caller, uint s, int backlog);

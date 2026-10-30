@@ -53,18 +53,27 @@ namespace Silverdash360.Services.Ftp
         {
             get
             {
+                uint ip = IpAddress;
+                return ip != 0 ? NativeSocket.FormatAddress(ip) : null;
+            }
+        }
+
+        /// <summary>The console's IPv4 address from its XNADDR, or 0.</summary>
+        public uint IpAddress
+        {
+            get
+            {
                 try
                 {
                     using (NativeBuffer address = new NativeBuffer(0x24))
                     {
                         Net.XNetGetTitleXnAddr(Net.CallerTitle, address.Address);
-                        uint ip = address.U32(0);
-                        return ip != 0 ? NativeSocket.FormatAddress(ip) : null;
+                        return address.U32(0);
                     }
                 }
                 catch (Exception)
                 {
-                    return null;
+                    return 0;
                 }
             }
         }

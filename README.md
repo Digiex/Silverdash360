@@ -76,7 +76,7 @@ Settings has an FTP server that shares the console's drives while the dashboard 
 
 - **Drives**: each is a folder at the root: `Hdd1`, `Usb0` to `Usb2`, `Mu0`, `Mu1` and `Dvd`, those present. `Dvd` is read-only. Edit `XboxFileSystem.Drives` to change them.
 - **Commands**: listing, download (with resume), upload, delete, rename, and making and removing folders. Folders are removed only when empty.
-- **Passive mode only**, which current clients use by default. Set FileZilla and others to plain FTP; there's no TLS.
+- **Passive and active mode.** A data connection that doesn't arrive within 30 seconds is given up. Set FileZilla and others to plain FTP; there's no TLS.
 - **Plain TCP**: a title's sockets use the console's encrypted protocol unless they're marked otherwise (socket option `0x5801`), which the title's "insecure sockets" privilege allows. Without that, a PC's connections go unanswered; the server says so if the console refuses.
 - **It sends the password unencrypted**, as FTP does, so use it on a network you trust.
 
