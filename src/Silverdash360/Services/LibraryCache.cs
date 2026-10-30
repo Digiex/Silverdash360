@@ -18,7 +18,7 @@ namespace Silverdash360.Services
         private const string ContainerName = "Silverdash360";
         private const string FileName = "library.bin";
         private const uint Magic = 0x53443343; // "SD3C"
-        private const int FormatVersion = 2;
+        private const int FormatVersion = 3;
         private const int BlockSize = 0x10000;
         private static readonly TimeSpan OpenTimeout = TimeSpan.FromSeconds(15);
 
@@ -29,17 +29,25 @@ namespace Silverdash360.Services
                                  item.FileName);
         }
 
-        /// <summary>The cached packages, with their metadata, or an empty list.</summary>
-        public List<ContentItem> Load()
+        /// <summary>What the cache holds.</summary>
+        public sealed class Contents
         {
-            List<ContentItem> items = new List<ContentItem>();
+            public List<ContentItem> Content = new List<ContentItem>();
+            public List<ExecutableItem> Executables = new List<ExecutableItem>();
+        }
+
+        /// <summary>The cached packages with their metadata, and the executables found.</summary>
+        public Contents Load()
+        {
+            Contents contents = new Contents();
+            List<ContentItem> items = contents.Content;
             try
             {
                 using (StorageContainer container = Open())
                 {
                     if (container == null || !container.FileExists(FileName))
                     {
-                        return items;
+                        return contents;
                     }
                     // Read to the end: the encrypted stream's Length counts
                     // more than the file holds.
@@ -58,7 +66,7 @@ namespace Silverdash360.Services
                     {
                         if (reader.ReadUInt32() != Magic || reader.ReadInt32() != FormatVersion)
                         {
-                            return items;
+                            return contents;
                         }
                         int count = reader.ReadInt32();
                         for (int i = 0; i < count; i++)
@@ -70,6 +78,22 @@ namespace Silverdash360.Services
                             }
                             items.Add(item);
                         }
+                        int executables = reader.ReadInt32();
+                        for (int i = 0; i < executables; i++)
+                        {
+                            contents.Executables.Add(new ExecutableItem
+                            {
+                                Path = reader.ReadString(),
+                                DevicePath = reader.ReadString(),
+                                DeviceFolder = reader.ReadString(),
+                                Name = reader.ReadString(),
+                                Collection = reader.ReadString(),
+                                Drive = reader.ReadString(),
+                                TitleId = reader.ReadUInt32(),
+                                Size = reader.ReadInt64(),
+                                Modified = new DateTime(reader.ReadInt64()),
+                            });
+                        }
                     }
                 }
                 Log.Write("Library cache: {0} packages", items.Count);
@@ -78,12 +102,12 @@ namespace Silverdash360.Services
             {
                 // A damaged or old cache only costs a slower start.
                 Log.Write("Library cache unreadable: {0}", e);
-                items.Clear();
+                contents = new Contents();
             }
-            return items;
+            return contents;
         }
 
-        public void Save(IList<ContentItem> items)
+        public void Save(IList<ContentItem> items, IList<ExecutableItem> executables)
         {
             try
             {
@@ -100,6 +124,19 @@ namespace Silverdash360.Services
                     {
                         item.Metadata.Write(writer);
                     }
+                }
+                writer.Write(executables.Count);
+                foreach (ExecutableItem item in executables)
+                {
+                    writer.Write(item.Path);
+                    writer.Write(item.DevicePath);
+                    writer.Write(item.DeviceFolder);
+                    writer.Write(item.Name);
+                    writer.Write(item.Collection);
+                    writer.Write(item.Drive);
+                    writer.Write(item.TitleId);
+                    writer.Write(item.Size);
+                    writer.Write(item.Modified.Ticks);
                 }
                 writer.Flush();
                 byte[] bytes = buffer.ToArray();

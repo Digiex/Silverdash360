@@ -18,6 +18,7 @@ The screenshots are from xenia-edge with a test set of app packages.
 ## Features
 
 - **Games and apps** from the console's storage, with the art, names, publisher, description and version in each package's header. Apps are told from games by title ID.
+- **Executables in Apps and Games folders**: a `default.xex` in each folder of a drive's `Apps` and `Games` folders (`Hdd1`, `Usb0` to `Usb2`), and `.xex` files directly in `Apps`. The title ID in each XEX header joins it with the title's saves, played stats and art; the folder's name is its name unless a package or the profile has one. `ExecutableScanner.Collections` and `ExtraFolders` set where it looks.
 - **Fast starts**: what was read from package headers is kept in the title's storage, so the library shows at once and only new packages are read. A bar in the footer shows how far a refresh has got; "Refresh library" in settings reads every package again.
 - **Cover and list views** (Y switches). The views only make tiles for what's on screen, so large libraries stay fast.
 - **Title details**: what's stored for the title (the game, title updates, add-ons, saves) with sizes, and the profile's achievements for it.
@@ -103,7 +104,7 @@ The library is read the way the console's dashboard reads it:
 1. **Content**: one `XamContentAggregateCreateEnumerator` over every title and type, for common content and for the signed-in profile, returning 0x200-byte `XCONTENT_DATA_INTERNAL` records.
 2. **Metadata**: `XamContentGetMetaDataInternal` per package, for names, description, publisher, version, size and thumbnails.
 3. **Profile**: `XamUserGetSigninInfo`, `XamUserReadProfileSettings` for the gamer card, `XamUserCreateTitlesPlayedEnumerator` and `XamUserCreateAchievementEnumerator`, and `XamReadTile` for game tiles and gamer pictures.
-4. **Launching**: `XamContentLaunchImageInternalEx` with the package's record, after checking it isn't partly downloaded or damaged.
+4. **Launching**: `XamContentLaunchImageInternalEx` with the package's record, after checking it isn't partly downloaded or damaged. An executable from an Apps or Games folder starts with `XamLoaderLaunchTitleEx` and flags 0, with its folder as the D: drive: `XamLoaderLaunchTitle` adds flag 4, which returns to the dashboard for a path that starts at a device.
 5. **FTP**: the console's Winsock (`NetDll_socket`, `bind`, `listen`, `accept`, ...) on threads of its own, and the kernel's file calls (`NtCreateFile`, `NtReadFile`, `NtWriteFile`, `NtQueryDirectoryFile`, `NtSetInformationFile`) on the drives' device paths.
 
 All of it runs on a background thread, and images are decoded on the UI thread and cached. `LibraryCache` keeps the records and the header metadata in the title's storage container (`library.bin`), keyed by where each package is stored and its file name. On a start the cached library is shown first; the enumeration then runs again, and only packages the cache doesn't know have their headers read.

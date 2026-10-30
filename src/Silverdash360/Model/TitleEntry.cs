@@ -19,16 +19,54 @@ namespace Silverdash360.Model
     /// </summary>
     public sealed class TitleEntry
     {
-        public TitleEntry(uint titleId)
+        public TitleEntry(uint titleId) : this(titleId, titleId.ToString("X8"))
+        {
+        }
+
+        /// <summary>
+        /// A title with a key of its own, for executables that share a title
+        /// ID with other ones (homebrew often does) but are separate titles.
+        /// </summary>
+        public TitleEntry(uint titleId, string key)
         {
             TitleId = titleId;
+            Key = key;
             Content = new List<ContentItem>();
+            Executables = new List<ExecutableItem>();
         }
 
         public uint TitleId { get; private set; }
+
+        /// <summary>What pages find the title by: its title ID, or for a separate executable its path.</summary>
+        public string Key { get; private set; }
+
         public string Name { get; set; }
         public TitleKind Kind { get; set; }
         public List<ContentItem> Content { get; private set; }
+
+        /// <summary>Executables of the title in a drive's Apps or Games folder.</summary>
+        public List<ExecutableItem> Executables { get; private set; }
+
+        /// <summary>The executable that starts the title when no package does.</summary>
+        public ExecutableItem Executable
+        {
+            get { return LaunchItem == null ? Executables.FirstOrDefault() : null; }
+        }
+
+        /// <summary>Where the title starts from, for showing: a package type or a folder.</summary>
+        public string Source
+        {
+            get
+            {
+                ContentItem launch = LaunchItem;
+                if (launch != null)
+                {
+                    return launch.TypeName;
+                }
+                ExecutableItem executable = Executables.FirstOrDefault();
+                return executable != null ? executable.Location : "Not installed";
+            }
+        }
 
         /// <summary>From the profile's played titles, when it has been played.</summary>
         public PlayedTitle Played { get; set; }
@@ -44,7 +82,7 @@ namespace Silverdash360.Model
             }
         }
 
-        public bool IsInstalled { get { return LaunchItem != null; } }
+        public bool IsInstalled { get { return LaunchItem != null || Executables.Count > 0; } }
 
         public long TotalSize { get { return Content.Sum(c => c.BestSize); } }
 

@@ -42,6 +42,20 @@ namespace Silverdash360.Services
         }
     }
 
+    /// <summary>Titles found only as executables are apps or games by the folder they're in.</summary>
+    public sealed class FolderClassifier : ITitleClassifier
+    {
+        public TitleKind? Classify(TitleEntry title)
+        {
+            ExecutableItem executable = title.Executable;
+            if (executable == null)
+            {
+                return null;
+            }
+            return executable.IsApp ? TitleKind.App : TitleKind.Game;
+        }
+    }
+
     /// <summary>Games by what's installed or played.</summary>
     public sealed class ContentClassifier : ITitleClassifier
     {

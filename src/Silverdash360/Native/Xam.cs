@@ -49,6 +49,13 @@ namespace Silverdash360.Native
         [DllImport("xam.xex", EntryPoint = "#420", CharSet = CharSet.Ansi)]
         public static extern void XamLoaderLaunchTitle(string path, uint flags);
 
+        // 0x1A5: VOID XamLoaderLaunchTitleEx(LPCSTR path, LPCSTR dDrivePath,
+        //   LPCSTR commandLine, DWORD flags). XamLoaderLaunchTitle calls it
+        //   with flag 4, which returns to the dashboard for a path that starts
+        //   at a device (\Device\...); without it such a path is started.
+        [DllImport("xam.xex", EntryPoint = "#421", CharSet = CharSet.Ansi)]
+        public static extern void XamLoaderLaunchTitleEx(string path, string dDrivePath, string commandLine, uint flags);
+
         // 0x210: XUSER_SIGNIN_STATE XamUserGetSigninState(DWORD userIndex)
         [DllImport("xam.xex", EntryPoint = "#528")]
         public static extern uint XamUserGetSigninState(uint userIndex);

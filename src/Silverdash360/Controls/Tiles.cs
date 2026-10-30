@@ -126,7 +126,7 @@ namespace Silverdash360.Controls
             {
                 return "Not installed";
             }
-            return title.Publisher.Length > 0 ? title.Publisher : title.LaunchItem.TypeName;
+            return title.Publisher.Length > 0 ? title.Publisher : title.Source;
         }
     }
 

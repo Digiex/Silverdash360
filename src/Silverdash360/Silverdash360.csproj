@@ -52,9 +52,11 @@
     <Compile Include="Core\Log.cs" />
     <Compile Include="Model\ContentItem.cs" />
     <Compile Include="Model\ContentType.cs" />
+    <Compile Include="Model\ExecutableItem.cs" />
     <Compile Include="Model\Profile.cs" />
     <Compile Include="Model\TitleEntry.cs" />
     <Compile Include="Services\ContentSource.cs" />
+    <Compile Include="Services\ExecutableScanner.cs" />
     <Compile Include="Services\ImageService.cs" />
     <Compile Include="Services\Library.cs" />
     <Compile Include="Services\LibraryCache.cs" />

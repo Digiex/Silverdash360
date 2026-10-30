@@ -146,6 +146,13 @@ namespace Silverdash360.Services.Files
             }
         }
 
+        /// <summary>The kernel's path for a path in the tree, such as \Device\Harddisk0\Partition1\Games.</summary>
+        public string DevicePath(string path)
+        {
+            Drive drive;
+            return Resolve(path, out drive);
+        }
+
         public KernelFile OpenRead(string path)
         {
             Drive drive;

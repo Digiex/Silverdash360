@@ -33,6 +33,17 @@ namespace Silverdash360.Services
             }
         }
 
+        /// <summary>
+        /// Starts an executable from a drive's Apps or Games folder, with its
+        /// folder as the title's D: drive. Returns only when it fails.
+        /// </summary>
+        public string Launch(ExecutableItem executable)
+        {
+            Log.Write("Launching {0}", executable.DevicePath);
+            Xam.XamLoaderLaunchTitleEx(executable.DevicePath, executable.DeviceFolder, null, 0);
+            return "Couldn't start " + executable.Name + ".";
+        }
+
         /// <summary>Returns to the console's own dashboard.</summary>
         public void ExitToDashboard()
         {

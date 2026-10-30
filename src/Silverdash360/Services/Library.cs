@@ -16,14 +16,19 @@ namespace Silverdash360.Services
         private readonly IContentSource source;
         private readonly ProfileService profiles;
         private readonly LibraryCache cache;
+        private readonly ExecutableScanner executables;
         private List<TitleEntry> titles = new List<TitleEntry>();
 
-        public Library(IContentSource source, ProfileService profiles, LibraryCache cache)
+        public Library(IContentSource source, ProfileService profiles, LibraryCache cache, ExecutableScanner executables)
         {
             this.source = source;
             this.profiles = profiles;
             this.cache = cache;
-            Classifiers = new List<ITitleClassifier> { new KnownAppsClassifier(), new ContentClassifier() };
+            this.executables = executables;
+            Classifiers = new List<ITitleClassifier>
+            {
+                new KnownAppsClassifier(), new FolderClassifier(), new ContentClassifier(),
+            };
         }
 
         /// <summary>Asked in order to tell games from apps.</summary>
@@ -74,6 +79,12 @@ namespace Silverdash360.Services
         public TitleEntry Find(uint titleId)
         {
             return titles.FirstOrDefault(t => t.TitleId == titleId);
+        }
+
+        /// <summary>The title with a <see cref="TitleEntry.Key"/>.</summary>
+        public TitleEntry Find(string key)
+        {
+            return titles.FirstOrDefault(t => t.Key == key);
         }
 
         /// <summary>
@@ -167,8 +178,9 @@ namespace Silverdash360.Services
             Gamer gamer = profiles.SignedIn().FirstOrDefault();
             List<PlayedTitle> played = gamer != null ? profiles.PlayedTitles(gamer) : new List<PlayedTitle>();
 
-            // What earlier runs read from package headers.
+            // What earlier runs read from package and executable headers.
             Dictionary<string, ContentMetadata> known = new Dictionary<string, ContentMetadata>();
+            Dictionary<string, ExecutableItem> knownExecutables = new Dictionary<string, ExecutableItem>();
             if (full)
             {
                 cache.Clear();
@@ -176,17 +188,21 @@ namespace Silverdash360.Services
             else
             {
                 Report("Opening the saved library...", null);
-                List<ContentItem> cached = cache.Load();
-                foreach (ContentItem item in cached)
+                LibraryCache.Contents cached = cache.Load();
+                foreach (ContentItem item in cached.Content)
                 {
                     if (item.Metadata != null)
                     {
                         known[LibraryCache.KeyOf(item)] = item.Metadata;
                     }
                 }
-                if (!IsLoaded && cached.Count > 0)
+                foreach (ExecutableItem item in cached.Executables)
                 {
-                    LoadResult quick = Build(cached, gamer, played);
+                    knownExecutables[item.Path] = item;
+                }
+                if (!IsLoaded && (cached.Content.Count > 0 || cached.Executables.Count > 0))
+                {
+                    LoadResult quick = Build(cached.Content, cached.Executables, gamer, played);
                     Background.OnUi(() => Publish(quick));
                 }
             }
@@ -194,12 +210,15 @@ namespace Silverdash360.Services
             // Common content (games, apps, add-ons) is stored under XUID 0, the
             // profile's own (saves) under its XUID.
             Report("Looking for content...", null);
-            List<ContentItem> content = source.Enumerate(0, found => Report("Looking for content... " + found + " found", null));
+            List<ContentItem> content = source.Enumerate(0, count => Report("Looking for content... " + count + " found", null));
             if (gamer != null)
             {
                 content.AddRange(source.Enumerate(gamer.Xuid, null));
             }
             content = content.Where(c => c.TitleId != 0).ToList();
+
+            Report("Looking in the Apps and Games folders...", null);
+            List<ExecutableItem> found = executables.Scan(knownExecutables);
 
             // Headers have the names, description, publisher and art. Saves
             // have little worth the read.
@@ -228,19 +247,23 @@ namespace Silverdash360.Services
                 unread[i].Metadata = source.ReadMetadata(unread[i], false);
             }
 
-            // Saved whenever the set of packages changed.
-            if (unread.Count > 0 || known.Count != content.Count(c => c.Metadata != null))
+            // Saved whenever the set of packages or executables changed.
+            bool executablesChanged = found.Count != knownExecutables.Count ||
+                                      found.Any(e => !knownExecutables.ContainsKey(e.Path) ||
+                                                     knownExecutables[e.Path].TitleId != e.TitleId);
+            if (unread.Count > 0 || known.Count != content.Count(c => c.Metadata != null) || executablesChanged)
             {
                 Report("Saving the library...", 1);
-                cache.Save(content);
+                cache.Save(content, found);
             }
-            Log.Write("Library: {0} packages, {1} headers read, in {2} ms", content.Count, unread.Count,
-                      (int)(DateTime.UtcNow - started).TotalMilliseconds);
-            return Build(content, gamer, played);
+            Log.Write("Library: {0} packages, {1} headers read, {2} executables, in {3} ms", content.Count,
+                      unread.Count, found.Count, (int)(DateTime.UtcNow - started).TotalMilliseconds);
+            return Build(content, found, gamer, played);
         }
 
-        // Titles from packages and the profile's played titles.
-        private LoadResult Build(IEnumerable<ContentItem> content, Gamer gamer, List<PlayedTitle> played)
+        // Titles from packages, executables and the profile's played titles.
+        private LoadResult Build(IEnumerable<ContentItem> content, IEnumerable<ExecutableItem> found, Gamer gamer,
+                                 List<PlayedTitle> played)
         {
             Dictionary<uint, TitleEntry> byId = new Dictionary<uint, TitleEntry>();
             Func<uint, TitleEntry> entry = id =>
@@ -264,12 +287,40 @@ namespace Silverdash360.Services
             {
                 entry(p.TitleId).Played = p;
             }
-            foreach (TitleEntry t in byId.Values)
+
+            // An executable joins the title with its ID, which brings its
+            // saves, played stats and art. Homebrew often shares a title ID
+            // or has none, so one that would join another executable's title
+            // is a title of its own.
+            List<TitleEntry> all = byId.Values.ToList();
+            Dictionary<uint, bool> fromExecutables = new Dictionary<uint, bool>();
+            foreach (ExecutableItem item in found)
+            {
+                TitleEntry t;
+                if (item.TitleId != 0 && !fromExecutables.ContainsKey(item.TitleId))
+                {
+                    bool existed = byId.ContainsKey(item.TitleId);
+                    t = entry(item.TitleId);
+                    if (!existed)
+                    {
+                        all.Add(t);
+                        fromExecutables[item.TitleId] = true;
+                    }
+                }
+                else
+                {
+                    t = new TitleEntry(item.TitleId, "xex:" + item.Path);
+                    all.Add(t);
+                }
+                t.Executables.Add(item);
+            }
+
+            foreach (TitleEntry t in all)
             {
                 t.Name = NameOf(t);
                 t.Kind = Classify(t);
             }
-            return new LoadResult { Titles = byId.Values.ToList(), Gamer = gamer };
+            return new LoadResult { Titles = all, Gamer = gamer };
         }
 
         private TitleKind Classify(TitleEntry title)
@@ -307,6 +358,10 @@ namespace Silverdash360.Services
             if (launch != null && launch.DisplayName.Length > 0)
             {
                 return launch.DisplayName;
+            }
+            if (t.Executables.Count > 0)
+            {
+                return t.Executables[0].Name;
             }
             return "Title " + t.TitleIdText;
         }

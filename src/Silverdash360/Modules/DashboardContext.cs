@@ -46,7 +46,7 @@ namespace Silverdash360.Modules
 
         public void OpenTitle(TitleEntry title)
         {
-            Navigate(new Uri("/Pages/TitlePage.xaml?id=" + title.TitleIdText, UriKind.Relative));
+            Navigate(new Uri("/Pages/TitlePage.xaml?key=" + Uri.EscapeDataString(title.Key), UriKind.Relative));
         }
 
         public void OpenSearch()
@@ -63,13 +63,14 @@ namespace Silverdash360.Modules
         public void Launch(TitleEntry title)
         {
             ContentItem item = title.LaunchItem;
-            if (item == null)
+            ExecutableItem executable = title.Executable;
+            if (item == null && executable == null)
             {
                 ShowStatus(title.Name + " isn't installed on this console.");
                 return;
             }
             ShowStatus("Starting " + title.Name + "...");
-            string error = System.Launch(item);
+            string error = item != null ? System.Launch(item) : System.Launch(executable);
             if (error != null)
             {
                 ShowStatus(error);

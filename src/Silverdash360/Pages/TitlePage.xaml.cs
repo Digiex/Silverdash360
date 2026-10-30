@@ -97,11 +97,9 @@ namespace Silverdash360.Pages
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
-            string id;
-            uint titleId;
-            if (!NavigationContext.QueryString.TryGetValue("id", out id) ||
-                !uint.TryParse(id, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out titleId) ||
-                (title = Context.Library.Find(titleId)) == null)
+            string key;
+            if (!NavigationContext.QueryString.TryGetValue("key", out key) ||
+                (title = Context.Library.Find(Uri.UnescapeDataString(key))) == null)
             {
                 NameText.Text = "Title not found";
                 return;
@@ -125,7 +123,7 @@ namespace Silverdash360.Pages
             ContentItem launch = title.LaunchItem;
             List<string> info = new List<string>();
             if (title.Publisher.Length > 0) info.Add(title.Publisher);
-            info.Add(launch != null ? launch.TypeName : "Not installed");
+            info.Add(title.Source);
             if (launch != null && launch.Metadata != null) info.Add("version " + launch.Metadata.VersionText);
             info.Add("title " + title.TitleIdText);
             InfoText.Text = string.Join("  ·  ", info.ToArray());
@@ -142,7 +140,7 @@ namespace Silverdash360.Pages
             DescriptionText.Text = title.Description;
 
             List<ActionEntry> actions = new List<ActionEntry>();
-            if (launch != null)
+            if (title.IsInstalled)
             {
                 actions.Add(new ActionEntry { Text = "Play", Run = () => Context.Launch(title) });
             }
@@ -181,8 +179,10 @@ namespace Silverdash360.Pages
             {
                 Header = "content",
                 Empty = "Nothing is stored for this title.",
-                Items = () => title.Content.OrderBy(c => c.Type).ThenBy(c => c.DisplayName).Cast<object>().ToList(),
-                Row = o => ContentRow((ContentItem)o),
+                Items = () => title.Executables.Cast<object>()
+                                   .Concat(title.Content.OrderBy(c => c.Type).ThenBy(c => c.DisplayName).Cast<object>())
+                                   .ToList(),
+                Row = o => o is ExecutableItem ? ExecutableRow((ExecutableItem)o) : ContentRow((ContentItem)o),
             });
             foreach (Tab t in tabs)
             {
@@ -254,6 +254,17 @@ namespace Silverdash360.Pages
                 Art = unlocked ? (Action<Action<ImageSource>>)(done => Context.Images.AchievementArt(title.TitleId, a, Context.UserIndex, done)) : null,
                 Locked = !unlocked,
                 Dimmed = !unlocked,
+            };
+        }
+
+        private RowData ExecutableRow(ExecutableItem item)
+        {
+            return new RowData
+            {
+                Title = item.Name,
+                Subtitle = "Executable  ·  " + item.Path.TrimStart('/').Replace('/', '\\'),
+                Detail = SystemService.FormatSize(item.Size),
+                ArtSeed = item.TitleId ^ (uint)item.Path.Length,
             };
         }
 
