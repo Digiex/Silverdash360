@@ -20,8 +20,12 @@ namespace Silverdash360.Services
     public sealed class ImageService
     {
         // XamReadTile tile types.
+        private const uint TileAchievement = 0;
         private const uint TileGameIcon = 1;
         private const uint TileGamerPicture = 2;
+
+        // The image ID of a title's own image in its achievement data.
+        private const ulong TitleImageId = 0x8000;
 
         public const int MaxImages = 300;
 
@@ -49,7 +53,17 @@ namespace Silverdash360.Services
 
         public void GamerPicture(Gamer gamer, Action<ImageSource> done)
         {
-            Get("gamer:" + gamer.XuidText, () => ReadTile(TileGamerPicture, 0, gamer.UserIndex), done);
+            Get("gamer:" + gamer.XuidText, () => ReadTile(TileGamerPicture, 0, 0, gamer.UserIndex), done);
+        }
+
+        /// <summary>
+        /// An achievement's icon, from the profile's data for the title. The
+        /// profile has the icons of unlocked achievements.
+        /// </summary>
+        public void AchievementArt(uint titleId, Achievement achievement, uint userIndex, Action<ImageSource> done)
+        {
+            Get(string.Format("achievement:{0:X8}/{1}", titleId, achievement.ImageId),
+                () => ReadTile(TileAchievement, titleId, achievement.ImageId, userIndex), done);
         }
 
         private byte[] TitlePng(TitleEntry title, uint userIndex)
@@ -62,7 +76,7 @@ namespace Silverdash360.Services
             }
             // The tile the profile has for a played game, then another
             // package's art. Saves rarely have art worth a read.
-            png = title.Played != null ? ReadTile(TileGameIcon, title.TitleId, userIndex) : null;
+            png = title.Played != null ? ReadTile(TileGameIcon, title.TitleId, TitleImageId, userIndex) : null;
             if (png != null)
             {
                 return png;
@@ -83,12 +97,12 @@ namespace Silverdash360.Services
                               : metadata.ThumbnailPng ?? metadata.TitleThumbnailPng;
         }
 
-        private static byte[] ReadTile(uint type, uint titleId, uint userIndex)
+        private static byte[] ReadTile(uint type, uint titleId, ulong imageId, uint userIndex)
         {
             using (NativeBuffer size = new NativeBuffer(4))
             {
                 // A null buffer asks for the size.
-                Xam.XamReadTile(type, titleId, 0, userIndex, 0, size.Address, 0);
+                Xam.XamReadTile(type, titleId, imageId, userIndex, 0, size.Address, 0);
                 uint length = size.U32(0);
                 if (length == 0 || length > 0x100000)
                 {
@@ -97,7 +111,7 @@ namespace Silverdash360.Services
                 using (NativeBuffer png = new NativeBuffer((int)length))
                 {
                     size.SetU32(0, length);
-                    if (Xam.XamReadTile(type, titleId, 0, userIndex, png.Address, size.Address, 0) != Xam.ErrorSuccess)
+                    if (Xam.XamReadTile(type, titleId, imageId, userIndex, png.Address, size.Address, 0) != Xam.ErrorSuccess)
                     {
                         return null;
                     }

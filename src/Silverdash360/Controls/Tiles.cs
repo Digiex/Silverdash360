@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using Silverdash360.Model;
 using Silverdash360.Services;
 
@@ -141,6 +142,8 @@ namespace Silverdash360.Controls
         /// <summary>Loads art for the row's icon, or null for none.</summary>
         public Action<Action<ImageSource>> Art;
         public bool Dimmed;
+        /// <summary>Shows a padlock in place of art, for something still locked.</summary>
+        public bool Locked;
     }
 
     /// <summary>A row with an icon, two lines of text and a detail on the right.</summary>
@@ -168,11 +171,21 @@ namespace Silverdash360.Controls
 
             if (IconSize > 0)
             {
-                Grid icon = new Grid { Width = IconSize, Height = IconSize, HorizontalAlignment = HorizontalAlignment.Left, Background = Theme.PlaceholderBrush(row.ArtSeed) };
-                TextBlock initials = Theme.TextBlock(Theme.Initials(row.Title), IconSize * 0.38, Theme.Text);
+                Grid icon = new Grid
+                {
+                    Width = IconSize,
+                    Height = IconSize,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Background = row.Locked ? Theme.PanelHighlight : Theme.PlaceholderBrush(row.ArtSeed),
+                };
+                TextBlock initials = Theme.TextBlock(row.Locked ? "" : Theme.Initials(row.Title), IconSize * 0.38, Theme.Text);
                 initials.HorizontalAlignment = HorizontalAlignment.Center;
                 initials.VerticalAlignment = VerticalAlignment.Center;
                 icon.Children.Add(initials);
+                if (row.Locked)
+                {
+                    icon.Children.Add(Padlock(IconSize * 0.45));
+                }
                 Image art = new Image { Stretch = Stretch.UniformToFill };
                 icon.Children.Add(art);
                 if (row.Art != null)
@@ -222,6 +235,37 @@ namespace Silverdash360.Controls
         protected override void OnSelected(FrameworkElement tile, bool selected)
         {
             ((Grid)tile).Background = selected ? Theme.PanelHighlight : Theme.Panel;
+        }
+
+        // A padlock: a shackle over a body with a keyhole.
+        private static FrameworkElement Padlock(double size)
+        {
+            Canvas canvas = new Canvas { Width = size, Height = size, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            double body = size * 0.55;
+            canvas.Children.Add(new Ellipse
+            {
+                Width = size * 0.56,
+                Height = size * 0.7,
+                Stroke = Theme.SubText,
+                StrokeThickness = size * 0.1,
+            });
+            Canvas.SetLeft(canvas.Children[0], size * 0.22);
+            Rectangle block = new Rectangle
+            {
+                Width = size * 0.8,
+                Height = body,
+                RadiusX = size * 0.06,
+                RadiusY = size * 0.06,
+                Fill = Theme.SubText,
+            };
+            Canvas.SetLeft(block, size * 0.1);
+            Canvas.SetTop(block, size - body);
+            canvas.Children.Add(block);
+            Ellipse keyhole = new Ellipse { Width = size * 0.14, Height = size * 0.14, Fill = Theme.PanelHighlight };
+            Canvas.SetLeft(keyhole, size * 0.43);
+            Canvas.SetTop(keyhole, size - body * 0.65);
+            canvas.Children.Add(keyhole);
+            return canvas;
         }
     }
 }

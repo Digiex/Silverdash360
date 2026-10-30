@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Navigation;
 using Microsoft.Xbox.Controls;
 using Silverdash360.Controls;
@@ -243,13 +244,15 @@ namespace Silverdash360.Pages
         private RowData AchievementRow(Achievement a)
         {
             bool unlocked = a.IsUnlocked;
-            string text = unlocked ? a.Description : (a.IsSecret ? "Secret achievement" : a.Unachieved.Length > 0 ? a.Unachieved : a.Description);
+            string text = unlocked ? a.Description : (a.IsSecret ? "Keep playing to unlock it." : a.Unachieved.Length > 0 ? a.Unachieved : a.Description);
             return new RowData
             {
                 Title = unlocked || !a.IsSecret ? a.Label : "Secret achievement",
                 Subtitle = unlocked && a.Unlocked.HasValue ? text + "  ·  unlocked " + a.Unlocked.Value.ToString("d") : text,
                 Detail = a.Gamerscore + " G",
                 ArtSeed = a.Id + title.TitleId,
+                Art = unlocked ? (Action<Action<ImageSource>>)(done => Context.Images.AchievementArt(title.TitleId, a, Context.UserIndex, done)) : null,
+                Locked = !unlocked,
                 Dimmed = !unlocked,
             };
         }
