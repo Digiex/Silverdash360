@@ -71,7 +71,9 @@ namespace Silverdash360.Model
 
     /// <summary>
     /// The metadata in a package header (offset 0x344 on, 0x93D6 bytes):
-    /// names, description, publisher and the two thumbnails.
+    /// names, description, publisher and the two thumbnails. The thumbnails
+    /// are kept only when asked for: there can be a thousand packages, and
+    /// art is read again for the few on screen.
     /// </summary>
     public sealed class ContentMetadata
     {
@@ -87,7 +89,7 @@ namespace Silverdash360.Model
         private const int TitleThumbnail = 0x571A - 0x344;
         private const int ThumbnailMax = 0x4000;
 
-        public ContentMetadata(byte[] m)
+        public ContentMetadata(byte[] m, bool thumbnails)
         {
             ContentType = BigEndian.U32(m, 0x00);
             MetadataVersion = BigEndian.U32(m, 0x04);
@@ -101,8 +103,11 @@ namespace Silverdash360.Model
             Description = FirstLanguage(m, Descriptions);
             Publisher = BigEndian.Utf16(m, PublisherName, 0x40);
             TitleName = BigEndian.Utf16(m, TitleNameOffset, 0x40);
-            ThumbnailPng = Png(m, Thumbnail, BigEndian.U32(m, ThumbnailSize));
-            TitleThumbnailPng = Png(m, TitleThumbnail, BigEndian.U32(m, TitleThumbnailSize));
+            if (thumbnails)
+            {
+                ThumbnailPng = Png(m, Thumbnail, BigEndian.U32(m, ThumbnailSize));
+                TitleThumbnailPng = Png(m, TitleThumbnail, BigEndian.U32(m, TitleThumbnailSize));
+            }
         }
 
         public uint ContentType { get; private set; }
@@ -132,7 +137,7 @@ namespace Silverdash360.Model
         {
         }
 
-        /// <summary>Writes the fields the dashboard uses, for the library cache.</summary>
+        /// <summary>Writes the fields the dashboard uses but the thumbnails, for the library cache.</summary>
         public void Write(BinaryWriter w)
         {
             w.Write(ContentType);
@@ -147,8 +152,6 @@ namespace Silverdash360.Model
             w.Write(Description);
             w.Write(Publisher);
             w.Write(TitleName);
-            WriteBytes(w, ThumbnailPng);
-            WriteBytes(w, TitleThumbnailPng);
         }
 
         public static ContentMetadata Read(BinaryReader r)
@@ -167,24 +170,7 @@ namespace Silverdash360.Model
                 Description = r.ReadString(),
                 Publisher = r.ReadString(),
                 TitleName = r.ReadString(),
-                ThumbnailPng = ReadBytes(r),
-                TitleThumbnailPng = ReadBytes(r),
             };
-        }
-
-        private static void WriteBytes(BinaryWriter w, byte[] bytes)
-        {
-            w.Write(bytes != null ? bytes.Length : -1);
-            if (bytes != null)
-            {
-                w.Write(bytes);
-            }
-        }
-
-        private static byte[] ReadBytes(BinaryReader r)
-        {
-            int length = r.ReadInt32();
-            return length < 0 ? null : r.ReadBytes(length);
         }
 
         private static string FirstLanguage(byte[] m, int offset)

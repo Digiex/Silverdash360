@@ -18,7 +18,8 @@ namespace Silverdash360.Services
         private const string ContainerName = "Silverdash360";
         private const string FileName = "library.bin";
         private const uint Magic = 0x53443343; // "SD3C"
-        private const int FormatVersion = 1;
+        private const int FormatVersion = 2;
+        private const int BlockSize = 0x10000;
         private static readonly TimeSpan OpenTimeout = TimeSpan.FromSeconds(15);
 
         /// <summary>A package's identity: where it's stored and its file name.</summary>
@@ -40,8 +41,20 @@ namespace Silverdash360.Services
                     {
                         return items;
                     }
+                    // Read to the end: the encrypted stream's Length counts
+                    // more than the file holds.
+                    MemoryStream bytes = new MemoryStream();
                     using (Stream stream = container.OpenFile(FileName, FileMode.Open))
-                    using (BinaryReader reader = new BinaryReader(stream))
+                    {
+                        byte[] block = new byte[BlockSize];
+                        int got;
+                        while ((got = stream.Read(block, 0, block.Length)) > 0)
+                        {
+                            bytes.Write(block, 0, got);
+                        }
+                    }
+                    bytes.Position = 0;
+                    using (BinaryReader reader = new BinaryReader(bytes))
                     {
                         if (reader.ReadUInt32() != Magic || reader.ReadInt32() != FormatVersion)
                         {
@@ -64,7 +77,7 @@ namespace Silverdash360.Services
             catch (Exception e)
             {
                 // A damaged or old cache only costs a slower start.
-                Log.Write("Library cache unreadable: {0}", e.Message);
+                Log.Write("Library cache unreadable: {0}", e);
                 items.Clear();
             }
             return items;
@@ -74,6 +87,22 @@ namespace Silverdash360.Services
         {
             try
             {
+                MemoryStream buffer = new MemoryStream();
+                BinaryWriter writer = new BinaryWriter(buffer);
+                writer.Write(Magic);
+                writer.Write(FormatVersion);
+                writer.Write(items.Count);
+                foreach (ContentItem item in items)
+                {
+                    writer.Write(item.Record);
+                    writer.Write(item.Metadata != null);
+                    if (item.Metadata != null)
+                    {
+                        item.Metadata.Write(writer);
+                    }
+                }
+                writer.Flush();
+                byte[] bytes = buffer.ToArray();
                 using (StorageContainer container = Open())
                 {
                     if (container == null)
@@ -81,23 +110,14 @@ namespace Silverdash360.Services
                         return;
                     }
                     using (Stream stream = container.CreateFile(FileName))
-                    using (BinaryWriter writer = new BinaryWriter(stream))
                     {
-                        writer.Write(Magic);
-                        writer.Write(FormatVersion);
-                        writer.Write(items.Count);
-                        foreach (ContentItem item in items)
+                        for (int at = 0; at < bytes.Length; at += BlockSize)
                         {
-                            writer.Write(item.Record);
-                            writer.Write(item.Metadata != null);
-                            if (item.Metadata != null)
-                            {
-                                item.Metadata.Write(writer);
-                            }
+                            stream.Write(bytes, at, Math.Min(BlockSize, bytes.Length - at));
                         }
                     }
                 }
-                Log.Write("Library cache saved: {0} packages", items.Count);
+                Log.Write("Library cache saved: {0} packages, {1} bytes", items.Count, bytes.Length);
             }
             catch (Exception e)
             {

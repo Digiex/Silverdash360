@@ -15,8 +15,8 @@ namespace Silverdash360.Services
         /// </summary>
         List<ContentItem> Enumerate(ulong xuid, Action<int> found);
 
-        /// <summary>The package header's metadata, or null.</summary>
-        ContentMetadata ReadMetadata(ContentItem item);
+        /// <summary>The package header's metadata, or null; with its thumbnails when asked for.</summary>
+        ContentMetadata ReadMetadata(ContentItem item, bool thumbnails);
     }
 
     /// <summary>
@@ -69,7 +69,7 @@ namespace Silverdash360.Services
             return items;
         }
 
-        public ContentMetadata ReadMetadata(ContentItem item)
+        public ContentMetadata ReadMetadata(ContentItem item, bool thumbnails)
         {
             using (NativeBuffer record = new NativeBuffer(item.Record))
             using (NativeBuffer metadata = new NativeBuffer(ContentMetadata.Size))
@@ -80,7 +80,7 @@ namespace Silverdash360.Services
                     Log.Write("No metadata for {0}: {1}", item, result);
                     return null;
                 }
-                return new ContentMetadata(metadata.Bytes);
+                return new ContentMetadata(metadata.Bytes, thumbnails);
             }
         }
     }

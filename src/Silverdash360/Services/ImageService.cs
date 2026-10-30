@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Silverdash360.Core;
@@ -12,7 +13,9 @@ namespace Silverdash360.Services
     /// <summary>
     /// Art for titles and profiles: the thumbnails in package headers, the
     /// game tiles a profile keeps for the titles it played, and gamer pictures.
-    /// PNGs are read in the background, decoded on the UI thread and kept.
+    /// Art is read when a tile asks for it, which with the grids' virtualizing
+    /// is the tiles on screen. PNGs are read in the background, decoded on the
+    /// UI thread, and the most recently used <see cref="MaxImages"/> are kept.
     /// </summary>
     public sealed class ImageService
     {
@@ -20,8 +23,17 @@ namespace Silverdash360.Services
         private const uint TileGameIcon = 1;
         private const uint TileGamerPicture = 2;
 
+        public const int MaxImages = 300;
+
+        private readonly IContentSource source;
         private readonly Dictionary<string, ImageSource> cache = new Dictionary<string, ImageSource>();
+        private readonly LinkedList<string> recent = new LinkedList<string>();
         private readonly Dictionary<string, List<Action<ImageSource>>> pending = new Dictionary<string, List<Action<ImageSource>>>();
+
+        public ImageService(IContentSource source)
+        {
+            this.source = source;
+        }
 
         /// <summary>The title's art; the callback isn't called when there is none.</summary>
         public void TitleArt(TitleEntry title, uint userIndex, Action<ImageSource> done)
@@ -32,8 +44,7 @@ namespace Silverdash360.Services
         /// <summary>A package's own thumbnail, such as an add-on's.</summary>
         public void ContentArt(ContentItem item, Action<ImageSource> done)
         {
-            Get("content:" + item.TitleId.ToString("X8") + "/" + item.FileName,
-                () => item.Metadata != null ? item.Metadata.ThumbnailPng ?? item.Metadata.TitleThumbnailPng : null, done);
+            Get("content:" + item.TitleId.ToString("X8") + "/" + item.FileName, () => PackagePng(item, false), done);
         }
 
         public void GamerPicture(Gamer gamer, Action<ImageSource> done)
@@ -41,31 +52,35 @@ namespace Silverdash360.Services
             Get("gamer:" + gamer.XuidText, () => ReadTile(TileGamerPicture, 0, gamer.UserIndex), done);
         }
 
-        private static byte[] TitlePng(TitleEntry title, uint userIndex)
+        private byte[] TitlePng(TitleEntry title, uint userIndex)
         {
             ContentItem launch = title.LaunchItem;
-            if (launch != null && launch.Metadata != null)
+            byte[] png = launch != null ? PackagePng(launch, true) : null;
+            if (png != null)
             {
-                byte[] png = launch.Metadata.TitleThumbnailPng ?? launch.Metadata.ThumbnailPng;
-                if (png != null)
-                {
-                    return png;
-                }
+                return png;
             }
-            // The tile the profile has for a played game, then any package's.
-            byte[] tile = title.Played != null ? ReadTile(TileGameIcon, title.TitleId, userIndex) : null;
-            if (tile != null)
+            // The tile the profile has for a played game, then another
+            // package's art. Saves rarely have art worth a read.
+            png = title.Played != null ? ReadTile(TileGameIcon, title.TitleId, userIndex) : null;
+            if (png != null)
             {
-                return tile;
+                return png;
             }
-            foreach (ContentItem item in title.Content)
+            ContentItem other = title.Content.FirstOrDefault(c => c != launch && c.Type != ContentType.SavedGame);
+            return other != null ? PackagePng(other, true) : null;
+        }
+
+        // A package's thumbnail, preferring the title's or its own.
+        private byte[] PackagePng(ContentItem item, bool titleFirst)
+        {
+            ContentMetadata metadata = source.ReadMetadata(item, true);
+            if (metadata == null)
             {
-                if (item.Metadata != null && (item.Metadata.TitleThumbnailPng ?? item.Metadata.ThumbnailPng) != null)
-                {
-                    return item.Metadata.TitleThumbnailPng ?? item.Metadata.ThumbnailPng;
-                }
+                return null;
             }
-            return null;
+            return titleFirst ? metadata.TitleThumbnailPng ?? metadata.ThumbnailPng
+                              : metadata.ThumbnailPng ?? metadata.TitleThumbnailPng;
         }
 
         private static byte[] ReadTile(uint type, uint titleId, uint userIndex)
@@ -96,6 +111,8 @@ namespace Silverdash360.Services
             ImageSource image;
             if (cache.TryGetValue(key, out image))
             {
+                recent.Remove(key);
+                recent.AddLast(key);
                 if (image != null)
                 {
                     done(image);
@@ -112,7 +129,7 @@ namespace Silverdash360.Services
             Background.Run(read, delegate(byte[] png, Exception error)
             {
                 image = Decode(png);
-                cache[key] = image;
+                Keep(key, image);
                 List<Action<ImageSource>> callbacks = pending[key];
                 pending.Remove(key);
                 if (image != null)
@@ -144,10 +161,24 @@ namespace Silverdash360.Services
             }
         }
 
+        // Keeps an image, dropping the least recently used past the limit.
+        private void Keep(string key, ImageSource image)
+        {
+            cache[key] = image;
+            recent.Remove(key);
+            recent.AddLast(key);
+            while (recent.Count > MaxImages)
+            {
+                cache.Remove(recent.First.Value);
+                recent.RemoveFirst();
+            }
+        }
+
         /// <summary>Forgets everything, for when the library is read again.</summary>
         public void Clear()
         {
             cache.Clear();
+            recent.Clear();
         }
     }
 }

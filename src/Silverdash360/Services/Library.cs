@@ -225,7 +225,7 @@ namespace Silverdash360.Services
                     reported = percent;
                     Report(string.Format("Reading {0} of {1} packages...", i + 1, unread.Count), (double)i / unread.Count);
                 }
-                unread[i].Metadata = source.ReadMetadata(unread[i]);
+                unread[i].Metadata = source.ReadMetadata(unread[i], false);
             }
 
             // Saved whenever the set of packages changed.
