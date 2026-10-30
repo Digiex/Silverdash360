@@ -1,0 +1,18 @@
+<Application xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Silverdash360.App"
+             Startup="Application_Startup"
+             UnhandledException="Application_UnhandledException">
+  <Application.Resources>
+    <!-- Controls\Theme.cs has the same colours for views built in code. -->
+    <SolidColorBrush x:Key="Accent" Color="#FF3FA9F5" />
+    <SolidColorBrush x:Key="Silver" Color="#FFC8D2DC" />
+    <SolidColorBrush x:Key="SubText" Color="#FF9AA8B6" />
+    <SolidColorBrush x:Key="Panel" Color="#FF1A222C" />
+    <LinearGradientBrush x:Key="PageBackground" StartPoint="0,0" EndPoint="1,1">
+      <GradientStop Color="#FF16202C" Offset="0" />
+      <GradientStop Color="#FF0A0E13" Offset="0.6" />
+      <GradientStop Color="#FF0B1622" Offset="1" />
+    </LinearGradientBrush>
+  </Application.Resources>
+</Application>

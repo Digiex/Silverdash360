@@ -1,0 +1,154 @@
+using System;
+using Silverdash360.Native;
+
+namespace Silverdash360.Model
+{
+    /// <summary>
+    /// One package on a storage device, from the 0x200-byte
+    /// XCONTENT_DATA_INTERNAL record the content enumerator returns. The record
+    /// is kept as it is: metadata and launch calls take it back.
+    /// </summary>
+    public sealed class ContentItem
+    {
+        public const int RecordSize = 0x200;
+
+        public ContentItem(byte[] record)
+        {
+            Record = record;
+            DeviceId = BigEndian.U32(record, 0x00);
+            Type = BigEndian.U32(record, 0x04);
+            DisplayName = BigEndian.Utf16(record, 0x08, 0x80);
+            FileName = BigEndian.Ansi(record, 0x108, 42);
+            Xuid = BigEndian.U64(record, 0x138);
+            TitleId = BigEndian.U32(record, 0x140);
+            Size = (long)BigEndian.U64(record, 0x148);
+            ulong created = BigEndian.U64(record, 0x150);
+            Created = created != 0 && created < (ulong)DateTime.MaxValue.ToFileTimeUtc()
+                ? DateTime.FromFileTimeUtc((long)created) : (DateTime?)null;
+            TitleName = BigEndian.Utf16(record, 0x158, 0x40);
+            Flags = BigEndian.U32(record, 0x1FC);
+        }
+
+        public byte[] Record { get; private set; }
+        public uint DeviceId { get; private set; }
+        public uint Type { get; private set; }
+        public string DisplayName { get; private set; }
+        public string FileName { get; private set; }
+        public ulong Xuid { get; private set; }
+        public uint TitleId { get; private set; }
+        public long Size { get; private set; }
+        public DateTime? Created { get; private set; }
+        public string TitleName { get; private set; }
+        public uint Flags { get; private set; }
+
+        /// <summary>Filled in from the package header when it has been read.</summary>
+        public ContentMetadata Metadata { get; set; }
+
+        /// <summary>Only partly downloaded or copied.</summary>
+        public bool IsPartial { get { return (Flags & 1) != 0; } }
+        public bool IsCorrupt { get { return (Flags & 2) != 0; } }
+
+        public string TypeName { get { return ContentType.NameOf(Type); } }
+
+        public long BestSize
+        {
+            get
+            {
+                if (Size > 0 || Metadata == null)
+                {
+                    return Size;
+                }
+                return Metadata.ContentSize > 0 ? Metadata.ContentSize : Metadata.DataSize;
+            }
+        }
+
+        public override string ToString()
+        {
+            return string.Format("{0:X8}/{1:X8}/{2} \"{3}\"", TitleId, Type, FileName, DisplayName);
+        }
+    }
+
+    /// <summary>
+    /// The metadata in a package header (offset 0x344 on, 0x93D6 bytes):
+    /// names, description, publisher and the two thumbnails.
+    /// </summary>
+    public sealed class ContentMetadata
+    {
+        public const int Size = 0x93D8;
+
+        private const int DisplayNames = 0x411 - 0x344;
+        private const int Descriptions = 0xD11 - 0x344;
+        private const int PublisherName = 0x1611 - 0x344;
+        private const int TitleNameOffset = 0x1691 - 0x344;
+        private const int ThumbnailSize = 0x1712 - 0x344;
+        private const int TitleThumbnailSize = 0x1716 - 0x344;
+        private const int Thumbnail = 0x171A - 0x344;
+        private const int TitleThumbnail = 0x571A - 0x344;
+        private const int ThumbnailMax = 0x4000;
+
+        public ContentMetadata(byte[] m)
+        {
+            ContentType = BigEndian.U32(m, 0x00);
+            MetadataVersion = BigEndian.U32(m, 0x04);
+            ContentSize = (long)BigEndian.U64(m, 0x08);
+            MediaId = BigEndian.U32(m, 0x10);
+            Version = BigEndian.U32(m, 0x14);
+            BaseVersion = BigEndian.U32(m, 0x18);
+            TitleId = BigEndian.U32(m, 0x1C);
+            DataSize = (long)BigEndian.U64(m, 0x3A1 - 0x344);
+            DisplayName = FirstLanguage(m, DisplayNames);
+            Description = FirstLanguage(m, Descriptions);
+            Publisher = BigEndian.Utf16(m, PublisherName, 0x40);
+            TitleName = BigEndian.Utf16(m, TitleNameOffset, 0x40);
+            ThumbnailPng = Png(m, Thumbnail, BigEndian.U32(m, ThumbnailSize));
+            TitleThumbnailPng = Png(m, TitleThumbnail, BigEndian.U32(m, TitleThumbnailSize));
+        }
+
+        public uint ContentType { get; private set; }
+        public uint MetadataVersion { get; private set; }
+        public long ContentSize { get; private set; }
+        public uint MediaId { get; private set; }
+        public uint Version { get; private set; }
+        public uint BaseVersion { get; private set; }
+        public uint TitleId { get; private set; }
+        /// <summary>The combined size of an SVOD package's data files.</summary>
+        public long DataSize { get; private set; }
+        public string DisplayName { get; private set; }
+        public string Description { get; private set; }
+        public string Publisher { get; private set; }
+        public string TitleName { get; private set; }
+        public byte[] ThumbnailPng { get; private set; }
+        public byte[] TitleThumbnailPng { get; private set; }
+
+        public string VersionText
+        {
+            get { return string.Format("{0}.{1}.{2}.{3}", Version >> 28, (Version >> 24) & 0xF, (Version >> 8) & 0xFFFF, Version & 0xFF); }
+        }
+
+        // English first, then the first language that has text. The header
+        // has 9 languages of 0x80 characters each.
+        private static string FirstLanguage(byte[] m, int offset)
+        {
+            for (int i = 0; i < 9; i++)
+            {
+                string s = BigEndian.Utf16(m, offset + i * 0x100, 0x80);
+                if (s.Length > 0)
+                {
+                    return s;
+                }
+            }
+            return "";
+        }
+
+        private static byte[] Png(byte[] m, int offset, uint length)
+        {
+            if (length == 0 || length > ThumbnailMax || offset + length > m.Length)
+            {
+                return null;
+            }
+            byte[] png = new byte[length];
+            Buffer.BlockCopy(m, offset, png, 0, (int)length);
+            return png;
+        }
+    }
+}

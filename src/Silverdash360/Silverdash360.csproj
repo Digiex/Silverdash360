@@ -1,0 +1,72 @@
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{5D1A3C2E-7B64-4E0F-9A8D-36C1B2E4F750}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Silverdash360</RootNamespace>
+    <AssemblyName>Silverdash360</AssemblyName>
+    <SilverlightAppEntry>Silverdash360.App</SilverlightAppEntry>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+  </PropertyGroup>
+  <!-- The Silverlight360 SDK: the Silverlight360Dir property, else the
+       SILVERLIGHT360 environment variable, else a clone next to this repo. -->
+  <PropertyGroup>
+    <Silverlight360Dir Condition="'$(Silverlight360Dir)' == ''">$(SILVERLIGHT360)</Silverlight360Dir>
+    <Silverlight360Dir Condition="'$(Silverlight360Dir)' == ''">$(MSBuildThisFileDirectory)..\..\..\Silverlight360\</Silverlight360Dir>
+    <Silverlight360Dir Condition="!HasTrailingSlash('$(Silverlight360Dir)')">$(Silverlight360Dir)\</Silverlight360Dir>
+    <XboxSplashScreen>$(MSBuildThisFileDirectory)Assets\SplashScreenImage.jpg</XboxSplashScreen>
+    <XboxSplashScreen480>$(MSBuildThisFileDirectory)Assets\SplashScreenImage480.jpg</XboxSplashScreen480>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="mscorlib" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Windows" />
+    <Reference Include="System.Windows.Controls.Navigation" />
+    <Reference Include="Microsoft.Xbox" />
+    <Reference Include="Microsoft.Xbox.Core" />
+    <Reference Include="Microsoft.Xbox.Services" />
+  </ItemGroup>
+  <ItemGroup>
+    <ApplicationDefinition Include="App.xaml"><Generator>MSBuild:Compile</Generator></ApplicationDefinition>
+    <Compile Include="App.xaml.cs"><DependentUpon>App.xaml</DependentUpon></Compile>
+    <Page Include="Pages\HubPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Compile Include="Pages\HubPage.xaml.cs"><DependentUpon>Pages\HubPage.xaml</DependentUpon></Compile>
+    <Page Include="Pages\TitlePage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Compile Include="Pages\TitlePage.xaml.cs"><DependentUpon>Pages\TitlePage.xaml</DependentUpon></Compile>
+    <Page Include="Pages\SearchPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Compile Include="Pages\SearchPage.xaml.cs"><DependentUpon>Pages\SearchPage.xaml</DependentUpon></Compile>
+    <Page Include="Pages\StoragePage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Compile Include="Pages\StoragePage.xaml.cs"><DependentUpon>Pages\StoragePage.xaml</DependentUpon></Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Native\NativeBuffer.cs" />
+    <Compile Include="Native\Xam.cs" />
+    <Compile Include="Core\Background.cs" />
+    <Compile Include="Core\Log.cs" />
+    <Compile Include="Model\ContentItem.cs" />
+    <Compile Include="Model\ContentType.cs" />
+    <Compile Include="Model\Profile.cs" />
+    <Compile Include="Model\TitleEntry.cs" />
+    <Compile Include="Services\ContentSource.cs" />
+    <Compile Include="Services\ImageService.cs" />
+    <Compile Include="Services\Library.cs" />
+    <Compile Include="Services\ProfileService.cs" />
+    <Compile Include="Services\SystemService.cs" />
+    <Compile Include="Services\TitleClassifier.cs" />
+    <Compile Include="Controls\OnScreenKeyboard.cs" />
+    <Compile Include="Controls\Theme.cs" />
+    <Compile Include="Controls\TileGrid.cs" />
+    <Compile Include="Controls\Tiles.cs" />
+    <Compile Include="Modules\DashboardContext.cs" />
+    <Compile Include="Modules\DashboardModule.cs" />
+    <Compile Include="Modules\HomeModule.cs" />
+    <Compile Include="Modules\LibraryModule.cs" />
+    <Compile Include="Modules\ProfileModule.cs" />
+    <Compile Include="Modules\SettingsModule.cs" />
+  </ItemGroup>
+  <Import Project="$(Silverlight360Dir)msbuild\XboxSilverlight.targets" />
+</Project>
