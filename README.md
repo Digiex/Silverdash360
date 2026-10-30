@@ -18,6 +18,7 @@ The screenshots are from xenia-edge with a test set of app packages.
 ## Features
 
 - **Games and apps** from the console's storage, with the art, names, publisher, description and version in each package's header. Apps are told from games by title ID.
+- **Fast starts**: what was read from package headers is kept in the title's storage, so the library shows at once and only new packages are read. A bar in the footer shows how far a refresh has got; "Refresh library" in settings reads every package again.
 - **Cover and list views** (Y switches). The views only make tiles for what's on screen, so large libraries stay fast.
 - **Title details**: what's stored for the title (the game, title updates, add-ons, saves) with sizes, and the profile's achievements for it.
 - **Search** with an on-screen keyboard, by name, publisher or title ID, updating as you type.
@@ -76,6 +77,7 @@ Settings has an FTP server that shares the console's drives while the dashboard 
 - **Drives**: each is a folder at the root: `Hdd1`, `Usb0` to `Usb2`, `Mu0`, `Mu1` and `Dvd`, those present. `Dvd` is read-only. Edit `XboxFileSystem.Drives` to change them.
 - **Commands**: listing, download (with resume), upload, delete, rename, and making and removing folders. Folders are removed only when empty.
 - **Passive mode only**, which current clients use by default. Set FileZilla and others to plain FTP; there's no TLS.
+- **Plain TCP**: a title's sockets use the console's encrypted protocol unless they're marked otherwise (socket option `0x5801`), which the title's "insecure sockets" privilege allows. Without that, a PC's connections go unanswered; the server says so if the console refuses.
 - **It sends the password unencrypted**, as FTP does, so use it on a network you trust.
 
 In xenia-edge, run with `--systemlink_transport=off` (for example `.\tools\Run.ps1 -ExtraArgs '--systemlink_transport=off'`): otherwise its System Link emulation carries the dashboard's sockets and nothing listens on the PC. xenia moves port 21 to 10021, and the hard drive has only its `Content` folder there. Renaming needs the `pr-rename-device-path` branch.
@@ -88,7 +90,7 @@ Everything is C#. The console's own functions are called with `DllImport` by ord
 src/Silverdash360/
   Native/     DllImports into xam.xex and xboxkrnl.exe, and NativeBuffer for structures
   Model/      ContentItem (one package), ContentMetadata (its header), TitleEntry, Gamer, ...
-  Services/   Library, IContentSource, ProfileService, ImageService, SystemService, classifiers
+  Services/   Library, LibraryCache, IContentSource, ProfileService, ImageService, SystemService, classifiers
     Files/    XboxFileSystem: the drives as one tree of paths
     Ftp/      FtpServer, FtpSession and NativeSocket
   Controls/   TileGrid (the virtualized grid), tile templates, OnScreenKeyboard, Theme
@@ -104,7 +106,7 @@ The library is read the way the console's dashboard reads it:
 4. **Launching**: `XamContentLaunchImageInternalEx` with the package's record, after checking it isn't partly downloaded or damaged.
 5. **FTP**: the console's Winsock (`NetDll_socket`, `bind`, `listen`, `accept`, ...) on threads of its own, and the kernel's file calls (`NtCreateFile`, `NtReadFile`, `NtWriteFile`, `NtQueryDirectoryFile`, `NtSetInformationFile`) on the drives' device paths.
 
-All of it runs on a background thread, and images are decoded on the UI thread and cached.
+All of it runs on a background thread, and images are decoded on the UI thread and cached. `LibraryCache` keeps the records and the header metadata in the title's storage container (`library.bin`), keyed by where each package is stored and its file name. On a start the cached library is shown first; the enumeration then runs again, and only packages the cache doesn't know have their headers read.
 
 ## Extending it
 

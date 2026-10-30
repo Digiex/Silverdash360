@@ -15,8 +15,12 @@ namespace Silverdash360.Native
         public const int SockStream = 1;
         public const int IpProtoTcp = 6;
         public const int SolSocket = 0xFFFF;
-        /// <summary>Marks a socket as plain TCP rather than Xbox secure (XSP).</summary>
-        public const int SoInsecure = 0x4001;
+        /// <summary>
+        /// Marks a socket as plain TCP rather than the console's encrypted
+        /// protocol. A title may set it with the "insecure sockets" privilege
+        /// (XEX privilege 6); without it, PCs can't talk to the socket.
+        /// </summary>
+        public const int SoMarkInsecure = 0x5801;
         public const int SoReuseAddr = 0x0004;
         public const int ShutdownBoth = 2;
         public const int SocketError = -1;

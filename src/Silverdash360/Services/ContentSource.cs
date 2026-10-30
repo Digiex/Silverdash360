@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Silverdash360.Core;
 using Silverdash360.Model;
@@ -8,8 +9,11 @@ namespace Silverdash360.Services
     /// <summary>Where the dashboard gets the packages on the console from.</summary>
     public interface IContentSource
     {
-        /// <summary>Every package of every title, for the user or common content (XUID 0).</summary>
-        List<ContentItem> Enumerate(ulong xuid);
+        /// <summary>
+        /// Every package of every title, for the user or common content (XUID
+        /// 0). found, when given, hears the running count.
+        /// </summary>
+        List<ContentItem> Enumerate(ulong xuid, Action<int> found);
 
         /// <summary>The package header's metadata, or null.</summary>
         ContentMetadata ReadMetadata(ContentItem item);
@@ -24,7 +28,7 @@ namespace Silverdash360.Services
     {
         private const int ItemsPerCall = 16;
 
-        public List<ContentItem> Enumerate(ulong xuid)
+        public List<ContentItem> Enumerate(ulong xuid, Action<int> found)
         {
             List<ContentItem> items = new List<ContentItem>();
             uint handle;
@@ -49,6 +53,10 @@ namespace Silverdash360.Services
                         for (int i = 0; i < count; i++)
                         {
                             items.Add(new ContentItem(buffer.Slice(i * ContentItem.RecordSize, ContentItem.RecordSize)));
+                        }
+                        if (found != null && items.Count % 25 < count)
+                        {
+                            found(items.Count);
                         }
                     }
                 }

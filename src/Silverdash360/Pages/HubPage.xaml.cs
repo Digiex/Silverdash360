@@ -10,6 +10,7 @@ using System.Windows.Threading;
 using Microsoft.Xbox.Controls;
 using Silverdash360.Controls;
 using Silverdash360.Modules;
+using Silverdash360.Services;
 
 namespace Silverdash360.Pages
 {
@@ -25,6 +26,7 @@ namespace Silverdash360.Pages
 
         private readonly DispatcherTimer clock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
         private readonly List<TextBlock> headers = new List<TextBlock>();
+        private readonly Storyboard sliding = new Storyboard();
 
         public HubPage()
         {
@@ -50,6 +52,8 @@ namespace Silverdash360.Pages
             }
             Context.Status += OnStatus;
             Context.Library.Changed += OnLibraryChanged;
+            Context.Library.Progress += OnLibraryProgress;
+            ShowProgress(Context.Library.CurrentProgress);
             ShowGamer();
             ShowClock();
             clock.Start();
@@ -66,6 +70,8 @@ namespace Silverdash360.Pages
             }
             Context.Status -= OnStatus;
             Context.Library.Changed -= OnLibraryChanged;
+            Context.Library.Progress -= OnLibraryProgress;
+            sliding.Stop();
             SectionHost.Content = null;
         }
 
@@ -75,6 +81,52 @@ namespace Silverdash360.Pages
             if (SectionHost.Content != null)
             {
                 Modules[current].Activate();
+            }
+        }
+
+        private void OnLibraryProgress(object sender, LibraryProgressEventArgs e)
+        {
+            ShowProgress(e.Progress);
+        }
+
+        // A bar filled to how far the refresh is, or a block sliding along it
+        // while that isn't known; hidden when no refresh runs.
+        private void ShowProgress(LibraryProgress progress)
+        {
+            if (progress == null)
+            {
+                sliding.Stop();
+                ProgressPanel.Visibility = Visibility.Collapsed;
+                StatusText.Visibility = Visibility.Visible;
+                return;
+            }
+            ProgressPanel.Visibility = Visibility.Visible;
+            StatusText.Visibility = Visibility.Collapsed;
+            ProgressText.Text = progress.Text;
+            if (progress.Fraction.HasValue)
+            {
+                sliding.Stop();
+                ProgressSlide.X = 0;
+                ProgressFill.Width = ProgressTrack.Width * Math.Max(0, Math.Min(1, progress.Fraction.Value));
+                return;
+            }
+            if (sliding.Children.Count == 0)
+            {
+                DoubleAnimation slide = new DoubleAnimation
+                {
+                    From = -60,
+                    To = ProgressTrack.Width,
+                    Duration = TimeSpan.FromSeconds(1.2),
+                    RepeatBehavior = RepeatBehavior.Forever,
+                };
+                Storyboard.SetTarget(slide, ProgressSlide);
+                Storyboard.SetTargetProperty(slide, new PropertyPath("X"));
+                sliding.Children.Add(slide);
+            }
+            if (ProgressFill.Width != 60)
+            {
+                ProgressFill.Width = 60;
+                sliding.Begin();
             }
         }
 

@@ -76,19 +76,25 @@ namespace Silverdash360.Services.Ftp
                 throw new IOException("Couldn't make a socket: " + Net.WSAGetLastError() + ".");
             }
             NativeSocket socket = new NativeSocket(handle);
-            // Plain TCP rather than the console's secure protocol. The result
-            // isn't checked: where sockets are plain already it isn't needed.
-            socket.SetOption(Net.SoInsecure, 1);
+            // Plain TCP rather than the console's encrypted protocol, which
+            // nothing but another console speaks.
+            if (socket.SetOption(Net.SoMarkInsecure, 1) != 0)
+            {
+                int error = Net.WSAGetLastError();
+                socket.Dispose();
+                throw new IOException("The console refused a plain TCP socket (error " + error +
+                                      "). The title needs the insecure sockets privilege.");
+            }
             socket.SetOption(Net.SoReuseAddr, 1);
             return socket;
         }
 
-        private void SetOption(int name, int value)
+        private int SetOption(int name, int value)
         {
             using (NativeBuffer option = new NativeBuffer(4))
             {
                 option.SetU32(0, (uint)value);
-                Net.setsockopt(Net.CallerTitle, handle, Net.SolSocket, name, option.Address, 4);
+                return Net.setsockopt(Net.CallerTitle, handle, Net.SolSocket, name, option.Address, 4);
             }
         }
 

@@ -29,6 +29,7 @@
     <Reference Include="Microsoft.Xbox" />
     <Reference Include="Microsoft.Xbox.Core" />
     <Reference Include="Microsoft.Xbox.Services" />
+    <Reference Include="Microsoft.Xbox.Storage" />
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml"><Generator>MSBuild:Compile</Generator></ApplicationDefinition>
@@ -56,6 +57,7 @@
     <Compile Include="Services\ContentSource.cs" />
     <Compile Include="Services\ImageService.cs" />
     <Compile Include="Services\Library.cs" />
+    <Compile Include="Services\LibraryCache.cs" />
     <Compile Include="Services\ProfileService.cs" />
     <Compile Include="Services\SystemService.cs" />
     <Compile Include="Services\TitleClassifier.cs" />

@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Silverdash360.Native;
 
 namespace Silverdash360.Model
@@ -127,6 +128,65 @@ namespace Silverdash360.Model
 
         // English first, then the first language that has text. The header
         // has 9 languages of 0x80 characters each.
+        private ContentMetadata()
+        {
+        }
+
+        /// <summary>Writes the fields the dashboard uses, for the library cache.</summary>
+        public void Write(BinaryWriter w)
+        {
+            w.Write(ContentType);
+            w.Write(MetadataVersion);
+            w.Write(ContentSize);
+            w.Write(MediaId);
+            w.Write(Version);
+            w.Write(BaseVersion);
+            w.Write(TitleId);
+            w.Write(DataSize);
+            w.Write(DisplayName);
+            w.Write(Description);
+            w.Write(Publisher);
+            w.Write(TitleName);
+            WriteBytes(w, ThumbnailPng);
+            WriteBytes(w, TitleThumbnailPng);
+        }
+
+        public static ContentMetadata Read(BinaryReader r)
+        {
+            return new ContentMetadata
+            {
+                ContentType = r.ReadUInt32(),
+                MetadataVersion = r.ReadUInt32(),
+                ContentSize = r.ReadInt64(),
+                MediaId = r.ReadUInt32(),
+                Version = r.ReadUInt32(),
+                BaseVersion = r.ReadUInt32(),
+                TitleId = r.ReadUInt32(),
+                DataSize = r.ReadInt64(),
+                DisplayName = r.ReadString(),
+                Description = r.ReadString(),
+                Publisher = r.ReadString(),
+                TitleName = r.ReadString(),
+                ThumbnailPng = ReadBytes(r),
+                TitleThumbnailPng = ReadBytes(r),
+            };
+        }
+
+        private static void WriteBytes(BinaryWriter w, byte[] bytes)
+        {
+            w.Write(bytes != null ? bytes.Length : -1);
+            if (bytes != null)
+            {
+                w.Write(bytes);
+            }
+        }
+
+        private static byte[] ReadBytes(BinaryReader r)
+        {
+            int length = r.ReadInt32();
+            return length < 0 ? null : r.ReadBytes(length);
+        }
+
         private static string FirstLanguage(byte[] m, int offset)
         {
             for (int i = 0; i < 9; i++)

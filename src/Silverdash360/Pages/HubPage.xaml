@@ -41,6 +41,21 @@
       <Grid Grid.Row="2" Height="34">
         <TextBlock x:Name="StatusText" FontSize="18" Foreground="{StaticResource SubText}" VerticalAlignment="Center"
                    Margin="0,0,420,0" />
+        <!-- While the library is read: a bar, and what's being done. -->
+        <StackPanel x:Name="ProgressPanel" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
+          <Grid x:Name="ProgressTrack" Width="240" Height="6" Background="{StaticResource Panel}" VerticalAlignment="Center">
+            <Grid.Clip>
+              <RectangleGeometry Rect="0,0,240,6" />
+            </Grid.Clip>
+            <Rectangle x:Name="ProgressFill" Fill="{StaticResource Accent}" HorizontalAlignment="Left" Width="0">
+              <Rectangle.RenderTransform>
+                <TranslateTransform x:Name="ProgressSlide" />
+              </Rectangle.RenderTransform>
+            </Rectangle>
+          </Grid>
+          <TextBlock x:Name="ProgressText" FontSize="18" Foreground="{StaticResource SubText}" Margin="14,0,0,0"
+                     VerticalAlignment="Center" />
+        </StackPanel>
         <TextBlock x:Name="LegendText" FontSize="18" Foreground="{StaticResource SubText}" VerticalAlignment="Center"
                    HorizontalAlignment="Right" />
       </Grid>

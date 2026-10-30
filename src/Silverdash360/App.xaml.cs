@@ -30,7 +30,7 @@ namespace Silverdash360
         {
             Log.Write("Starting");
             ProfileService profiles = new ProfileService();
-            Context = new DashboardContext(new Library(new XamContentSource(), profiles), profiles,
+            Context = new DashboardContext(new Library(new XamContentSource(), profiles, new LibraryCache()), profiles,
                                            new ImageService(), new SystemService(), new FtpServer(new XboxFileSystem()));
             Context.Ftp.Message += text => Background.OnUi(() => Context.ShowStatus(text));
             Modules = ModuleRegistry.CreateAll(Context);
