@@ -22,6 +22,8 @@ namespace Silverdash360.Debugging
     public sealed class DebugServer
     {
         public const int DefaultPort = 4601;
+        /// <summary>Ports tried from DefaultPort on, for when one is taken.</summary>
+        public const int PortsTried = 10;
         public const int ProtocolVersion = 1;
 
         private readonly object sync = new object();
@@ -78,7 +80,26 @@ namespace Silverdash360.Debugging
                 {
                     return;
                 }
-                listener = NativeSocket.Listen(Port, 2);
+                // The next ports when one is taken, as another program on a PC
+                // running xenia can have it; settings shows the one in use.
+                for (int attempt = 0; listener == null; attempt++)
+                {
+                    if (Port + attempt == Services.Media.LocalMediaServer.Port)
+                    {
+                        continue;
+                    }
+                    try
+                    {
+                        listener = NativeSocket.Listen(Port + attempt, 2);
+                    }
+                    catch (System.IO.IOException)
+                    {
+                        if (attempt >= PortsTried - 1)
+                        {
+                            throw;
+                        }
+                    }
+                }
                 uint ignored;
                 int port;
                 listener.LocalEndPoint(out ignored, out port);
