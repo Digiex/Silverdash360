@@ -44,6 +44,9 @@ namespace Silverdash360.Modules
         /// <summary>The disc drive; set by the app once the media service exists.</summary>
         public DiscService Discs { get; set; }
 
+        /// <summary>Updates from GitHub; set by the app.</summary>
+        public UpdateService Updates { get; set; }
+
         /// <summary>Goes to a page by its URI; set by the app.</summary>
         public Action<Uri> Navigate { get; set; }
 
@@ -107,6 +110,30 @@ namespace Silverdash360.Modules
         public void OpenThemes()
         {
             Navigate(new Uri("/Pages/ThemePage.xaml", UriKind.Relative));
+        }
+
+        /// <summary>Offers the update in <see cref="UpdateService.Offered"/>.</summary>
+        public void OpenUpdate()
+        {
+            Navigate(new Uri("/Pages/UpdatePage.xaml", UriKind.Relative));
+        }
+
+        /// <summary>
+        /// Looks for an update, offering a skipped one too, as the user asked;
+        /// the status line says when there's none.
+        /// </summary>
+        public void CheckForUpdate()
+        {
+            ShowStatus("Checking for updates...");
+            Updates.Check(UpdateService.Current, true, delegate(UpdateService.Release release, string why)
+            {
+                ShowStatus(release != null ? "" : why);
+                if (release != null)
+                {
+                    Updates.Offered = release;
+                    OpenUpdate();
+                }
+            });
         }
 
         /// <summary>A shelf's filters, order and view, by its header.</summary>

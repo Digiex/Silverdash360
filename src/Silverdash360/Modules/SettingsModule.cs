@@ -87,6 +87,7 @@ namespace Silverdash360.Modules
                 new Entry { Title = "Running as title", Detail = Safe(() => system.CurrentTitleId) },
                 new Entry { Title = "Running from", Detail = Safe(() => AppFolder.Path(Context.Ftp.Files) ?? AppFolder.DevicePath() ?? "unknown") },
                 new Entry { Title = "Version", Detail = VersionDetail() },
+                new Entry { Title = "Check for updates", Detail = "Look for a new version on GitHub", Run = Context.CheckForUpdate },
                 new Entry { Title = "About Silverdash360", Detail = "github.com/Digiex/Silverdash360" },
                 new Entry { Title = "Digiex", Detail = "digiex.net" },
                 new Entry { Title = "Built with Silverlight360", Detail = "github.com/Digiex/Silverlight360" },

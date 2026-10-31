@@ -59,6 +59,12 @@ namespace Silverdash360.Pages
         // The swap waits for the user to leave the controller alone this long.
         private const int BrandQuietMs = 1000;
         private bool brandWaiting;
+
+        // A Release build looks for an update once a start, when the user has
+        // left the controller alone this long. Debug builds, which tools\deploy.py
+        // puts on a console, don't: the settings page and the debug server can.
+        private const int UpdateCheckQuietMs = 3000;
+        private static bool updateChecked;
         private int shownWallpaper = -1;
         private bool wallpaperWaiting;
 
@@ -112,6 +118,11 @@ namespace Silverdash360.Pages
             clock.Start();
             brandTimer.Start();
             Show(current, 0);
+            CheckForUpdate();
+            if (Context.Updates.Offered != null)
+            {
+                OfferUpdate();
+            }
             Prepare();
         }
 
@@ -373,6 +384,43 @@ namespace Silverdash360.Pages
             }
             Point names = Headers.TransformToVisual(LogoHost).Transform(new Point(0, Headers.ActualHeight / 2));
             LogoShift.Y += names.Y - LogoHost.ActualHeight / 2;
+        }
+
+        private void CheckForUpdate()
+        {
+#if !DEBUG_SERVER
+            if (updateChecked || BuildInfo.Changed)
+            {
+                return;
+            }
+            updateChecked = true;
+            UiIdle.Run(() =>
+            {
+                Context.Updates.Check(UpdateService.Current, false, delegate(UpdateService.Release release, string why)
+                {
+                    if (release != null)
+                    {
+                        Context.Updates.Offered = release;
+                        OfferUpdate();
+                    }
+                });
+                return false;
+            }, UpdateCheckQuietMs);
+#endif
+        }
+
+        // Shows the update found once the user is quiet on the hub; on
+        // another page, the hub shows it when it's back.
+        private void OfferUpdate()
+        {
+            UiIdle.Run(() =>
+            {
+                if (SectionHost.Content != null && Context.Updates.Offered != null)
+                {
+                    Context.OpenUpdate();
+                }
+                return false;
+            }, UiIdle.QuietMs);
         }
 
         // Fades the Silverdash360 logo out and the Digiex one in, holds it,

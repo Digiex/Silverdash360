@@ -67,6 +67,14 @@ The package runs as the title the SDK's runtime profile came from (Plex by defau
 
 The debug server listens on port 4601 without a password, which is why it's only in Debug builds.
 
+## Updates
+
+A Release build looks for an update on GitHub a few seconds after it starts, once the controller has been left alone; **Check for updates** in settings looks any time. A release newer than the running version is offered with its notes: **Update now**, **Later** (B too), which asks again at the next start, or **Skip this version**, which isn't offered again unless settings looks for it. Debug builds don't look by themselves, so `tools/deploy.py`'s builds aren't offered a release.
+
+An update downloads the release's zip through GitHub's API (`github.com` itself doesn't answer the console; `api.github.com` and its file storage do), checks its size and SHA-256 against the release's, and writes its files next to the dashboard's as `.new`. Each running file is then renamed to `.old`, which the system allows for a file in use, and the new one put in its place; a failure part way puts the old ones back. The dashboard starts again from its folder, and the next start deletes the `.old` files.
+
+The debug server's `update.check [asIfVersion]`, `update.verify` and `update.install <zipPath>` test the check, the download and the install.
+
 ## Releases
 
 ```powershell

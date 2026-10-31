@@ -65,6 +65,8 @@ namespace Silverdash360
             Context.Ftp.Message += text => Background.OnUi(() => Context.ShowStatus(text));
             Context.Discs = new DiscService(files, media);
             Context.Discs.Start();
+            Context.Updates = new UpdateService(files);
+            Context.Updates.CleanUp();
             Modules = ModuleRegistry.CreateAll(Context);
 
             // XboxApplicationFrame also starts GamerServices and plays the

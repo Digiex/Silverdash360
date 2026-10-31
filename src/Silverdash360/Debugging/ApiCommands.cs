@@ -46,6 +46,7 @@ namespace Silverdash360.Debugging
             commands.Add("xam.played", "", "The signed-in profile's played titles.", r => Played());
             commands.Add("xam.achievements", "<titleId>", "The signed-in profile's achievements for a title.", Achievements);
             commands.Add("net.address", "", "The console's address from XNetGetTitleXnAddr.", r => Address());
+            commands.Add("net.fetch", "<url> [timeoutMs] [accept]", "A GET through the platform's HttpWebRequest (HTTPS too): the status, or the error.", Fetch);
             commands.Add("fs.drives", "", "The drives the dashboard knows and which are present.", r => Drives());
             commands.Add("fs.list", "<path>", "A folder's entries, such as /Hdd1/Content.", List);
             commands.Add("fs.stat", "<path>", "A file or folder's size, kind and time.", Stat);
@@ -191,6 +192,61 @@ namespace Silverdash360.Debugging
                     }).ToList()
                 },
             };
+        }
+
+        // The platform's HttpWebRequest, made and answered on the UI thread;
+        // this thread polls for the answer.
+        private static object Fetch(DebugRequest request)
+        {
+            Uri url = new Uri(request.Arg(0, "url", true), UriKind.Absolute);
+            int timeout = request.Int(1, 20000);
+            string accept = request.Arg(2, null);
+            JsonObject result = new JsonObject { { "url", url.ToString() } };
+            bool done = false;
+            int start = Environment.TickCount;
+            UiThread.Invoke(() =>
+            {
+                System.Net.HttpWebRequest web = (System.Net.HttpWebRequest)System.Net.WebRequest.Create(url);
+                if (accept != null)
+                {
+                    web.Accept = accept;
+                }
+                web.BeginGetResponse(answer =>
+                {
+                    try
+                    {
+                        using (System.Net.HttpWebResponse response = (System.Net.HttpWebResponse)web.EndGetResponse(answer))
+                        using (System.IO.StreamReader reader = new System.IO.StreamReader(response.GetResponseStream()))
+                        {
+                            string body = reader.ReadToEnd();
+                            result.Add("status", (int)response.StatusCode);
+                            result.Add("contentType", response.ContentType);
+                            result.Add("length", body.Length);
+                            result.Add("start", body.Length > 300 ? body.Substring(0, 300) : body);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        result.Add("error", e.GetType().Name + ": " + e.Message);
+                        if (e.InnerException != null)
+                        {
+                            result.Add("inner", e.InnerException.GetType().Name + ": " + e.InnerException.Message);
+                        }
+                    }
+                    result.Add("ms", Environment.TickCount - start);
+                    done = true;
+                }, null);
+                return 0;
+            });
+            while (!done && Environment.TickCount - start < timeout)
+            {
+                System.Threading.Thread.Sleep(50);
+            }
+            if (!done)
+            {
+                result.Add("error", "No answer in " + timeout + " ms");
+            }
+            return result;
         }
 
         private object Address()
