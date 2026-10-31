@@ -128,8 +128,9 @@ def upload(ftp, package, folder, names, files, deploy_id):
         log('  %d KB in %.1f s (%.0f KB/s)' % (sent // 1024, seconds, sent / 1024 / max(seconds, 0.01)))
 
 
-def wait_for_build(host, port, deploy_id, launched_at, timeout):
-    """The new build's location once its debug server answers, or raises TimeoutError."""
+def wait_for_build(host, port, deploy_id, launched_at, timeout, target):
+    """The new build's location once its debug server answers from target (or
+    its install failed), or raises TimeoutError."""
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
@@ -137,7 +138,10 @@ def wait_for_build(host, port, deploy_id, launched_at, timeout):
                 location = client.call('app.location')
                 # The run that started the new build can still be answering.
                 fresh = location['uptimeMs'] / 1000 < time.time() - launched_at + 2
-                if fresh and location['deployId'] == deploy_id:
+                # A staged build answers from the staging folder until it
+                # has installed itself and started the target.
+                there = (location['path'] or '').lower() == target.lower()
+                if fresh and location['deployId'] == deploy_id and (there or location['installError']):
                     return location, client.call('log', 30)
         except (OSError, ConnectionError, CommandError, ValueError):
             pass
@@ -166,7 +170,7 @@ def main():
     parser.add_argument('--ftp-port', type=int, help='The port to start the dashboard\'s FTP server on (21; xenia '
                         'moves ports under 1024, so use 2121 there).')
     parser.add_argument('--no-launch', action='store_true', help='Upload only.')
-    parser.add_argument('--timeout', type=int, default=180, help='Seconds to wait for the new build.')
+    parser.add_argument('--timeout', type=int, default=300, help='Seconds to wait for the new build.')
     args = parser.parse_args(argv)
 
     package = os.path.abspath(args.package)
@@ -239,7 +243,7 @@ def main():
     launched_at = time.time()
     log('Starting %s/default.xex' % launch)
     try:
-        location, lines = wait_for_build(host, port, deploy_id, launched_at, args.timeout)
+        location, lines = wait_for_build(host, port, deploy_id, launched_at, args.timeout, target)
     except TimeoutError as e:
         log('Failed: %s.' % e)
         return 1

@@ -21,10 +21,19 @@ namespace Silverdash360.Debugging
     ///   target /Hdd1/Apps/Silverdash360
     ///   file Silverdash360.dll
     ///   file Config\machine.config
+    ///
+    /// Signed in to Live, the console checks for a title update while a
+    /// title starts, and when it installs one it starts the title again from
+    /// where it started: the staging folder, if the install had already
+    /// started the target. So before starting the target the install leaves
+    /// a note naming it, and a run that finds the note starts the target
+    /// once more.
     /// </summary>
     public static class SelfInstall
     {
         public const string MarkerName = "deploy-install.txt";
+        /// <summary>The note that the install has started the target.</summary>
+        public const string StartedName = "deploy-started.txt";
         /// <summary>The folder in the app's folder deploy.py stages a build in.</summary>
         public const string StagingFolder = "_update";
         private const string Header = "silverdash360-install 1";
@@ -38,13 +47,30 @@ namespace Silverdash360.Debugging
         {
             public string Target;
             public List<string> Files = new List<string>();
+            /// <summary>Only starts the target again, as the note asks.</summary>
+            public bool Restart;
         }
 
         /// <summary>The install the marker in the dashboard's folder asks for, or null.</summary>
         public static Plan Pending()
         {
+            Plan plan = Read(MarkerName);
+            if (plan == null)
+            {
+                plan = Read(StartedName);
+                if (plan != null)
+                {
+                    plan.Files.Clear();
+                    plan.Restart = true;
+                }
+            }
+            return plan;
+        }
+
+        private static Plan Read(string fileName)
+        {
             KernelFile marker;
-            if (KernelFile.TryOpen(AppFolder.DrivePrefix + MarkerName, Kernel.GenericRead | Kernel.Synchronize,
+            if (KernelFile.TryOpen(AppFolder.DrivePrefix + fileName, Kernel.GenericRead | Kernel.Synchronize,
                                    Kernel.FileShareRead, Kernel.FileOpen, Kernel.FileNonDirectoryFile, out marker)
                 != Kernel.StatusSuccess)
             {
@@ -92,6 +118,15 @@ namespace Silverdash360.Debugging
                 // Gone first: a failure part way mustn't start it all again.
                 // Also by its path in the target, where deploy.py stages,
                 // for when D: can't be written (as in xenia).
+                if (plan.Restart)
+                {
+                    DeleteMarker(AppFolder.DrivePrefix + StartedName);
+                    Log.Write("Started again from the staging folder; starting {0}", target + @"\default.xex");
+                    Thread.Sleep(300);
+                    Xam.XamLoaderLaunchTitleEx(target + @"\default.xex", target, null, 0);
+                    LastError = "The console didn't start " + plan.Target + ".";
+                    return LastError;
+                }
                 DeleteMarker(AppFolder.DrivePrefix + MarkerName);
                 if (Exists(target + @"\" + StagingFolder + @"\" + MarkerName))
                 {
@@ -119,6 +154,7 @@ namespace Silverdash360.Debugging
                 }
                 report("Starting the new build...");
                 Log.Write("Installed; starting {0}", target + @"\default.xex");
+                WriteStarted(plan.Target);
                 // Let the log line and the screen out first.
                 Thread.Sleep(300);
                 Xam.XamLoaderLaunchTitleEx(target + @"\default.xex", target, null, 0);
@@ -185,6 +221,20 @@ namespace Silverdash360.Debugging
             using (NativeBuffer information = new NativeBuffer(0x38))
             {
                 return Kernel.NtQueryFullAttributesFile(name.Attributes, information.Address) == Kernel.StatusSuccess;
+            }
+        }
+
+        // The note a run started again from here finds; only in the
+        // dashboard's own folder, so a run elsewhere can't take it up.
+        private static void WriteStarted(string target)
+        {
+            byte[] text = Encoding.UTF8.GetBytes(Header + "\ntarget " + target + "\n");
+            using (NativeBuffer buffer = new NativeBuffer(text))
+            using (KernelFile note = KernelFile.Open(AppFolder.DrivePrefix + StartedName,
+                                                     Kernel.GenericWrite | Kernel.Synchronize, 0,
+                                                     Kernel.FileOverwriteIf, Kernel.FileNonDirectoryFile))
+            {
+                note.Write(buffer, text.Length, 0);
             }
         }
 
