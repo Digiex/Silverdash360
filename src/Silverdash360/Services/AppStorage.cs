@@ -9,11 +9,11 @@ namespace Silverdash360.Services
 {
     /// <summary>
     /// The dashboard's own files (settings, the library cache), kept in a Data
-    /// folder in the folder it's installed in. The
-    /// dashboard's executable declares no title (tools/strip-xex.py), so it
-    /// has no title storage to keep them in. A build started from the staging
-    /// folder deploy.py uses keeps them in the folder above it. One caller at
-    /// a time: hold <see cref="Lock"/> around a read or write. Call it from a
+    /// folder in the folder it's installed in. Its executable declares no
+    /// title (the SDK's runtime profile takes the donor's out), so it has no
+    /// title storage to keep them in. A build started from the staging folder
+    /// deploy.py uses keeps them in the folder above it. One caller at a time:
+    /// hold <see cref="Lock"/> around a read or write. Call it from a
     /// background thread: the disk blocks.
     /// </summary>
     public static class AppStorage

@@ -40,13 +40,3 @@ $env:SILVERLIGHT360 = (Resolve-Path -LiteralPath $Sdk).Path
 # MSBuild reads environment variables as properties.
 $env:DebugServer = if ($NoDebugServer) { 'false' } else { 'true' }
 & $buildScript -Project (Join-Path $root 'src\Silverdash360\Silverdash360.csproj') -Configuration $Configuration
-if ($LASTEXITCODE) {
-    exit $LASTEXITCODE
-}
-
-# The donor's default.xex declares the donor's title, which brings its title
-# updates; the package's copy declares none (see strip-xex.py).
-python (Join-Path $PSScriptRoot 'strip-xex.py') (Join-Path $root "src\Silverdash360\bin\$Configuration\xbox\default.xex")
-if ($LASTEXITCODE) {
-    exit $LASTEXITCODE
-}
