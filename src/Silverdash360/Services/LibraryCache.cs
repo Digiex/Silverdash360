@@ -24,7 +24,9 @@ namespace Silverdash360.Services
     {
         private const string FileName = "library.bin";
         private const uint Magic = 0x53443343; // "SD3C"
-        private const int FormatVersion = 8;
+        private const int FormatVersion = 9;
+        // Without the packages' disc numbers.
+        private const int NoDiscsVersion = 8;
         // Without what's inside homebrew packages; still read, so a new
         // build doesn't read every header again.
         private const int NoInsideVersion = 7;
@@ -97,7 +99,7 @@ namespace Silverdash360.Services
             if (version == UnsectionedVersion)
             {
                 contents.Outdated = true;
-                ReadPackages(reader, contents, false, false);
+                ReadPackages(reader, contents, false, false, false);
                 ReadExecutables(reader, contents);
                 contents.Complete = true;
                 if (section != null)
@@ -106,18 +108,20 @@ namespace Silverdash360.Services
                 }
                 return contents;
             }
-            if (version != FormatVersion && version != NoInsideVersion && version != NoAppCheckVersion)
+            if (version != FormatVersion && version != NoDiscsVersion && version != NoInsideVersion &&
+                version != NoAppCheckVersion)
             {
                 return contents;
             }
             bool appCheck = version != NoAppCheckVersion;
-            bool inside = version == FormatVersion;
-            contents.Outdated = !inside;
+            bool inside = version == FormatVersion || version == NoDiscsVersion;
+            bool discs = version == FormatVersion;
+            contents.Outdated = !discs;
             ReadExecutables(reader, contents);
             int sections = reader.ReadInt32();
             for (int s = 0; s < sections; s++)
             {
-                ReadPackages(reader, contents, appCheck, inside);
+                ReadPackages(reader, contents, appCheck, inside, discs);
                 contents.Complete = s == sections - 1;
                 if (section != null)
                 {
@@ -128,7 +132,7 @@ namespace Silverdash360.Services
             return contents;
         }
 
-        private static void ReadPackages(BinaryReader reader, Contents contents, bool appCheck, bool inside)
+        private static void ReadPackages(BinaryReader reader, Contents contents, bool appCheck, bool inside, bool discs)
         {
             int count = reader.ReadInt32();
             for (int i = 0; i < count; i++)
@@ -137,7 +141,7 @@ namespace Silverdash360.Services
                 byte header = reader.ReadByte();
                 if (header == HeaderMetadata)
                 {
-                    item.Metadata = ContentMetadata.Read(reader);
+                    item.Metadata = ContentMetadata.Read(reader, discs);
                 }
                 item.HeaderRead = header != HeaderNotRead;
                 if (appCheck)

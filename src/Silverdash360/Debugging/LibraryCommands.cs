@@ -217,6 +217,7 @@ namespace Silverdash360.Debugging
                         { "publisher", m.Publisher },
                         { "version", m.VersionText },
                         { "mediaId", m.MediaId.ToString("X8") },
+                        { "disc", m.DiscNumber + "/" + m.DiscsInSet },
                         { "contentSize", m.ContentSize },
                     }
                 },

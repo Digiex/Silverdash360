@@ -195,6 +195,15 @@ namespace Silverdash360.Pages
             if (title.IsInstalled)
             {
                 actions.Add(new ActionEntry { Text = "Play", Run = () => Context.Launch(title) });
+                foreach (ContentItem disc in title.OtherDiscs)
+                {
+                    ContentItem start = disc;
+                    actions.Add(new ActionEntry
+                    {
+                        Text = "Play disc " + disc.Metadata.DiscNumber,
+                        Run = () => Context.ShowStatus(Context.System.Launch(start) ?? ""),
+                    });
+                }
             }
             if (title.Played != null && Context.Library.Gamer != null)
             {

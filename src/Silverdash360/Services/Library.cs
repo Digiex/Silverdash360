@@ -308,7 +308,10 @@ namespace Silverdash360.Services
             foreach (ContentItem item in content.Where(c => c.Type != ContentType.SavedGame))
             {
                 ContentMetadata metadata;
-                if (known.TryGetValue(LibraryCache.KeyOf(item), out metadata))
+                // A launchable package kept from before discs were read is
+                // read again, once, for its disc number.
+                if (known.TryGetValue(LibraryCache.KeyOf(item), out metadata) &&
+                    (metadata == null || metadata.DiscsKnown || !ContentType.IsLaunchable(item.Type)))
                 {
                     item.Metadata = metadata;
                     item.HeaderRead = true;
@@ -592,6 +595,61 @@ namespace Silverdash360.Services
 
         private const string HardDrivePrefix = "/Hdd1/";
 
+        // Titles whose packages are separate games under one title ID, as the
+        // Lips games are, become a title each: single-disc packages with
+        // different media IDs. A game on several discs stays one title, which
+        // starts disc 1. The one the profile played (or the first by name)
+        // keeps the saves, add-ons and played stats.
+        private static void SplitGames(List<TitleEntry> all)
+        {
+            int count = all.Count;
+            for (int i = 0; i < count; i++)
+            {
+                TitleEntry title = all[i];
+                ContentItem launch = title.LaunchItem;
+                if (launch == null || launch.Metadata == null)
+                {
+                    continue;
+                }
+                // One package per media ID, of the kind that starts the title.
+                Dictionary<uint, ContentItem> games = new Dictionary<uint, ContentItem>();
+                foreach (ContentItem item in title.Content)
+                {
+                    if (item.Type == launch.Type && item.IsLaunchable && !item.IsCorrupt && item.Metadata != null &&
+                        !item.Metadata.IsOneOfDiscs && !games.ContainsKey(item.Metadata.MediaId))
+                    {
+                        games[item.Metadata.MediaId] = item;
+                    }
+                }
+                bool discs = title.Content.Any(c => c.Type == launch.Type && c.Metadata != null && c.Metadata.IsOneOfDiscs);
+                if (games.Count + (discs ? 1 : 0) < 2)
+                {
+                    continue;
+                }
+                List<ContentItem> others = games.Values.OrderBy(c => c.Metadata.TitleName, StringComparer.OrdinalIgnoreCase).ToList();
+                ContentItem main = discs ? null : others.FirstOrDefault(
+                    c => title.Played != null && string.Equals(c.Metadata.TitleName, title.Played.Name, StringComparison.OrdinalIgnoreCase))
+                    ?? others[0];
+                foreach (ContentItem item in others)
+                {
+                    if (item == main)
+                    {
+                        continue;
+                    }
+                    // The package and any copies of it on other drives.
+                    TitleEntry own = new TitleEntry(title.TitleId, title.TitleIdText + "/" + item.Metadata.MediaId.ToString("X8"));
+                    foreach (ContentItem copy in title.Content.Where(c => c.Type == launch.Type && c.Metadata != null &&
+                                                                        c.Metadata.MediaId == item.Metadata.MediaId).ToList())
+                    {
+                        title.Content.Remove(copy);
+                        own.Content.Add(copy);
+                    }
+                    all.Add(own);
+                }
+                title.ResetLaunchItem();
+            }
+        }
+
         // The title with an ID, made when it's first asked for.
         private static TitleEntry TitleFor(Dictionary<uint, TitleEntry> byId, uint id)
         {
@@ -675,6 +733,7 @@ namespace Silverdash360.Services
                 t.Executables.Add(item);
             }
             AddHomebrewPackages(homebrew, found, all);
+            SplitGames(all);
 
             List<TitleEntry> games = new List<TitleEntry>();
             List<TitleEntry> apps = new List<TitleEntry>();
@@ -736,6 +795,26 @@ namespace Silverdash360.Services
 
         // The name the title gives itself, from the profile or a package.
         private static string NameOf(TitleEntry t)
+        {
+            string name = PackageNameOf(t);
+            ContentItem launch = t.LaunchItem;
+            return launch != null && launch.Metadata != null && launch.Metadata.IsOneOfDiscs ? WithoutDisc(name) : name;
+        }
+
+        // A game on several discs is named after disc 1's package, such as
+        // "Kinect Nat Geo TV - Disc 1": the title is the game, not the disc.
+        private static string WithoutDisc(string name)
+        {
+            int at = name.LastIndexOf("disc", StringComparison.OrdinalIgnoreCase);
+            if (at <= 0 || name.Substring(at + 4).Trim(' ', ')', ']').Length == 0 ||
+                !name.Substring(at + 4).Trim(' ', ')', ']').All(char.IsDigit))
+            {
+                return name;
+            }
+            return name.Substring(0, at).TrimEnd(' ', '-', ':', '(', '[', ',');
+        }
+
+        private static string PackageNameOf(TitleEntry t)
         {
             if (t.Played != null && t.Played.Name.Length > 0)
             {

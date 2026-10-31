@@ -227,6 +227,9 @@ namespace Silverdash360.Model
             Version = BigEndian.U32(m, o + 0x14);
             BaseVersion = BigEndian.U32(m, o + 0x18);
             TitleId = BigEndian.U32(m, o + 0x1C);
+            DiscNumber = m[o + 0x22];
+            DiscsInSet = m[o + 0x23];
+            DiscsKnown = true;
             DataSize = (long)BigEndian.U64(m, o + 0x3A1 - 0x344);
             DisplayName = FirstLanguage(m, o + DisplayNames);
             Description = FirstLanguage(m, o + Descriptions);
@@ -246,6 +249,19 @@ namespace Silverdash360.Model
         public uint Version { get; private set; }
         public uint BaseVersion { get; private set; }
         public uint TitleId { get; private set; }
+        /// <summary>Which disc of its set the package is, from 1, and how many there are.</summary>
+        public byte DiscNumber { get; private set; }
+        public byte DiscsInSet { get; private set; }
+        /// <summary>False for metadata kept by a library cache from before discs were read.</summary>
+        public bool DiscsKnown { get; private set; }
+        /// <summary>
+        /// One disc of a game on several. A set of 255 isn't one game: the
+        /// Lips releases each say they're a disc of such a set (Lips is disc
+        /// 3, Party Classics disc 13), so the game can take its others' songs.
+        /// </summary>
+        public bool IsOneOfDiscs { get { return DiscsInSet > 1 && DiscsInSet < OpenSet; } }
+
+        private const byte OpenSet = 255;
         /// <summary>The combined size of an SVOD package's data files.</summary>
         public long DataSize { get; private set; }
         public string DisplayName { get; private set; }
@@ -267,6 +283,8 @@ namespace Silverdash360.Model
         /// <summary>Writes the fields the dashboard uses but the thumbnails, for the library cache.</summary>
         public void Write(BinaryWriter w)
         {
+            w.Write(DiscNumber);
+            w.Write(DiscsInSet);
             w.Write(ContentType);
             w.Write(MetadataVersion);
             w.Write(ContentSize);
@@ -281,10 +299,16 @@ namespace Silverdash360.Model
             w.Write(TitleName);
         }
 
-        public static ContentMetadata Read(BinaryReader r)
+        /// <summary>Reads what <see cref="Write"/> wrote; discs is false for a cache from before them.</summary>
+        public static ContentMetadata Read(BinaryReader r, bool discs)
         {
+            byte discNumber = discs ? r.ReadByte() : (byte)0;
+            byte discsInSet = discs ? r.ReadByte() : (byte)0;
             return new ContentMetadata
             {
+                DiscNumber = discNumber,
+                DiscsInSet = discsInSet,
+                DiscsKnown = discs,
                 ContentType = r.ReadUInt32(),
                 MetadataVersion = r.ReadUInt32(),
                 ContentSize = r.ReadInt64(),

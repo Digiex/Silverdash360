@@ -124,7 +124,9 @@ namespace Silverdash360.Model
                     {
                         if (item.IsLaunchable && !item.IsCorrupt)
                         {
-                            int priority = LaunchPriority(item.Type);
+                            // Disc 1 first among a game's discs.
+                            int priority = LaunchPriority(item.Type) * 256 +
+                                           (item.Metadata != null && item.Metadata.IsOneOfDiscs ? item.Metadata.DiscNumber : 0);
                             if (priority < best)
                             {
                                 best = priority;
@@ -135,6 +137,37 @@ namespace Silverdash360.Model
                     launchItemFound = true;
                 }
                 return launchItem;
+            }
+        }
+
+        /// <summary>Works the launch package out again, after the content changed.</summary>
+        public void ResetLaunchItem()
+        {
+            launchItemFound = false;
+            launchItem = null;
+        }
+
+        /// <summary>The other discs of a game on several, by disc number.</summary>
+        public List<ContentItem> OtherDiscs
+        {
+            get
+            {
+                ContentItem launch = LaunchItem;
+                if (launch == null || launch.Metadata == null || !launch.Metadata.IsOneOfDiscs)
+                {
+                    return new List<ContentItem>();
+                }
+                Dictionary<byte, ContentItem> discs = new Dictionary<byte, ContentItem>();
+                foreach (ContentItem item in Content)
+                {
+                    if (item != launch && item.Type == launch.Type && item.IsLaunchable && item.Metadata != null &&
+                        item.Metadata.IsOneOfDiscs && item.Metadata.DiscNumber != launch.Metadata.DiscNumber &&
+                        !discs.ContainsKey(item.Metadata.DiscNumber))
+                    {
+                        discs[item.Metadata.DiscNumber] = item;
+                    }
+                }
+                return discs.Values.OrderBy(c => c.Metadata.DiscNumber).ToList();
             }
         }
 
