@@ -32,6 +32,12 @@ namespace Silverdash360.Services.Files
         public bool ReadOnly { get; private set; }
 
         /// <summary>
+        /// Shown in the root of the tree (and over FTP); false for one the
+        /// dashboard uses itself, such as a package it has mounted.
+        /// </summary>
+        public bool Listed = true;
+
+        /// <summary>
         /// Folders the drive is known to have, listed when its root can't be.
         /// xenia, for one, exposes only the hard drive's Content folder.
         /// </summary>
@@ -67,7 +73,11 @@ namespace Silverdash360.Services.Files
         /// <summary>The drives present now.</summary>
         public IEnumerable<Drive> AvailableDrives
         {
-            get { return Drives.Where(d => Exists(d.DevicePath) || d.StandardFolders.Any(f => Exists(d.DevicePath + @"\" + f))); }
+            get
+            {
+                return Drives.Where(d => d.Listed && (Exists(d.DevicePath) ||
+                                                      d.StandardFolders.Any(f => Exists(d.DevicePath + @"\" + f))));
+            }
         }
 
         /// <summary>Joins and normalises a path, resolving "." and "..".</summary>
@@ -356,19 +366,7 @@ namespace Silverdash360.Services.Files
 
         private static DateTime Time(ulong fileTime)
         {
-            if (fileTime == 0 || fileTime >= (ulong)DateTime.MaxValue.ToFileTimeUtc())
-            {
-                return DateTime.Now;
-            }
-            try
-            {
-                return DateTime.FromFileTimeUtc((long)fileTime).ToLocalTime();
-            }
-            catch (ArgumentOutOfRangeException)
-            {
-                // A time the runtime won't take, as xenia gives some files.
-                return DateTime.Now;
-            }
+            return Core.FileTimes.Local(fileTime) ?? DateTime.Now;
         }
 
         internal static string Describe(int status, string path)

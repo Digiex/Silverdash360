@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 
 namespace Silverdash360.Controls
 {
@@ -52,6 +53,11 @@ namespace Silverdash360.Controls
     public class TileGrid : UserControl
     {
         private const double StickThreshold = 0.55;
+        // A trigger pulled past this pages; let go below the release, it stops.
+        private const double TriggerPull = 0.5;
+        private const double TriggerRelease = 0.3;
+        private const int TriggerFirstRepeatMs = 450;
+        private const int TriggerRepeatMs = 180;
 
         private readonly Canvas viewport = new Canvas();
         private readonly Canvas surface = new Canvas();
@@ -69,6 +75,8 @@ namespace Silverdash360.Controls
         private int stickDirection;
         private DateTime stickLast;
         private int stickRepeats;
+        private int triggerDirection;
+        private readonly DispatcherTimer triggerRepeat = new DispatcherTimer();
 
         public TileGrid()
         {
@@ -115,6 +123,73 @@ namespace Silverdash360.Controls
             LostFocus += delegate { focused = false; RefreshSelection(); };
             GamePadButtonDown += OnButtonDown;
             GamePadThumbStickMoved += OnThumbStickMoved;
+            GamePadTriggerMoved += OnTriggerMoved;
+            triggerRepeat.Tick += delegate
+            {
+                triggerRepeat.Interval = TimeSpan.FromMilliseconds(TriggerRepeatMs);
+                if (!focused || Page(triggerDirection) == false)
+                {
+                    StopTriggerRepeat();
+                }
+            };
+            LostFocus += delegate { StopTriggerRepeat(); };
+        }
+
+        // LT pages back and RT forward, as on the console's dashboard, and keep
+        // paging while held.
+        private void OnTriggerMoved(object sender, GamePadTriggerMovedEventArgs e)
+        {
+            int direction = e.Side == GamePadSide.Left ? -1 : 1;
+            if (e.Position >= TriggerPull && triggerDirection != direction)
+            {
+                triggerDirection = direction;
+                e.Handled = Page(direction);
+                triggerRepeat.Interval = TimeSpan.FromMilliseconds(TriggerFirstRepeatMs);
+                triggerRepeat.Start();
+            }
+            else if (e.Position < TriggerRelease && triggerDirection == direction)
+            {
+                StopTriggerRepeat();
+            }
+        }
+
+        private void StopTriggerRepeat()
+        {
+            triggerDirection = 0;
+            triggerRepeat.Stop();
+        }
+
+        /// <summary>The whole lines of tiles on screen at once.</summary>
+        private int LinesOnScreen
+        {
+            get
+            {
+                bool horizontal = Direction == ScrollDirection.Horizontal;
+                double length = horizontal ? ActualWidth : ActualHeight;
+                double step = horizontal ? StepX : StepY;
+                return Math.Max(1, (int)((length + Spacing) / step));
+            }
+        }
+
+        /// <summary>
+        /// Moves the selection a screen of lines back (-1) or forward (1),
+        /// staying in its row or column; false when it's at that end already.
+        /// </summary>
+        public bool Page(int direction)
+        {
+            if (items.Count == 0 || direction == 0)
+            {
+                return false;
+            }
+            int line = selectedIndex / Lines;
+            int within = selectedIndex % Lines;
+            int target = Math.Max(0, Math.Min(LineCount - 1, line + direction * LinesOnScreen));
+            if (target == line)
+            {
+                return false;
+            }
+            Select(Math.Min(target * Lines + within, items.Count - 1), true);
+            return true;
         }
 
         /// <summary>Room around the tiles for a selected tile to grow into.</summary>

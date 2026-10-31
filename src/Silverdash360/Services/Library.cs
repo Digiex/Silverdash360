@@ -25,6 +25,11 @@ namespace Silverdash360.Services
         private const int PaceHeader = 60;
         private const int PaceExecutable = 15;
         private const int PaceSave = 40;
+        // Behind the recent titles of a first run, headers are read with a
+        // shorter pause: there are many and nothing else is on screen yet.
+        private const int PaceHeaderBehindRecent = 10;
+        // The recent titles a first run puts up before reading everything.
+        private const int RecentFirst = 12;
 
         private LoadResult current = LoadResult.Empty;
 
@@ -36,7 +41,7 @@ namespace Silverdash360.Services
             this.executables = executables;
             Classifiers = new List<ITitleClassifier>
             {
-                new KnownAppsClassifier(), new FolderClassifier(), new ContentClassifier(),
+                new VideoOnlyClassifier(), new KnownAppsClassifier(), new FolderClassifier(), new ContentClassifier(),
             };
         }
 
@@ -219,10 +224,22 @@ namespace Silverdash360.Services
                 }
             }
 
+            // With nothing saved, as on a first run, the profile and its most
+            // recent titles go up first, so there's something to start while
+            // everything else is read.
+            bool recentShown = false;
+            if (!shown)
+            {
+                LoadResult recent = ReadRecentFirst(gamer, played);
+                Background.OnUi(() => Publish(recent));
+                recentShown = true;
+            }
+
             // With the library on screen, the rest of the refresh can take its
             // time; the console is a lot slower than a PC running xenia.
             Action pace = shown ? () => Thread.Sleep(PaceEnumeration) : (Action)null;
-            Action paceHeader = shown ? () => Thread.Sleep(PaceHeader) : (Action)null;
+            Action paceHeader = shown ? () => Thread.Sleep(PaceHeader)
+                : recentShown ? () => Thread.Sleep(PaceHeaderBehindRecent) : (Action)null;
             Action paceExecutable = shown ? () => Thread.Sleep(PaceExecutable) : (Action)null;
             Action paceSave = shown ? () => Thread.Sleep(PaceSave) : (Action)null;
 
@@ -297,6 +314,30 @@ namespace Silverdash360.Services
                       (int)(DateTime.UtcNow - started).TotalMilliseconds);
             // What's on screen came from the same packages: nothing to redo.
             return changed || !shown ? Build(content, found, gamer, played) : null;
+        }
+
+        // The profile's played titles, with the packages that start the most
+        // recent ones, read title by title.
+        private LoadResult ReadRecentFirst(Gamer gamer, List<PlayedTitle> played)
+        {
+            List<ContentItem> content = new List<ContentItem>();
+            foreach (PlayedTitle title in played.Where(p => p.LastPlayed.HasValue)
+                                                 .OrderByDescending(p => p.LastPlayed.Value)
+                                                 .Take(RecentFirst))
+            {
+                Report("Looking for " + title.Name + "...", null);
+                foreach (ContentItem item in source.EnumerateTitle(0, title.TitleId))
+                {
+                    if (ContentType.IsLaunchable(item.Type))
+                    {
+                        item.Metadata = source.ReadMetadata(item, false);
+                        content.Add(item);
+                    }
+                }
+            }
+            Log.Write("Showing {0} played titles, {1} packages to start them, before the rest", played.Count,
+                      content.Count);
+            return Build(content, new List<ExecutableItem>(), gamer, played);
         }
 
         // Titles from packages, executables and the profile's played titles.

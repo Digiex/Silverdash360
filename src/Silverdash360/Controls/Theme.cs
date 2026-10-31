@@ -13,8 +13,6 @@ namespace Silverdash360.Controls
     /// </summary>
     public static class Theme
     {
-        public static readonly Color SilverColor = Color.FromArgb(0xFF, 0xC8, 0xD2, 0xDC);
-
         /// <summary>The colours a theme sets.</summary>
         public sealed class Palette
         {

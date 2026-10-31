@@ -49,6 +49,9 @@ namespace Silverdash360.Services.Media
 
         public IList<DlnaMediaSource> Servers { get { return servers; } }
 
+        /// <summary>Videos downloaded from Xbox Live; set by the app once the library exists.</summary>
+        public DownloadedVideoSource Downloads { get; set; }
+
         /// <summary>The drives present, each a source; the disc only when it holds files.</summary>
         public List<IMediaSource> Drives()
         {
@@ -64,7 +67,15 @@ namespace Silverdash360.Services.Media
         {
             IMediaSource drive = files.Drives.Select(d => (IMediaSource)new DriveMediaSource(files, d, LocalServer))
                 .FirstOrDefault(s => s.Key == key);
-            return drive ?? servers.FirstOrDefault(s => s.Key == key);
+            if (drive != null)
+            {
+                return drive;
+            }
+            if (Downloads != null && Downloads.Key == key)
+            {
+                return Downloads;
+            }
+            return servers.FirstOrDefault(s => s.Key == key);
         }
 
         /// <summary>Looks for media servers in the background, unless a search is running.</summary>

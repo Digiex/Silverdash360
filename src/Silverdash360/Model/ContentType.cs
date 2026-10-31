@@ -75,6 +75,28 @@ namespace Silverdash360.Model
             return Names.TryGetValue(type, out name) ? name : "Content " + type.ToString("X8");
         }
 
+        /// <summary>
+        /// Videos downloaded from Xbox Live: movies, TV, music videos and a
+        /// game's trailers and features. The console's dashboard lists them
+        /// under its videos, not with the titles they're filed under.
+        /// </summary>
+        public static bool IsVideo(uint type)
+        {
+            switch (type)
+            {
+                case Video:
+                case GameTrailer:
+                case Movie:
+                case Tv:
+                case MusicVideo:
+                case GameVideo:
+                case PodcastVideo:
+                case ViralVideo:
+                    return true;
+            }
+            return false;
+        }
+
         /// <summary>Content that starts a title of its own.</summary>
         public static bool IsLaunchable(uint type)
         {

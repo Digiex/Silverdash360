@@ -110,6 +110,17 @@ namespace Silverdash360.Modules
                 IMediaSource source = drive;
                 entries.Add(new Entry { Title = drive.Name, Detail = "Music, videos and pictures", Run = () => Context.OpenMedia(source, null) });
             }
+            int videos = media.Downloads != null ? media.Downloads.Packages().Count : 0;
+            if (videos > 0)
+            {
+                IMediaSource source = media.Downloads;
+                entries.Add(new Entry
+                {
+                    Title = source.Name,
+                    Detail = videos + (videos == 1 ? " video" : " videos") + " from Xbox Live",
+                    Run = () => Context.OpenMedia(source, null),
+                });
+            }
             foreach (DlnaMediaSource server in media.Servers)
             {
                 IMediaSource source = server;

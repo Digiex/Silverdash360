@@ -51,6 +51,8 @@
     <Page Include="Pages\StoragePage.xaml"><Generator>MSBuild:Compile</Generator></Page>
     <Compile Include="Pages\StoragePage.xaml.cs"><DependentUpon>Pages\StoragePage.xaml</DependentUpon></Compile>
     <Page Include="Pages\ThemePage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Page Include="Pages\ShelfOptionsPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Compile Include="Pages\ShelfOptionsPage.xaml.cs"><DependentUpon>Pages\ShelfOptionsPage.xaml</DependentUpon></Compile>
     <Compile Include="Pages\ThemePage.xaml.cs"><DependentUpon>Pages\ThemePage.xaml</DependentUpon></Compile>
   </ItemGroup>
   <ItemGroup>
@@ -59,6 +61,7 @@
     <Compile Include="Native\KernelFiles.cs" />
     <Compile Include="Native\Net.cs" />
     <Compile Include="Core\Background.cs" />
+    <Compile Include="Core\FileTimes.cs" />
     <Compile Include="Core\Log.cs" />
     <Compile Include="Model\ContentItem.cs" />
     <Compile Include="Model\ContentType.cs" />
@@ -74,6 +77,7 @@
     <Compile Include="Services\ProfileService.cs" />
     <Compile Include="Services\SearchIndex.cs" />
     <Compile Include="Services\SystemService.cs" />
+    <Compile Include="Services\Settings.cs" />
     <Compile Include="Services\ThemeService.cs" />
     <Compile Include="Services\TitleStorage.cs" />
     <Compile Include="Services\TitleClassifier.cs" />
@@ -91,9 +95,11 @@
     <Compile Include="Modules\DashboardModule.cs" />
     <Compile Include="Modules\HomeModule.cs" />
     <Compile Include="Modules\LibraryModule.cs" />
+    <Compile Include="Modules\ShelfOptions.cs" />
     <Compile Include="Modules\ProfileModule.cs" />
     <Compile Include="Modules\SettingsModule.cs" />
     <Compile Include="Modules\MediaModule.cs" />
+    <Compile Include="Services\Media\DownloadedVideoSource.cs" />
     <Compile Include="Services\Media\DriveMediaSource.cs" />
     <Compile Include="Services\Media\Dlna.cs" />
     <Compile Include="Services\Media\Http.cs" />

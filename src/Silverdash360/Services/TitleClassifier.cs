@@ -15,6 +15,25 @@ namespace Silverdash360.Services
         TitleKind? Classify(TitleEntry title);
     }
 
+    /// <summary>
+    /// A title the console only holds videos for, such as a game's trailer or
+    /// a TV episode from the video store, is neither a game nor an app: the
+    /// videos are in the media section, as on the console's dashboard.
+    /// </summary>
+    public sealed class VideoOnlyClassifier : ITitleClassifier
+    {
+        public TitleKind? Classify(TitleEntry title)
+        {
+            if (title.LaunchItem != null || title.Executable != null || title.Played != null ||
+                !title.Content.Any(c => ContentType.IsVideo(c.Type)) ||
+                title.Content.Any(c => !ContentType.IsVideo(c.Type) && c.Type != ContentType.SavedGame))
+            {
+                return null;
+            }
+            return TitleKind.Other;
+        }
+    }
+
     /// <summary>The Xbox 360 video, music and other apps released for the console.</summary>
     public sealed class KnownAppsClassifier : ITitleClassifier
     {

@@ -89,6 +89,12 @@ namespace Silverdash360.Modules
             Navigate(new Uri("/Pages/ThemePage.xaml", UriKind.Relative));
         }
 
+        /// <summary>A shelf's filters, order and view, by its header.</summary>
+        public void OpenShelfOptions(string shelf)
+        {
+            Navigate(new Uri("/Pages/ShelfOptionsPage.xaml?shelf=" + Uri.EscapeDataString(shelf), UriKind.Relative));
+        }
+
         /// <summary>Starts an installed title, or says why it can't.</summary>
         public void Launch(TitleEntry title)
         {

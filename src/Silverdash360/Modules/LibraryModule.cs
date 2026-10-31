@@ -12,8 +12,9 @@ namespace Silverdash360.Modules
 {
     /// <summary>
     /// A shelf of titles (games or apps) with a cover view and a list view.
-    /// A opens a title's details, X searches, Y switches the view, and
-    /// Start starts the selected title straight away.
+    /// A opens a title's details, X searches, Y switches the view, Back
+    /// opens the shelf's filters and order, and Start starts the selected
+    /// title straight away. The view and filters are remembered.
     /// </summary>
     public sealed class LibraryModule : DashboardModule
     {
@@ -21,6 +22,7 @@ namespace Silverdash360.Modules
         private readonly int order;
         private readonly Func<Library, IEnumerable<TitleEntry>> select;
         private readonly string emptyText;
+        private readonly ShelfOptions options;
         private TileGrid grid;
         private bool listView;
         private TitleEntry lastSelected;
@@ -33,6 +35,28 @@ namespace Silverdash360.Modules
             this.order = order;
             this.select = select;
             this.emptyText = emptyText;
+            options = new ShelfOptions(header);
+            Settings.Loaded += delegate { OptionsChanged(); };
+        }
+
+        /// <summary>The shelf's filters, order and view.</summary>
+        public ShelfOptions Options { get { return options; } }
+
+        /// <summary>Every title the shelf has, before its filters.</summary>
+        public IList<TitleEntry> AllTitles { get { return select(Context.Library).ToList(); } }
+
+        /// <summary>Shows the shelf again after its options changed.</summary>
+        public void OptionsChanged()
+        {
+            if (grid == null)
+            {
+                return;
+            }
+            if (listView != options.ListView)
+            {
+                ApplyView();
+            }
+            Refresh();
         }
 
         public override string Header { get { return header; } }
@@ -40,7 +64,7 @@ namespace Silverdash360.Modules
 
         public override string Legend
         {
-            get { return "A details   START play   X search   Y " + (listView ? "covers" : "list"); }
+            get { return "A details   START play   X search   Y " + (listView ? "covers" : "list") + "   BACK filter"; }
         }
 
         protected override FrameworkElement CreateView()
@@ -66,10 +90,14 @@ namespace Silverdash360.Modules
                         e.Handled = true;
                         break;
                     case GamePadButton.Y:
-                        listView = !listView;
+                        options.ListView = !listView;
                         ApplyView();
                         Refresh();
                         Focus(grid);
+                        e.Handled = true;
+                        break;
+                    case GamePadButton.Back:
+                        Context.OpenShelfOptions(header);
                         e.Handled = true;
                         break;
                     case GamePadButton.Start:
@@ -86,6 +114,7 @@ namespace Silverdash360.Modules
 
         private void ApplyView()
         {
+            listView = options.ListView;
             if (listView)
             {
                 grid.Direction = ScrollDirection.Vertical;
@@ -152,8 +181,9 @@ namespace Silverdash360.Modules
             {
                 return;
             }
-            grid.EmptyText = Context.Library.IsLoaded ? emptyText : "Looking for content...";
-            List<object> titles = select(Context.Library).Cast<object>().ToList();
+            grid.EmptyText = !Context.Library.IsLoaded ? "Looking for content..."
+                : options.IsFiltered ? "Nothing here matches the filter. BACK changes it." : emptyText;
+            List<object> titles = options.Apply(select(Context.Library)).Cast<object>().ToList();
             grid.Items = titles;
             if (lastSelected != null)
             {

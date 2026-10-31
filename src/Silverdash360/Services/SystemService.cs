@@ -82,7 +82,7 @@ namespace Silverdash360.Services
             {
                 long fileTime;
                 Kernel.KeQuerySystemTime(out fileTime);
-                return DateTime.FromFileTimeUtc(fileTime).ToLocalTime();
+                return FileTimes.Local((ulong)fileTime) ?? DateTime.Now;
             }
         }
 

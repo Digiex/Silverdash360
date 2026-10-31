@@ -21,9 +21,11 @@ namespace Silverdash360.Pages
         // Silverlight decodes a picture whole, at full size, into the
         // console's small memory: larger files aren't tried.
         private const long MaxBytes = 24L << 20;
-        private static readonly TimeSpan SlideTime = TimeSpan.FromSeconds(5);
+        // Milliseconds: a static readonly TimeSpan can read as zero on the
+        // console's runtime (see FileTimes).
+        private const int SlideMs = 5000;
 
-        private readonly DispatcherTimer slideshow = new DispatcherTimer { Interval = SlideTime };
+        private readonly DispatcherTimer slideshow = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(SlideMs) };
         private bool retried;
 
         public PicturePage()

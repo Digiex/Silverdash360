@@ -222,11 +222,7 @@ namespace Silverdash360.Services
 
         private static DateTime? FileTime(ulong value)
         {
-            if (value == 0 || value >= (ulong)DateTime.MaxValue.ToFileTimeUtc())
-            {
-                return null;
-            }
-            return DateTime.FromFileTimeUtc((long)value).ToLocalTime();
+            return FileTimes.Local(value);
         }
     }
 }

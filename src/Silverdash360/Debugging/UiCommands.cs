@@ -42,13 +42,13 @@ namespace Silverdash360.Debugging
         {
             commands.Add("ui.state", "", "The page, the hub's section, and the focused control and selection.", r => UiThread.Invoke(() => State()));
             commands.Add("ui.section", "<index|header>", "Shows a hub section.", Section);
-            commands.Add("ui.navigate", "<hub|search|storage|theme|title <key>>", "Goes to a page.", Navigate);
+            commands.Add("ui.navigate", "<hub|search|storage|theme|shelf <header>|title <key>>", "Goes to a page.", Navigate);
             commands.Add("ui.back", "", "Goes back a page.", r =>
             {
                 UiThread.Invoke(() => Back());
                 return WaitForPage();
             });
-            commands.Add("ui.press", "<" + string.Join("|", Buttons.Keys.ToArray()) + "> [count]",
+            commands.Add("ui.press", "<" + string.Join("|", Buttons.Keys.ToArray()) + "|lt|rt> [count]",
                          "Does what pressing a button does, count times a frame apart.", Press);
             commands.Add("ui.fps", "[ms]", "Frames drawn over a time (2000 ms by default).", Fps);
             commands.Add("ui.scroll", "<steps> [up|down|left|right]",
@@ -232,6 +232,7 @@ namespace Silverdash360.Debugging
                     case "search": context.OpenSearch(); break;
                     case "storage": context.OpenStorage(); break;
                     case "theme": context.OpenThemes(); break;
+                    case "shelf": context.OpenShelfOptions(request.Arg(1, "shelf", true)); break;
                     case "title": context.OpenTitle(LibraryCommands.Find(context, request.Arg(1, "title", true))); break;
                     default: throw new DebugException("No page " + page + ".");
                 }
@@ -251,6 +252,10 @@ namespace Silverdash360.Debugging
         private object Press(DebugRequest request)
         {
             string name = request.Arg(0, "button", true).ToLowerInvariant();
+            if (name == "lt" || name == "rt")
+            {
+                return PressTrigger(name == "lt" ? -1 : 1, Math.Max(1, request.Int(1, 1)));
+            }
             GamePadButton button;
             if (!Buttons.TryGetValue(name, out button))
             {
@@ -265,6 +270,28 @@ namespace Silverdash360.Debugging
                     handled++;
                 }
                 // A frame between presses, as a held button repeats.
+                Thread.Sleep(20);
+            }
+            JsonObject result = Settled();
+            result.Add("handled", handled);
+            return result;
+        }
+
+        // A trigger pulled and let go: the focused grid pages, as the trigger's
+        // event would have it do.
+        private object PressTrigger(int direction, int count)
+        {
+            int handled = 0;
+            for (int i = 0; i < count; i++)
+            {
+                if (UiThread.Invoke(() =>
+                    {
+                        TileGrid grid = FocusedGrid();
+                        return grid != null && grid.Page(direction);
+                    }))
+                {
+                    handled++;
+                }
                 Thread.Sleep(20);
             }
             JsonObject result = Settled();

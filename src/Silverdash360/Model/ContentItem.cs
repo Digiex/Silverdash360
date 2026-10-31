@@ -24,8 +24,7 @@ namespace Silverdash360.Model
             TitleId = BigEndian.U32(record, 0x140);
             Size = (long)BigEndian.U64(record, 0x148);
             ulong created = BigEndian.U64(record, 0x150);
-            Created = created != 0 && created < (ulong)DateTime.MaxValue.ToFileTimeUtc()
-                ? DateTime.FromFileTimeUtc((long)created) : (DateTime?)null;
+            Created = Core.FileTimes.Utc(created);
             TitleName = BigEndian.Utf16(record, 0x158, 0x40);
             Flags = BigEndian.U32(record, 0x1FC);
         }

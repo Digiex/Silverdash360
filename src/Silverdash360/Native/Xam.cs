@@ -49,6 +49,11 @@ namespace Silverdash360.Native
                                                            uint disposition, uint licenseMask, uint cacheSize,
                                                            ulong contentSize, uint overlapped);
 
+        // 0x25F: DWORD XamContentGetDeviceName(DWORD deviceId, LPWSTR name,
+        //   DWORD chars): the storage device's name, such as "Hard Drive".
+        [DllImport("xam.xex", EntryPoint = "#607")]
+        public static extern uint XamContentGetDeviceName(uint deviceId, uint name, uint chars);
+
         // 0x25A: DWORD XamContentClose(LPCSTR rootName, PXOVERLAPPED)
         [DllImport("xam.xex", EntryPoint = "#602", CharSet = CharSet.Ansi)]
         public static extern uint XamContentClose(string rootName, uint overlapped);

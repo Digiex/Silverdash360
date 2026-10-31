@@ -54,8 +54,10 @@ namespace Silverdash360
             XamContentSource content = new XamContentSource();
             XboxFileSystem files = new XboxFileSystem();
             Library library = new Library(content, profiles, new LibraryCache(), new ExecutableScanner(files));
+            MediaService media = new MediaService(files);
+            media.Downloads = new DownloadedVideoSource(library, files, media.LocalServer);
             Context = new DashboardContext(library, profiles, new ImageService(content), new SystemService(),
-                                           new FtpServer(files), new MediaService(files), new ThemeService(library));
+                                           new FtpServer(files), media, new ThemeService(library));
             Context.Ftp.Message += text => Background.OnUi(() => Context.ShowStatus(text));
             Modules = ModuleRegistry.CreateAll(Context);
 
@@ -83,6 +85,8 @@ namespace Silverdash360
             {
                 RootVisual = frame;
             }
+            // Storage needs GamerServices, which the frame starts.
+            Settings.Load();
             Context.Library.Refresh();
 #if DEBUG_SERVER
             // On by default for now; see the DebugServer build property.

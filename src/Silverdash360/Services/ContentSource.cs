@@ -17,6 +17,9 @@ namespace Silverdash360.Services
         /// </summary>
         List<ContentItem> Enumerate(ulong xuid, Action<int> found, Action pace);
 
+        /// <summary>One title's packages, of every type, for the user or common content.</summary>
+        List<ContentItem> EnumerateTitle(ulong xuid, uint titleId);
+
         /// <summary>The package header's metadata, or null; with its thumbnails when asked for.</summary>
         ContentMetadata ReadMetadata(ContentItem item, bool thumbnails);
     }
@@ -44,12 +47,23 @@ namespace Silverdash360.Services
 
         public List<ContentItem> Enumerate(ulong xuid, Action<int> found, Action pace)
         {
+            return Enumerate(xuid, 0, found, pace);
+        }
+
+        public List<ContentItem> EnumerateTitle(ulong xuid, uint titleId)
+        {
+            return Enumerate(xuid, titleId, null, null);
+        }
+
+        // Title 0 is every title.
+        private List<ContentItem> Enumerate(ulong xuid, uint titleId, Action<int> found, Action pace)
+        {
             List<ContentItem> items = new List<ContentItem>();
             uint handle;
-            uint result = Xam.XamContentAggregateCreateEnumerator(xuid, 0, ContentType.Any, 0, out handle);
+            uint result = Xam.XamContentAggregateCreateEnumerator(xuid, 0, ContentType.Any, titleId, out handle);
             if (result != Xam.ErrorSuccess)
             {
-                Log.Write("XamContentAggregateCreateEnumerator({0:X16}) failed: {1}", xuid, result);
+                Log.Write("XamContentAggregateCreateEnumerator({0:X16}, {1:X8}) failed: {2}", xuid, titleId, result);
                 return items;
             }
             int empty = 0;
@@ -95,8 +109,11 @@ namespace Silverdash360.Services
             {
                 Kernel.NtClose(handle);
             }
-            Log.Write("Found {0} packages for {1:X16}; the enumeration ended with {2}{3}", items.Count, xuid, result,
-                      empty > MaxEmptyCalls ? " after waiting for more" : "");
+            if (titleId == 0)
+            {
+                Log.Write("Found {0} packages for {1:X16}; the enumeration ended with {2}{3}", items.Count, xuid,
+                          result, empty > MaxEmptyCalls ? " after waiting for more" : "");
+            }
             return items;
         }
 
