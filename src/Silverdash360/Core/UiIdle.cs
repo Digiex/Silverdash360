@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Windows.Media;
 
 namespace Silverdash360.Core
@@ -28,7 +29,8 @@ namespace Silverdash360.Core
         }
 
         private static readonly List<Job> jobs = new List<Job>();
-        private static int lastInput;
+        // Written on the UI thread, read by background work too.
+        private static volatile int lastInput;
         private static int frameStart;
         private static bool hooked;
 
@@ -36,6 +38,23 @@ namespace Silverdash360.Core
         public static void Input()
         {
             lastInput = Environment.TickCount;
+        }
+
+        /// <summary>How long background work waits after the last move, by default.</summary>
+        public const int BackgroundQuietMs = 500;
+
+        /// <summary>
+        /// On a background thread, between steps of slow work such as reading
+        /// the drives: waits while the user is moving, until they've left the
+        /// controller alone for the time, as the work slows the UI down.
+        /// </summary>
+        public static void WaitWhileMoving(int quietMs)
+        {
+            int since;
+            while ((since = SinceInput) < quietMs)
+            {
+                Thread.Sleep(Math.Max(20, quietMs - since));
+            }
         }
 
         /// <summary>Milliseconds since the user last moved.</summary>

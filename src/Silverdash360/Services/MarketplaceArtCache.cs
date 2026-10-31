@@ -58,6 +58,7 @@ namespace Silverdash360.Services
                 int done = 0;
                 foreach (uint titleId in titleIds)
                 {
+                    UiIdle.WaitWhileMoving(UiIdle.BackgroundQuietMs);
                     if (!MarketplaceArt.CacheAll(titleId))
                     {
                         break;

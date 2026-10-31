@@ -271,12 +271,13 @@ namespace Silverdash360.Services
             }
 
             // With the library on screen, the rest of the refresh can take its
-            // time; the console is a lot slower than a PC running xenia.
-            Action pace = shown ? () => Thread.Sleep(PaceEnumeration) : (Action)null;
-            Action paceHeader = shown ? () => Thread.Sleep(PaceHeader)
-                : recentShown ? () => Thread.Sleep(PaceHeaderBehindRecent) : (Action)null;
-            Action paceExecutable = shown ? () => Thread.Sleep(PaceExecutable) : (Action)null;
-            Action paceSave = shown ? () => Thread.Sleep(PaceSave) : (Action)null;
+            // time; the console is a lot slower than a PC running xenia. It
+            // stops while the user is moving either way, so scrolling isn't
+            // slowed by it.
+            Action pace = Pace(shown ? PaceEnumeration : 0);
+            Action paceHeader = Pace(shown ? PaceHeader : recentShown ? PaceHeaderBehindRecent : 0);
+            Action paceExecutable = Pace(shown ? PaceExecutable : 0);
+            Action paceSave = Pace(shown ? PaceSave : 0);
 
             // Common content (games, apps, add-ons) is stored under XUID 0, the
             // profile's own (saves, its themes) under its offline XUID.
@@ -363,6 +364,19 @@ namespace Silverdash360.Services
         // start them, for an app that came as an add-on (Video Kinect does).
         // Each package is looked in once; the answer is saved with it.
         // Returns how many were looked in.
+        // A pause between steps of the refresh, and a wait while the user moves.
+        private static Action Pace(int ms)
+        {
+            return delegate
+            {
+                if (ms > 0)
+                {
+                    Thread.Sleep(ms);
+                }
+                UiIdle.WaitWhileMoving(UiIdle.BackgroundQuietMs);
+            };
+        }
+
         private int CheckForApps(List<ContentItem> content, Dictionary<string, byte> knownApps, Action pace)
         {
             Dictionary<uint, bool> startable = new Dictionary<uint, bool>();
