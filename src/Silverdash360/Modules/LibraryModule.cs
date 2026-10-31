@@ -93,6 +93,15 @@ namespace Silverdash360.Modules
         protected override FrameworkElement CreateView()
         {
             grid = new TileGrid();
+            // A refresh remakes only the tiles that changed.
+            grid.TileKey = o =>
+            {
+                LetterGroup group = o as LetterGroup;
+                return group != null
+                    ? Context.Themes.Version + "|letter|" + group.Letter + "|" + group.Count
+                    : listView ? TileKeys.Row((TitleEntry)o, Context.Themes.Version)
+                               : TileKeys.Cover((TitleEntry)o, Context.Themes.Version);
+            };
             ApplyView();
             ForwardEdges(grid, Edge.Left, Edge.Right);
             grid.ItemInvoked += delegate(object sender, ItemEventArgs e)
@@ -299,12 +308,14 @@ namespace Silverdash360.Modules
             }
             grid.EmptyText = !Context.Library.IsLoaded ? "Looking for content..."
                 : options.IsFiltered ? "Nothing here matches the filter. BACK changes it." : emptyText;
+            // Showing the new items selects one, so what was selected is kept first.
             string letter = lastLetter;
+            TitleEntry selected = lastSelected;
             List<object> items = Arrange(options.Apply(select(Context.Library)));
             grid.Items = items;
-            if (lastSelected != null)
+            if (selected != null)
             {
-                TitleEntry same = items.OfType<TitleEntry>().FirstOrDefault(t => t.TitleId == lastSelected.TitleId);
+                TitleEntry same = items.OfType<TitleEntry>().FirstOrDefault(t => t.TitleId == selected.TitleId);
                 if (same != null)
                 {
                     grid.SelectItem(same);

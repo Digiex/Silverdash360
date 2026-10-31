@@ -170,6 +170,38 @@ namespace Silverdash360.Controls
     }
 
     /// <summary>
+    /// What a title's tile shows, for <see cref="TileGrid.TileKey"/>. Only
+    /// what's shown: while a start reads the library a section at a time, a
+    /// title's size and packages grow, and a cover that looks the same keeps
+    /// its tile.
+    /// </summary>
+    public static class TileKeys
+    {
+        /// <summary>
+        /// A cover, or an icon with the name. From what decides the subtitle
+        /// rather than the subtitle itself, which takes a millisecond or more
+        /// to work out on the console.
+        /// </summary>
+        public static string Cover(TitleEntry title, int themeVersion)
+        {
+            ContentItem launch = title.LaunchItem;
+            PlayedTitle played = title.Played;
+            return themeVersion + "|" + title.Key + "|" + title.Name + "|" + (int)title.Kind + "|" +
+                   (played != null ? played.GamerscoreEarned + "/" + played.GamerscoreTotal : "") + "|" +
+                   (title.IsDisc ? "disc" : "") + "|" +
+                   (launch != null
+                       ? launch.FileName + "|" + launch.Type + "|" + (launch.Metadata != null ? launch.Metadata.Publisher : "")
+                       : title.Content.Count + "|" + title.Executables.Count);
+        }
+
+        /// <summary>A list row, which shows the size and the publisher too.</summary>
+        public static string Row(TitleEntry title, int themeVersion)
+        {
+            return Cover(title, themeVersion) + "|" + title.Publisher + "|" + title.TotalSize;
+        }
+    }
+
+    /// <summary>
     /// A letter heading the titles under it, in a shelf sorted by name: the
     /// letter large, with how many titles it has.
     /// </summary>

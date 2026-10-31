@@ -84,6 +84,8 @@ namespace Silverdash360.Modules
 
             foreach (TileGrid grid in new[] { recent, apps })
             {
+                // A refresh remakes only the tiles that changed.
+                grid.TileKey = o => TileKeys.Cover((TitleEntry)o, Context.Themes.Version);
                 ForwardEdges(grid, Edge.Left, Edge.Right);
                 // One selection on the page: the row in use's.
                 grid.ShowsSelectionUnfocused = false;

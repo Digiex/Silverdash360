@@ -65,6 +65,14 @@ namespace Silverdash360.Controls
         private readonly TranslateTransform scroll = new TranslateTransform();
         private readonly TextBlock emptyText = new TextBlock();
         private readonly Dictionary<int, FrameworkElement> realized = new Dictionary<int, FrameworkElement>();
+        // The template the tiles on screen were made with.
+        private ITileTemplate tilesTemplate;
+        // The items' TileKeys, each worked out when first needed: a key
+        // takes a few milliseconds on the console.
+        private string[] keys;
+        // While new items are shown, the tiles of the items before by
+        // TileKey, for the new items that look the same.
+        private Dictionary<string, FrameworkElement> reusable;
         private readonly Storyboard scrollAnimation = new Storyboard();
         private readonly DoubleAnimation scrollStep = new DoubleAnimation();
 
@@ -255,6 +263,14 @@ namespace Silverdash360.Controls
 
         public ITileTemplate TileTemplate { get; set; }
 
+        /// <summary>
+        /// What an item's tile shows, as text. When it's set, new items whose
+        /// tiles would look the same as ones on screen keep those tiles, so a
+        /// refresh makes only the tiles that changed, and the selection stays
+        /// on its item, where it was on screen.
+        /// </summary>
+        public Func<object, string> TileKey { get; set; }
+
         public string EmptyText
         {
             get { return emptyText.Text; }
@@ -273,19 +289,100 @@ namespace Silverdash360.Controls
             get { return items; }
             set
             {
+                // Keys worked out for other tiles, such as a list's rows before
+                // covers, don't say what the new tiles look like.
+                if (tilesTemplate != TileTemplate)
+                {
+                    keys = null;
+                }
+                string selectedKey = TileKey != null && SelectedItem != null ? KeyAt(selectedIndex) : null;
+                KeepTiles();
                 items = value ?? new List<object>();
-                DropTiles();
+                keys = null;
                 emptyText.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
                 selectedIndex = -1;
-                offset = 0;
                 scrollAnimation.Stop();
-                scroll.X = scroll.Y = 0;
+                int select = selectedKey != null ? IndexOfKey(selectedKey) : -1;
+                if (select < 0)
+                {
+                    select = 0;
+                    offset = 0;
+                }
+                else
+                {
+                    // Where it was, as far as the new items' length allows.
+                    bool horizontal = Direction == ScrollDirection.Horizontal;
+                    double view = horizontal ? ActualWidth : ActualHeight;
+                    offset = Math.Max(0, Math.Min(offset, Math.Max(0, LineCount * Step - Spacing - view)));
+                }
+                scroll.X = Direction == ScrollDirection.Horizontal ? -offset : 0;
+                scroll.Y = Direction == ScrollDirection.Horizontal ? 0 : -offset;
                 if (items.Count > 0)
                 {
-                    Select(0, false);
+                    Select(select, false);
                 }
                 Realize();
+                DropReusable();
             }
+        }
+
+        private string KeyAt(int index)
+        {
+            if (keys == null || keys.Length != items.Count)
+            {
+                keys = new string[items.Count];
+            }
+            return keys[index] ?? (keys[index] = TileKey(items[index]));
+        }
+
+        private int IndexOfKey(string key)
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                if (KeyAt(i) == key)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        // Keeps the tiles on screen, by the keys of the items they show, for
+        // new items that look the same; or drops them all.
+        private void KeepTiles()
+        {
+            if (TileKey == null || tilesTemplate != TileTemplate)
+            {
+                DropTiles();
+                return;
+            }
+            reusable = new Dictionary<string, FrameworkElement>();
+            foreach (KeyValuePair<int, FrameworkElement> tile in realized)
+            {
+                string key = tile.Key < items.Count ? KeyAt(tile.Key) : null;
+                if (key != null && !reusable.ContainsKey(key))
+                {
+                    reusable.Add(key, tile.Value);
+                }
+                else
+                {
+                    surface.Children.Remove(tile.Value);
+                }
+            }
+            realized.Clear();
+        }
+
+        private void DropReusable()
+        {
+            if (reusable == null)
+            {
+                return;
+            }
+            foreach (FrameworkElement tile in reusable.Values)
+            {
+                surface.Children.Remove(tile);
+            }
+            reusable = null;
         }
 
         private void DropTiles()
@@ -333,6 +430,7 @@ namespace Silverdash360.Controls
         public void ShowItems(IList<object> value, int select, double place)
         {
             items = value ?? new List<object>();
+            keys = null;
             DropTiles();
             emptyText.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             selectedIndex = -1;
@@ -526,7 +624,18 @@ namespace Silverdash360.Controls
                 {
                     continue;
                 }
-                FrameworkElement tile = TileTemplate.Create(items[index]);
+                FrameworkElement tile;
+                string key = reusable != null ? KeyAt(index) : null;
+                if (key != null && reusable.TryGetValue(key, out tile))
+                {
+                    reusable.Remove(key);
+                }
+                else
+                {
+                    tile = TileTemplate.Create(items[index]);
+                    tilesTemplate = TileTemplate;
+                    surface.Children.Add(tile);
+                }
                 tile.Width = Width0;
                 tile.Height = TileHeight;
                 Point at = PositionOf(index);
@@ -534,7 +643,6 @@ namespace Silverdash360.Controls
                 Canvas.SetTop(tile, at.Y);
                 TileTemplate.SetSelected(tile, index == selectedIndex && ShowsSelection, focused);
                 Canvas.SetZIndex(tile, index == selectedIndex ? 1 : 0);
-                surface.Children.Add(tile);
                 realized.Add(index, tile);
             }
         }
