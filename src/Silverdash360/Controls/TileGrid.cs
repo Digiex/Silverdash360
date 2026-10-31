@@ -162,13 +162,23 @@ namespace Silverdash360.Controls
             triggerRepeat.Stop();
         }
 
-        /// <summary>The whole lines of tiles on screen at once.</summary>
+        /// <summary>About how many tiles a screen of the grid shows.</summary>
+        public int ItemsOnScreen
+        {
+            get { return LinesOnScreen * Lines; }
+        }
+
+        /// <summary>The whole lines of tiles on screen at once; a full screen's before the grid is laid out.</summary>
         private int LinesOnScreen
         {
             get
             {
                 bool horizontal = Direction == ScrollDirection.Horizontal;
                 double length = horizontal ? ActualWidth : ActualHeight;
+                if (length <= 0)
+                {
+                    length = horizontal ? 1280 : 720;
+                }
                 double step = horizontal ? StepX : StepY;
                 return Math.Max(1, (int)((length + Spacing) / step));
             }

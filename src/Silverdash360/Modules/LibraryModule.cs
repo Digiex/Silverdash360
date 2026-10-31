@@ -15,8 +15,9 @@ namespace Silverdash360.Modules
     /// A opens a title's details, X searches, Y switches the view, Back
     /// opens the shelf's filters and order, and Start starts the selected
     /// title straight away. The view and filters are remembered. Sorted by
-    /// name, each letter heads its titles; A on a letter shows the letters
-    /// alone, to jump through a long shelf, and A on one again shows all.
+    /// name, a long shelf has each letter head its titles; A on a letter
+    /// shows the letters alone, to jump through it, and A on one again shows
+    /// all.
     /// </summary>
     public sealed class LibraryModule : DashboardModule
     {
@@ -30,6 +31,10 @@ namespace Silverdash360.Modules
         private TitleEntry lastSelected;
         private string lastLetter;
         private bool lettersOnly;
+
+        // Letters head the titles only in a shelf at least this many screens
+        // long: in a shorter one they take room and save little scrolling.
+        private const int LetterScreens = 4;
 
         // A letter heading the titles that start with it; "#" for digits and
         // symbols.
@@ -228,12 +233,14 @@ namespace Silverdash360.Modules
             return char.IsLetter(first) ? char.ToUpperInvariant(first).ToString() : "#";
         }
 
-        // The titles as shown: sorted by name, each letter before its titles,
-        // or the letters alone.
+        // The titles as shown: sorted by name in a long shelf, each letter
+        // before its titles, or the letters alone.
         private List<object> Arrange(List<TitleEntry> titles)
         {
-            if (options.Sort != "name")
+            if (options.Sort != "name" || titles.Count < LetterScreens * grid.ItemsOnScreen)
             {
+                lettersOnly = false;
+                lastLetter = null;
                 return titles.Cast<object>().ToList();
             }
             List<object> items = new List<object>();
