@@ -86,6 +86,8 @@ The debug server's `update.check [asIfVersion]`, `update.verify` and `update.ins
 
 Every release has a higher version than the last, tagged `v<version>`. That's `Silverdash360Version` in `Silverdash360.csproj` when it's higher than the last release's, so a minor or major version can be set by hand; otherwise the script raises the last release's patch number (or the part `-Bump Minor` or `-Bump Major` names). A new version is committed to the project file and that commit pushed, so the release is built and tagged from it; everything before it has to be committed and pushed already. The release's title has the build number settings shows. The script needs the GitHub CLI (`gh`) signed in. `-DryRun` shows the version, builds the zip and shows the notes, without committing, pushing or publishing.
 
+`.\tools\Release.ps1 -Console` makes a zip for your own console instead and releases nothing: the whole Release package, runtime included, in a `Silverdash360` folder (`src\Silverdash360\bin\Release\console\Silverdash360-<version>-console.zip`) to copy to the console, such as to `Hdd1:\Apps`. It has the donor app's and Microsoft's files, so it isn't for handing out.
+
 ## Running in xenia-edge
 
 ```powershell

@@ -23,7 +23,14 @@ A new version is committed to the project file and that commit pushed, so
 the release is built and tagged from it. Everything before it must be
 committed and pushed already: nothing else is pushed.
 
-Needs the GitHub CLI (gh), signed in, unless -DryRun is given.
+Needs the GitHub CLI (gh), signed in, unless -DryRun or -Console is given.
+
+-Console makes a zip to put on your own console instead, and releases
+nothing: the whole Release package, runtime included, in a Silverdash360
+folder, as Silverdash360-<version>-console.zip in bin\Release\console. It
+has the donor app's and Microsoft's files, so it's for your console only,
+not for handing out. It's the project's version as it is, with no commit,
+tag or push.
 
 .EXAMPLE
 .\tools\Release.ps1 -DryRun
@@ -33,6 +40,11 @@ committing, pushing or publishing.
 
 .EXAMPLE
 .\tools\Release.ps1 -Bump Minor
+
+.EXAMPLE
+.\tools\Release.ps1 -Console
+
+Makes the zip to copy to your own console, runtime and all.
 #>
 param(
     [string]$Sdk = $env:SILVERLIGHT360,
@@ -42,7 +54,10 @@ param(
     # Shows what would be released, without committing, pushing or publishing.
     [switch]$DryRun,
     # Publishes the release as a prerelease.
-    [switch]$Prerelease
+    [switch]$Prerelease,
+    # Zips the whole package, runtime included, for your own console, and
+    # releases nothing.
+    [switch]$Console
 )
 
 $ErrorActionPreference = 'Stop'
@@ -63,6 +78,33 @@ function Invoke-Git {
         throw "git $args failed"
     }
     $output
+}
+
+# The whole package for one's own console: built and zipped, nothing else.
+if ($Console) {
+    if (Invoke-Git status --porcelain --untracked-files=no) {
+        Write-Warning 'There are changes not committed: settings will say the build has changes.'
+    }
+    & (Join-Path $PSScriptRoot 'Build.ps1') -Release -Sdk $Sdk
+    if ($LASTEXITCODE -ne 0) {
+        throw 'The build failed.'
+    }
+    $buildInfo = Get-Content -LiteralPath (Join-Path $project 'obj\Release\BuildInfo.g.cs') -Raw
+    $version = [regex]::Match($buildInfo, 'Version = "([^"]*)"').Groups[1].Value
+    $number = [regex]::Match($buildInfo, 'Number = (\d+)').Groups[1].Value
+    $out = Join-Path $project 'bin\Release\console'
+    $staging = Join-Path $out 'Silverdash360'
+    if (Test-Path -LiteralPath $out) {
+        Remove-Item -LiteralPath $out -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $staging | Out-Null
+    Copy-Item -Path (Join-Path $project 'bin\Release\xbox\*') -Destination $staging -Recurse
+    $zip = Join-Path $out "Silverdash360-$version-console.zip"
+    Compress-Archive -Path $staging -DestinationPath $zip
+    Write-Host "Silverdash360 $version (build $number), for your own console: $zip"
+    Write-Host 'Copy its Silverdash360 folder to the console, such as to Hdd1:\Apps, and start default.xex in it.'
+    Write-Host "It has the donor app's and Microsoft's files: don't hand it out."
+    return
 }
 
 # A release is made from a commit as it is, which GitHub has.
