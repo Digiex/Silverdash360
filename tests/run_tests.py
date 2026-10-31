@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from debugclient import DEFAULT_PORT, CommandError, DebugClient, parse_address  # noqa: E402
 from harness import REGISTRY, Context, Skip, TestFailure  # noqa: E402
 
-SUITES = ('api', 'functional', 'performance')
+SUITES = ('api', 'functional', 'media', 'performance')
 
 
 def load_suites(names):

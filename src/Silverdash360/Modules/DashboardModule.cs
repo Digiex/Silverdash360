@@ -106,6 +106,7 @@ namespace Silverdash360.Modules
                 c => new HomeModule(c),
                 c => new LibraryModule(c, "games", 20, l => l.Games, "No games found on this console."),
                 c => new LibraryModule(c, "apps", 30, l => l.Apps, "No apps found on this console."),
+                c => new MediaModule(c),
                 c => new ProfileModule(c),
                 c => new SettingsModule(c),
             };

@@ -30,10 +30,18 @@
     <Reference Include="Microsoft.Xbox.Core" />
     <Reference Include="Microsoft.Xbox.Services" />
     <Reference Include="Microsoft.Xbox.Storage" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml"><Generator>MSBuild:Compile</Generator></ApplicationDefinition>
     <Compile Include="App.xaml.cs"><DependentUpon>App.xaml</DependentUpon></Compile>
+    <Page Include="Pages\MediaPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Compile Include="Pages\MediaPage.xaml.cs"><DependentUpon>Pages\MediaPage.xaml</DependentUpon></Compile>
+    <Page Include="Pages\PlayerPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Compile Include="Pages\PlayerPage.xaml.cs"><DependentUpon>Pages\PlayerPage.xaml</DependentUpon></Compile>
+    <Page Include="Pages\PicturePage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Compile Include="Pages\PicturePage.xaml.cs"><DependentUpon>Pages\PicturePage.xaml</DependentUpon></Compile>
     <Page Include="Pages\HubPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
     <Compile Include="Pages\HubPage.xaml.cs"><DependentUpon>Pages\HubPage.xaml</DependentUpon></Compile>
     <Page Include="Pages\TitlePage.xaml"><Generator>MSBuild:Compile</Generator></Page>
@@ -81,6 +89,13 @@
     <Compile Include="Modules\LibraryModule.cs" />
     <Compile Include="Modules\ProfileModule.cs" />
     <Compile Include="Modules\SettingsModule.cs" />
+    <Compile Include="Modules\MediaModule.cs" />
+    <Compile Include="Services\Media\DriveMediaSource.cs" />
+    <Compile Include="Services\Media\Dlna.cs" />
+    <Compile Include="Services\Media\Http.cs" />
+    <Compile Include="Services\Media\LocalMediaServer.cs" />
+    <Compile Include="Services\Media\MediaEntry.cs" />
+    <Compile Include="Services\Media\MediaService.cs" />
   </ItemGroup>
   <!-- The debug server (Debugging\): commands over TCP for testing on a
        console. On for now; build with the DebugServer property or

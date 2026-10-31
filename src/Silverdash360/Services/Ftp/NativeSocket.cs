@@ -6,8 +6,8 @@ using Silverdash360.Native;
 namespace Silverdash360.Services.Ftp
 {
     /// <summary>
-    /// A blocking TCP socket on the console's Winsock. Calls block their
-    /// thread, so the server runs every socket on threads of its own.
+    /// A blocking TCP or UDP socket on the console's Winsock. Calls block
+    /// their thread, so the servers run every socket on threads of their own.
     /// </summary>
     public sealed class NativeSocket : IDisposable
     {
@@ -108,10 +108,66 @@ namespace Silverdash360.Services.Ftp
             }
         }
 
+        /// <summary>A UDP socket bound to a free port, for sending datagrams and reading the replies.</summary>
+        public static NativeSocket Udp()
+        {
+            NativeSocket socket = Create(Net.SockDgram, Net.IpProtoUdp);
+            try
+            {
+                using (NativeBuffer address = Address(0, 0))
+                {
+                    Check(Net.bind(Net.CallerTitle, socket.handle, address.Address, 16), "bind");
+                }
+                return socket;
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        }
+
+        /// <summary>Sends a datagram to an IPv4 address and port.</summary>
+        public void SendTo(byte[] data, uint ip, int port)
+        {
+            using (NativeBuffer buffer = new NativeBuffer(data))
+            using (NativeBuffer address = Address(ip, (ushort)port))
+            {
+                if (Net.sendto(Net.CallerTitle, handle, buffer.Address, data.Length, 0, address.Address, 16) < 0)
+                {
+                    throw new IOException("sendto failed: " + Net.WSAGetLastError() + ".");
+                }
+            }
+        }
+
+        /// <summary>Receives a datagram into a pinned buffer, with the address it came from.</summary>
+        public int ReceiveFrom(NativeBuffer buffer, out uint ip, out int port)
+        {
+            using (NativeBuffer from = new NativeBuffer(16))
+            using (NativeBuffer length = new NativeBuffer(4))
+            {
+                length.SetU32(0, 16);
+                int received = Net.recvfrom(Net.CallerTitle, handle, buffer.Address, buffer.Length, 0, from.Address,
+                                            length.Address);
+                if (received < 0)
+                {
+                    throw new IOException("recvfrom failed: " + Net.WSAGetLastError() + ".");
+                }
+                port = from.U16(2);
+                ip = from.U32(4);
+                return received;
+            }
+        }
+
         private static NativeSocket Create()
         {
+            return Create(Net.SockStream, Net.IpProtoTcp);
+        }
+
+        private static NativeSocket Create(int type, int protocol)
+        {
             StartNetworking();
-            uint handle = Net.socket(Net.CallerTitle, Net.AfInet, Net.SockStream, Net.IpProtoTcp);
+            uint handle = Net.socket(Net.CallerTitle, Net.AfInet, type, protocol);
             if (handle == Net.InvalidSocket)
             {
                 throw new IOException("Couldn't make a socket: " + Net.WSAGetLastError() + ".");
@@ -224,6 +280,27 @@ namespace Silverdash360.Services.Ftp
             {
                 throw new IOException(call + " failed: " + Net.WSAGetLastError() + ".");
             }
+        }
+
+        /// <summary>An IPv4 address in dotted form, or 0 when the text isn't one.</summary>
+        public static uint ParseAddress(string text)
+        {
+            string[] parts = (text ?? "").Split('.');
+            if (parts.Length != 4)
+            {
+                return 0;
+            }
+            uint ip = 0;
+            foreach (string part in parts)
+            {
+                byte value;
+                if (!byte.TryParse(part, out value))
+                {
+                    return 0;
+                }
+                ip = ip << 8 | value;
+            }
+            return ip;
         }
 
         public static string FormatAddress(uint ip)

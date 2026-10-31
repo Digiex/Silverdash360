@@ -41,7 +41,7 @@ python tests/run_tests.py 192.168.1.20
 
 | Option | |
 |---|---|
-| `--suite api,functional` | Which suites to run: `api`, `functional`, `performance` (all by default). |
+| `--suite api,functional` | Which suites to run: `api`, `functional`, `media`, `performance` (all by default). |
 | `-k name`, `-x name` | Only the tests whose name contains it, or all but them. |
 | `--quick` | Fewer iterations: for xenia, and for a quick check. |
 | `--json results.json` | Writes the results, notes and metrics. |
@@ -54,6 +54,7 @@ The suites:
 
 - **api**: the protocol, and the console's functions the dashboard uses: system version and memory, sign-in, content enumeration, package headers, tiles, played titles and achievements, the network address, and file system listings and reads.
 - **functional**: the library loads and its lists agree, titles are found by key and ID, search finds what it should, a refresh keeps the library, the cache holds what the library has, the hub's sections and bumpers, the D-pad moving a selection, A opening a title and B coming back, the other pages, several clients, the log.
+- **media**: the media section's sources, a media server (found by the search, or the one `SILVERDASH_DLNA` gives by its description URL), a picture shown and music or a video playing. It looks for media on the drives and servers, and skips what it doesn't find.
 - **performance**: the benchmarks (interpreted code next to the framework's, and the dashboard's own work on the library on the console), searching, reading the cache, enumerating and reading headers, a full refresh, memory, the frame rate when idle and while scrolling the games and apps, and opening a title's page.
 
 Performance numbers depend on the library, so compare runs on the same console with the same content. The console's clock counts whole milliseconds; each metric has a noise floor below which a difference doesn't count as a regression.
@@ -97,9 +98,20 @@ python tests/debugclient.py 192.168.1.20
 | `ui.fps`, `ui.scroll` | Frame rate when idle, and while moving a grid's selection a step per frame. |
 | `bench.list`, `bench <name> [iterations]` | Timed runs of the dashboard's work. |
 | `ui.timeline <button> [ms]`, `ui.motion [name value]...` | What a press costs: its own work, the first frame after it, a page's arrival and readiness, the frame gaps; and the animation settings, changed live. |
+| `media.sources`, `media.search`, `media.add <url>`, `media.list`, `media.play`, `media.state`, `media.next` | The media section: sources, media servers, folders, playing and what the player is doing. |
 | `app.location`, `app.launch [path]`, `ftp.start [port]`, `ftp.stop` | Where the dashboard runs from, starting a build, and the FTP server, for deploy.py. |
 
 A controller's button events can't be made from code, so `ui.press` does what the button does instead: it calls the focused grid's `TileGrid.Press`, then the hub's `HubPage.Press`, then the frame's back for B. Pages with their own button handling, such as the search page's keyboard, aren't reached that way.
+
+## A media server for testing
+
+`tests/dlna_server.py` serves a folder as a DLNA media server: SSDP, ContentDirectory browsing and files with byte ranges.
+
+```bash
+python tests/dlna_server.py path/to/media
+```
+
+On a PC whose firewall drops SSDP answers to other programs (Windows does unless the program is allowed), the search finds nothing; add the server by URL instead, with the debug server's `media.add http://<pc>:8200/description.xml` or `SILVERDASH_DLNA` for the tests.
 
 ## Tuning the animations on a console
 

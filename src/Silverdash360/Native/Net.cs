@@ -13,7 +13,9 @@ namespace Silverdash360.Native
 
         public const int AfInet = 2;
         public const int SockStream = 1;
+        public const int SockDgram = 2;
         public const int IpProtoTcp = 6;
+        public const int IpProtoUdp = 17;
         public const int SolSocket = 0xFFFF;
         /// <summary>
         /// Marks a socket as plain TCP rather than the console's encrypted
@@ -86,6 +88,18 @@ namespace Silverdash360.Native
         // 0x16: int send(DWORD caller, SOCKET, const char* buffer, int length, int flags)
         [DllImport("xam.xex", EntryPoint = "#22")]
         public static extern int send(uint caller, uint s, uint buffer, int length, int flags);
+
+        // 0x14: int recvfrom(DWORD caller, SOCKET, char* buffer, int length, int flags,
+        //   sockaddr* from, int* fromLength)
+        [DllImport("xam.xex", EntryPoint = "#20")]
+        public static extern int recvfrom(uint caller, uint s, uint buffer, int length, int flags, uint from,
+                                          uint fromLength);
+
+        // 0x18: int sendto(DWORD caller, SOCKET, const char* buffer, int length, int flags,
+        //   const sockaddr* to, int toLength)
+        [DllImport("xam.xex", EntryPoint = "#24")]
+        public static extern int sendto(uint caller, uint s, uint buffer, int length, int flags, uint to,
+                                        int toLength);
 
         // 0x1B: int WSAGetLastError()
         [DllImport("xam.xex", EntryPoint = "#27")]

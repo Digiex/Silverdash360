@@ -360,7 +360,15 @@ namespace Silverdash360.Services.Files
             {
                 return DateTime.Now;
             }
-            return DateTime.FromFileTimeUtc((long)fileTime).ToLocalTime();
+            try
+            {
+                return DateTime.FromFileTimeUtc((long)fileTime).ToLocalTime();
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                // A time the runtime won't take, as xenia gives some files.
+                return DateTime.Now;
+            }
         }
 
         internal static string Describe(int status, string path)

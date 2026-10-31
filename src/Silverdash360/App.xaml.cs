@@ -15,6 +15,7 @@ using Silverdash360.Modules;
 using Silverdash360.Services;
 using Silverdash360.Services.Files;
 using Silverdash360.Services.Ftp;
+using Silverdash360.Services.Media;
 
 namespace Silverdash360
 {
@@ -53,7 +54,8 @@ namespace Silverdash360
             XamContentSource content = new XamContentSource();
             XboxFileSystem files = new XboxFileSystem();
             Context = new DashboardContext(new Library(content, profiles, new LibraryCache(), new ExecutableScanner(files)),
-                                           profiles, new ImageService(content), new SystemService(), new FtpServer(files));
+                                           profiles, new ImageService(content), new SystemService(), new FtpServer(files),
+                                           new MediaService(files));
             Context.Ftp.Message += text => Background.OnUi(() => Context.ShowStatus(text));
             Modules = ModuleRegistry.CreateAll(Context);
 

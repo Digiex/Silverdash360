@@ -25,6 +25,7 @@ The screenshots are from xenia-edge with a test set of app packages.
 - **Search** with an on-screen keyboard, by name, publisher or title ID, updating as you type.
 - **Profile**: gamertag, gamer picture, gamerscore, motto and zone, and the titles played with their achievement progress.
 - **Storage**: everything stored, largest first, filtered by games, apps, add-ons, title updates, saves and media.
+- **Media**: music, videos and pictures from the hard drive, USB drives and data discs, and from DLNA media servers on the network (Windows Media Player, Plex, Kodi and others); Play disc for a movie DVD or a game. See [Media](#media).
 - **FTP server**: the console's drives over FTP while the dashboard runs, turned on in settings.
 - **Settings**: system version, language, console time, where the dashboard runs from, sign-in, refreshing the library and returning to the Xbox Dashboard.
 - **Debug server, tests and deploying**: a TCP port that takes commands, for testing and debugging on a console without a development kit; API, functional and performance tests that run over it from a PC; and a script that puts a new build on the console and starts it. Built in by default for now.
@@ -74,6 +75,17 @@ The debug server is built in unless you add `-NoDebugServer`. It listens on port
 
 The dashboard writes what it does to xenia's log as `(DbgPrint) [Silverdash] ...`.
 
+## Media
+
+The media section lists the drives, the media servers found on the network and, with a movie DVD or a game in the drive, Play disc. A source opens as folders of music, videos and pictures (LB and RB filter them). A on a song or a video plays it and the rest of its kind in the folder, with the console's transport bar; X and Y go to the previous and next. Pictures go left and right, with a slideshow on A.
+
+- **Formats**: what the console's player decodes: MP3, WMA, M4A (AAC), WMV, MP4, M4V and MOV (H.264), and JPEG and PNG pictures. AAC and H.264 need the console's Optional Media Update, which the console installs the first time it's needed. The console's own dashboard also plays AVI (DivX, Xvid), MPEG-2 and audio CDs through players of its own that a title can't use; those aren't listed.
+- **Drives**: the platform's player plays only from a URI, so the dashboard serves a file on a drive to it over HTTP on the console itself (port 4602, with a key made up at each start in every URL).
+- **Media servers**: found with an SSDP search, browsed through their ContentDirectory, and played straight from their URLs. A network that drops multicast hides them; the debug server's `media.add` adds one by its description URL.
+- **Play disc** hands the disc to the console: a game starts, and a movie plays in the console's DVD player. That isn't tested.
+
+`tests/dlna_server.py` is a small media server for trying this: `python tests/dlna_server.py path/to/media`.
+
 ## FTP server
 
 Settings has an FTP server that shares the console's drives while the dashboard runs. It's off until you turn it on with A, and the entry then shows the address, the user (`xbox`) and a password made up each time it starts.
@@ -116,9 +128,10 @@ src/Silverdash360/
   Services/   Library, LibraryCache, IContentSource, ProfileService, ImageService, SystemService, classifiers
     Files/    XboxFileSystem: the drives as one tree of paths
     Ftp/      FtpServer, FtpSession and NativeSocket
+    Media/    MediaService, the drive and DLNA sources, the local media server, an HTTP client
   Controls/   TileGrid (the virtualized grid), tile templates, OnScreenKeyboard, Theme
   Modules/    The hub's sections and the registry they're listed in
-  Pages/      Hub, title details, search, storage
+  Pages/      Hub, title details, search, storage, media folders, the player, pictures
   Debugging/  The debug server and its commands, built in with the DebugServer build property
 tests/        The tests that run over the debug server, and a client for it
 ```

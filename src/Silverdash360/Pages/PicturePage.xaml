@@ -1,0 +1,16 @@
+<xbox:XboxApplicationPage x:Class="Silverdash360.Pages.PicturePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:xbox="clr-namespace:Microsoft.Xbox.Controls;assembly=Microsoft.Xbox"
+    Title="Picture">
+  <Grid Background="Black">
+    <!-- A control to hold focus, so the controller's buttons reach the page. -->
+    <ContentControl x:Name="Holder" IsTabStop="True" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+      <Image x:Name="Picture" Stretch="Uniform" />
+    </ContentControl>
+    <StackPanel x:Name="Info" Margin="64,36" VerticalAlignment="Bottom">
+      <TextBlock x:Name="NameText" FontSize="24" Foreground="White" />
+      <TextBlock x:Name="StatusText" FontSize="18" Foreground="{StaticResource SubText}" Margin="0,4,0,0" />
+    </StackPanel>
+  </Grid>
+</xbox:XboxApplicationPage>

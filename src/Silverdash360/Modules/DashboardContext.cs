@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using Silverdash360.Model;
 using Silverdash360.Services;
 using Silverdash360.Services.Ftp;
+using Silverdash360.Services.Media;
 
 namespace Silverdash360.Modules
 {
@@ -9,13 +11,14 @@ namespace Silverdash360.Modules
     public sealed class DashboardContext
     {
         public DashboardContext(Library library, ProfileService profiles, ImageService images, SystemService system,
-                                FtpServer ftp)
+                                FtpServer ftp, MediaService media)
         {
             Library = library;
             Profiles = profiles;
             Images = images;
             System = system;
             Ftp = ftp;
+            Media = media;
         }
 
         public Library Library { get; private set; }
@@ -23,6 +26,7 @@ namespace Silverdash360.Modules
         public ImageService Images { get; private set; }
         public SystemService System { get; private set; }
         public FtpServer Ftp { get; private set; }
+        public MediaService Media { get; private set; }
 
         /// <summary>Goes to a page by its URI; set by the app.</summary>
         public Action<Uri> Navigate { get; set; }
@@ -52,6 +56,25 @@ namespace Silverdash360.Modules
         public void OpenSearch()
         {
             Navigate(new Uri("/Pages/SearchPage.xaml", UriKind.Relative));
+        }
+
+        /// <summary>A media source's folder; null for its top level.</summary>
+        public void OpenMedia(IMediaSource source, MediaEntry folder)
+        {
+            string uri = "/Pages/MediaPage.xaml?source=" + Uri.EscapeDataString(source.Key);
+            if (folder != null)
+            {
+                uri += "&id=" + Uri.EscapeDataString(folder.Id) + "&name=" + Uri.EscapeDataString(folder.Name);
+            }
+            Navigate(new Uri(uri, UriKind.Relative));
+        }
+
+        /// <summary>Plays or shows the entry, with the rest of its kind in the folder queued after it.</summary>
+        public void PlayMedia(IList<MediaEntry> folder, MediaEntry entry)
+        {
+            Media.Start(folder, entry);
+            Navigate(new Uri(entry.Kind == MediaKind.Picture ? "/Pages/PicturePage.xaml" : "/Pages/PlayerPage.xaml",
+                             UriKind.Relative));
         }
 
         public void OpenStorage()
