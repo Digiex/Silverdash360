@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://digiex.github.io/Silverdash360/install/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Installing - Silverdash360</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../extra.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Installing";
+        var mkdocs_page_input_path = "install.md";
+        var mkdocs_page_url = "/Silverdash360/install/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/powershell.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/csharp.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/python.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Silverdash360
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Installing</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#what-you-need">What you need</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#1-make-the-runtime">1. Make the runtime</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2-download-silverdash360">2. Download Silverdash360</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3-put-them-together">3. Put them together</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4-copy-it-to-the-console">4. Copy it to the console</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5-start-it">5. Start it</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#next">Next</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../updating/">Updating</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Using it</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../getting-around/">Getting around</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../games-and-apps/">Games and apps</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../media/">Media</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../settings/">Settings</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../development/">Development</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Silverdash360</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Installing</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/Digiex/Silverdash360/edit/master/docs/install.md">Edit on Digiex/Silverdash360</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="installing">Installing<a class="headerlink" href="#installing" title="Permanent link">&para;</a></h1>
+<p>Silverdash360 runs on the Silverlight platform the console's own apps shipped with. The platform (the runtime and its libraries) isn't Digiex's to hand out, so a release has only Silverdash360's own files, and you add the platform from an app you have.</p>
+<h2 id="what-you-need">What you need<a class="headerlink" href="#what-you-need" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>An Xbox 360 that runs homebrew</strong> (RGH or JTAG). Silverdash360's <code>default.xex</code> is the platform's, changed to drop the donor app's title, so a retail console won't start it.</li>
+<li><strong>A PC with Windows</strong>, <a href="https://www.python.org/downloads/">Python 3</a> and PowerShell.</li>
+<li><strong>The Plex app for Xbox 360, version 0.0.0.7</strong>, extracted. The <a href="https://github.com/Digiex/Silverlight360/blob/master/docs/getting-started.md">Silverlight360 getting started guide</a> says where to get it and how to extract it.</li>
+<li><strong><a href="https://github.com/Digiex/Silverlight360">Silverlight360</a></strong>, cloned or downloaded, for its runtime profile script.</li>
+<li><strong>A way to copy files to the console</strong>, such as an FTP client or a USB drive.</li>
+</ul>
+<h2 id="1-make-the-runtime">1. Make the runtime<a class="headerlink" href="#1-make-the-runtime" title="Permanent link">&para;</a></h2>
+<p>Make a runtime profile from the extracted Plex app with Silverlight360's script, in PowerShell in the Silverlight360 folder:</p>
+<pre><code class="language-powershell">.\tools\New-RuntimeProfile.ps1 -DonorApp 'C:\path\to\Plex v0.0.0.7' -Output .\runtime\plex-2015
+</code></pre>
+<p>The runtime is the <code>runtime\plex-2015\package</code> folder it makes. You make it once; every version of Silverdash360 runs on it.</p>
+<h2 id="2-download-silverdash360">2. Download Silverdash360<a class="headerlink" href="#2-download-silverdash360" title="Permanent link">&para;</a></h2>
+<p>Download the zip of the <a href="https://github.com/Digiex/Silverdash360/releases/latest">latest release</a>, such as <code>Silverdash360-0.1.1.zip</code>.</p>
+<h2 id="3-put-them-together">3. Put them together<a class="headerlink" href="#3-put-them-together" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Make a folder for Silverdash360 on your PC, such as <code>Silverdash360</code>.</li>
+<li>Copy everything in <code>runtime\plex-2015\package</code> into it.</li>
+<li>Copy everything in the release zip into it, replacing what's there. <code>LICENSE.md</code> and <code>INSTALL.txt</code> can be left out.</li>
+</ol>
+<h2 id="4-copy-it-to-the-console">4. Copy it to the console<a class="headerlink" href="#4-copy-it-to-the-console" title="Permanent link">&para;</a></h2>
+<p>Copy the folder to the console's hard drive, such as to <code>Hdd1:\Apps\Silverdash360</code>, over FTP or from a USB drive.</p>
+<h2 id="5-start-it">5. Start it<a class="headerlink" href="#5-start-it" title="Permanent link">&para;</a></h2>
+<p>Start <code>default.xex</code> in that folder with your file manager or launcher. The first start reads every package on the console, which takes a minute or two with a large collection; the games and apps fill in as it goes, and later starts are quick.</p>
+<p>Silverdash360 keeps its settings, the library it read and the box art it downloaded in a <code>Data</code> folder next to <code>default.xex</code>. Deleting <code>Data</code> starts it afresh.</p>
+<h2 id="next">Next<a class="headerlink" href="#next" title="Permanent link">&para;</a></h2>
+<ul>
+<li>New versions install themselves when you say so: see <a href="../updating/">Updating</a>.</li>
+<li>To find your way around, see <a href="../getting-around/">Getting around</a>.</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href=".." class="btn btn-neutral float-left" title="Home"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../updating/" class="btn btn-neutral float-right" title="Updating">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+      <p>Silverdash360 is licensed under the PolyForm Noncommercial License 1.0.0 with an additional condition. Xbox, Xbox 360 and Silverlight are trademarks of Microsoft.</p>
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/Digiex/Silverdash360" class="fa fa-code-fork" style="color: #fcfcfc"> Digiex/Silverdash360</a>
+        </span>
+    
+    
+      <span><a href=".." style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../updating/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

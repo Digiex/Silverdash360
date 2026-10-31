@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://digiex.github.io/Silverdash360/development/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Development - Silverdash360</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../extra.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Development";
+        var mkdocs_page_input_path = "development.md";
+        var mkdocs_page_url = "/Silverdash360/development/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/powershell.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/csharp.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/python.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Silverdash360
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../install/">Installing</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../updating/">Updating</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Using it</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../getting-around/">Getting around</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../games-and-apps/">Games and apps</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../media/">Media</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../settings/">Settings</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Development</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#building">Building</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#releases">Releases</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#the-documentation">The documentation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#debug-server-and-tests">Debug server and tests</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#running-in-xenia-edge">Running in xenia-edge</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#how-it-works">How it works</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#extending-it">Extending it</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Silverdash360</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Development</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/Digiex/Silverdash360/edit/master/docs/development.md">Edit on Digiex/Silverdash360</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="development">Development<a class="headerlink" href="#development" title="Permanent link">&para;</a></h1>
+<p>Silverdash360 is C# and XAML for the Xbox 360's Silverlight platform, built with the <a href="https://github.com/Digiex/Silverlight360">Silverlight360</a> SDK.</p>
+<h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
+<p>You need what Silverlight360 needs (see its <a href="https://github.com/Digiex/Silverlight360/blob/master/docs/getting-started.md">getting started guide</a>), including a runtime profile. Then:</p>
+<pre><code class="language-powershell">.\tools\Build.ps1 -Debug -Sdk path\to\Silverlight360
+</code></pre>
+<p>Every build is one of two:</p>
+<ul>
+<li><code>-Debug</code> has the debug server (see below) and lands in <code>src\Silverdash360\bin\Debug\xbox\</code>. <code>tools\deploy.py</code>, <code>tools\Run.ps1</code> and the tests use it.</li>
+<li><code>-Release</code> leaves the debug server out and lands in <code>src\Silverdash360\bin\Release\xbox\</code>. Builds for others are these.</li>
+</ul>
+<p><code>-AppOnly</code> writes Silverdash360's own files alone, without the runtime, into <code>bin\&lt;Debug|Release&gt;\app\</code>. <code>-Sdk</code> can be left out when the <code>SILVERLIGHT360</code> environment variable points to the SDK, or when it's cloned next to this repository as <code>Silverlight360</code>.</p>
+<p>The package runs as the title the SDK's runtime profile came from (Plex by default), so it's started like that app. The debug server listens on port 4601 without a password, which is why it's only in Debug builds.</p>
+<h2 id="releases">Releases<a class="headerlink" href="#releases" title="Permanent link">&para;</a></h2>
+<pre><code class="language-powershell">.\tools\Release.ps1 -DryRun
+.\tools\Release.ps1
+</code></pre>
+<p><code>Release.ps1</code> makes a Release build of Silverdash360's own files (the SDK's <code>XboxAppOnly</code>), zips them with an <code>INSTALL.txt</code>, and publishes the zip on GitHub Releases with the commits since the last release as its notes. The zip has no <code>default.xex</code>, runtime or framework assemblies: those are Microsoft's and the donor app's, so whoever installs it lays it over a runtime profile of their own.</p>
+<p>Every release has a higher version than the last, tagged <code>v&lt;version&gt;</code>. That's <code>Silverdash360Version</code> in <code>Silverdash360.csproj</code> when it's higher than the last release's, so a minor or major version can be set by hand; otherwise the script raises the last release's patch number (or the part <code>-Bump Minor</code> or <code>-Bump Major</code> names). A new version is committed to the project file and that commit pushed, so the release is built and tagged from it; everything before it has to be committed and pushed already. The release's title has the build number settings shows. The script needs the GitHub CLI (<code>gh</code>) signed in. <code>-DryRun</code> shows the version, builds the zip and shows the notes, without committing, pushing or publishing.</p>
+<p><code>.\tools\Release.ps1 -Console</code> makes a zip for your own console instead and releases nothing: the whole Release package, runtime included, in a <code>Silverdash360</code> folder (<code>src\Silverdash360\bin\Release\console\Silverdash360-&lt;version&gt;-console.zip</code>) to copy to the console. It has the donor app's and Microsoft's files, so it isn't for handing out.</p>
+<h2 id="the-documentation">The documentation<a class="headerlink" href="#the-documentation" title="Permanent link">&para;</a></h2>
+<p>This site is the <code>docs</code> folder, built with <a href="https://www.mkdocs.org/">MkDocs</a> (<code>mkdocs.yml</code>). A push to <code>master</code> that changes it publishes it to GitHub Pages (<code>.github/workflows/docs.yml</code>). To preview it:</p>
+<pre><code class="language-powershell">pip install mkdocs==1.6.1
+python -m mkdocs serve
+</code></pre>
+<h2 id="debug-server-and-tests">Debug server and tests<a class="headerlink" href="#debug-server-and-tests" title="Permanent link">&para;</a></h2>
+<p>While a Debug build runs, the debug server takes commands on TCP port 4601, one line each, and answers with a line of JSON: what the library holds, the console's functions called directly, memory, the log, what's on screen, button presses, frame rates and benchmarks of the dashboard's own work. Settings shows its address.</p>
+<pre><code class="language-bash">python tests/run_tests.py 192.168.1.20
+python tests/debugclient.py 192.168.1.20
+</code></pre>
+<p>The first runs the API, functional and performance tests against the console and can compare performance with an earlier run; the second is a shell for typing commands. See <a href="https://github.com/Digiex/Silverdash360/blob/master/tests/README.md">tests/README.md</a> for the commands, the protocol and adding tests.</p>
+<p>To put a new build on the console and start it, over the dashboard's own FTP server and the debug server:</p>
+<pre><code class="language-bash">python tools/deploy.py 192.168.1.20 -- --suite functional
+</code></pre>
+<p>It finds where the dashboard runs from (else <code>/Hdd1/Apps/Silverdash360</code>), uploads only the files that changed, starts the new build through a staging folder so no running file is overwritten, checks it came up, and runs the tests given after <code>--</code>. See <a href="https://github.com/Digiex/Silverdash360/blob/master/tests/README.md#deploying-a-build">Deploying a build</a>.</p>
+<h2 id="running-in-xenia-edge">Running in xenia-edge<a class="headerlink" href="#running-in-xenia-edge" title="Permanent link">&para;</a></h2>
+<pre><code class="language-powershell">.\tools\Run.ps1 -Steps '16:shot' -Seconds 20
+</code></pre>
+<p><code>-ContentRoot</code> gives xenia a content folder of its own, so the dashboard can be tried on a known set of packages without touching xenia's (see <a href="https://github.com/Digiex/Silverlight360/blob/master/docs/testing.md">Testing in xenia</a>). The dashboard needs the XAM functions below, which xenia-edge doesn't have yet; they're on the <code>pr-dashboard-content</code> branch, to be proposed to xenia-edge.</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>What the dashboard uses it for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>XamContentAggregateCreateEnumerator</code></td>
+<td>Every package of every title, as the console's dashboard lists them</td>
+</tr>
+<tr>
+<td><code>XamContentGetMetaDataInternal</code></td>
+<td>A package header's names, description and art</td>
+</tr>
+<tr>
+<td><code>XamContentLaunchImageInternalEx</code></td>
+<td>Starting a package</td>
+</tr>
+</tbody>
+</table>
+<p>The dashboard writes what it does to xenia's log as <code>(DbgPrint) [Silverdash] ...</code>. For the FTP server, run with <code>--systemlink_transport=off</code> (for example <code>.\tools\Run.ps1 -ExtraArgs '--systemlink_transport=off'</code>): otherwise xenia's System Link emulation carries the dashboard's sockets and nothing listens on the PC. xenia moves port 21 to 10021, and the hard drive has only its <code>Content</code> folder there.</p>
+<h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
+<p>Everything is C#. The console's own functions are called with <code>DllImport</code> by ordinal, with structures passed as pinned big-endian buffers.</p>
+<pre><code>src/Silverdash360/
+  Native/     DllImports into xam.xex and xboxkrnl.exe, and NativeBuffer for structures
+  Model/      ContentItem (one package), ContentMetadata (its header), TitleEntry, Gamer, ...
+  Core/       Logging, background work, UiIdle (work that waits for the user), a JSON reader
+  Services/   Library, LibraryCache, ProfileService, ImageService, ThemeService, UpdateService, ...
+    Files/    XboxFileSystem: the drives as one tree of paths
+    Ftp/      FtpServer, FtpSession and NativeSocket
+    Media/    MediaService, the drive, DLNA and downloaded video sources, the local media server, an HTTP client
+  Controls/   TileGrid (the virtualized grid), tile templates, OnScreenKeyboard, Theme
+  Modules/    The hub's sections and the registry they're listed in
+  Pages/      Hub, title details, search, storage, media, the player, pictures, files, themes, updates
+  Debugging/  The debug server and its commands, in Debug builds
+tests/        The tests that run over the debug server, and a client for it
+</code></pre>
+<p>The library is read the way the console's dashboard reads it:</p>
+<ol>
+<li><strong>Content</strong>: one <code>XamContentAggregateCreateEnumerator</code> over every title and type, for common content and for the signed-in profile, returning 0x200-byte <code>XCONTENT_DATA_INTERNAL</code> records.</li>
+<li><strong>Metadata</strong>: <code>XamContentGetMetaDataInternal</code> per package, for names, description, publisher, version, size and thumbnails.</li>
+<li><strong>Profile</strong>: <code>XamUserGetSigninInfo</code>, <code>XamUserReadProfileSettings</code> for the gamer card, <code>XamUserCreateTitlesPlayedEnumerator</code> and <code>XamUserCreateAchievementEnumerator</code>, and <code>XamReadTile</code> for game tiles and gamer pictures.</li>
+<li><strong>Launching</strong>: <code>XamContentLaunchImageInternalEx</code> with the package's record, after checking it isn't partly downloaded or damaged. An executable from an Apps or Games folder starts with <code>XamLoaderLaunchTitleEx</code> and flags 0, with its folder as the D: drive.</li>
+<li><strong>FTP</strong>: the console's Winsock (<code>NetDll_socket</code>, <code>bind</code>, <code>listen</code>, <code>accept</code>, ...) on threads of its own, and the kernel's file calls on the drives' device paths.</li>
+</ol>
+<p><code>LibraryCache</code> keeps the records and the header metadata in <code>Data\library.bin</code> in the folder the dashboard is installed in. On a start the cached library is shown first; the enumeration then runs again, and only packages the cache doesn't know have their headers read. Reading the library, the art and the Marketplace pause while the user moves (<code>UiIdle</code>), and a save is written to a new file before the old one is replaced, so starting a game part way through doesn't lose it.</p>
+<p><strong>Media</strong>: the platform's player plays only from a URI, so the dashboard serves a file on a drive to it over HTTP on the console itself (port 4602, with a key made up at each start in every URL). A media server's files go through the same server, as the player won't play from another machine. Media servers are found with an SSDP search and browsed through their ContentDirectory; <code>tests/dlna_server.py</code> is a small one for trying it.</p>
+<p><strong>Updates</strong>: the latest release comes from GitHub's API over HTTPS through the platform's <code>HttpWebRequest</code> (<code>github.com</code> itself doesn't answer the console; <code>api.github.com</code> and its file storage do). The zip is checked against the release's size and SHA-256, its files written next to the dashboard's as <code>.new</code>, each running file renamed to <code>.old</code> (the system allows that for a file in use) and the new one put in its place; a failure puts the old ones back. The dashboard starts again, and the next start deletes the <code>.old</code> files. Debug builds don't look by themselves; the debug server's <code>update.check</code>, <code>update.verify</code> and <code>update.install</code> test it.</p>
+<h2 id="extending-it">Extending it<a class="headerlink" href="#extending-it" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>A new hub section</strong>: implement <code>IDashboardModule</code> (or derive from <code>DashboardModule</code>) and add it to <code>ModuleRegistry</code>, or call <code>ModuleRegistry.Register</code> before the hub is shown. A section gives a view, a header, an order and a legend, and hands the D-pad's left and right edges to the hub with <code>ForwardEdges</code>.</li>
+<li><strong>Telling more apps from games</strong>: add an <code>ITitleClassifier</code> to <code>Library.Classifiers</code>. Classifiers are asked in order and the first answer wins.</li>
+<li><strong>Another content source</strong>: implement <code>IContentSource</code>, for example to list packages from a network share, and pass it to <code>Library</code>.</li>
+<li><strong>A new view of titles</strong>: <code>TileGrid</code> takes any <code>ITileTemplate</code>. <code>RowTemplate</code> makes rows from a <code>RowData</code> description, and <code>CoverTileTemplate</code> makes covers.</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../troubleshooting/" class="btn btn-neutral float-left" title="Troubleshooting"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+      <p>Silverdash360 is licensed under the PolyForm Noncommercial License 1.0.0 with an additional condition. Xbox, Xbox 360 and Silverlight are trademarks of Microsoft.</p>
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/Digiex/Silverdash360" class="fa fa-code-fork" style="color: #fcfcfc"> Digiex/Silverdash360</a>
+        </span>
+    
+    
+      <span><a href="../troubleshooting/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
