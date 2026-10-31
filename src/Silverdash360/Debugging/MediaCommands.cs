@@ -43,6 +43,13 @@ namespace Silverdash360.Debugging
                 };
             });
             commands.Add("media.search", "[timeoutMs]", "Looks for media servers and waits for the search to end.", Search);
+            commands.Add("media.ssdp", "[target] [ms]", "An SSDP M-SEARCH (ssdp:all by default): who answers, and with what.", r =>
+            {
+                List<string> who = new List<string>();
+                List<string> answers = Ssdp.Ask(r.Arg(0, "ssdp:all"), r.Int(1, 4000),
+                                                (ip, port) => who.Add(Services.Ftp.NativeSocket.FormatAddress(ip) + ":" + port));
+                return new JsonObject { { "from", who }, { "answers", answers.Select(a => a.Length > 300 ? a.Substring(0, 300) : a).ToList() } };
+            });
             commands.Add("media.add", "<descriptionUrl>", "Adds a media server by the URL of its description.", r =>
             {
                 Uri location;

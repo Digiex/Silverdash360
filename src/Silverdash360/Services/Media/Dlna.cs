@@ -25,6 +25,24 @@ namespace Silverdash360.Services.Media
         public static List<Uri> Search(int milliseconds)
         {
             List<Uri> found = new List<Uri>();
+            foreach (string answer in Ask(MediaServer, milliseconds, null))
+            {
+                Uri location = Location(answer);
+                if (location != null && !found.Contains(location))
+                {
+                    found.Add(location);
+                }
+            }
+            return found;
+        }
+
+        /// <summary>
+        /// Every answer to an M-SEARCH for a search target (ssdp:all for any
+        /// device) within the time; from, when given, hears who answered.
+        /// </summary>
+        public static List<string> Ask(string target, int milliseconds, Action<uint, int> from)
+        {
+            List<string> answers = new List<string>();
             using (NativeSocket socket = NativeSocket.Udp())
             using (NativeBuffer buffer = new NativeBuffer(0x2000))
             {
@@ -33,7 +51,7 @@ namespace Silverdash360.Services.Media
                     "HOST: 239.255.255.250:1900\r\n" +
                     "MAN: \"ssdp:discover\"\r\n" +
                     "MX: 2\r\n" +
-                    "ST: " + MediaServer + "\r\n" +
+                    "ST: " + target + "\r\n" +
                     "USER-AGENT: Silverdash360 UPnP/1.0 DLNADOC/1.50\r\n\r\n");
                 // Twice: a datagram can go missing.
                 socket.SendTo(search, Group, Port);
@@ -49,14 +67,14 @@ namespace Silverdash360.Services.Media
                     uint ip;
                     int port;
                     int received = socket.ReceiveFrom(buffer, out ip, out port);
-                    Uri location = Location(Encoding.UTF8.GetString(buffer.Bytes, 0, received));
-                    if (location != null && !found.Contains(location))
+                    if (from != null)
                     {
-                        found.Add(location);
+                        from(ip, port);
                     }
+                    answers.Add(Encoding.UTF8.GetString(buffer.Bytes, 0, received));
                 }
             }
-            return found;
+            return answers;
         }
 
         private static Uri Location(string answer)
