@@ -86,7 +86,9 @@ namespace Silverdash360.Modules
                 new Entry { Title = "Console time", Detail = Safe(() => system.ConsoleTime.ToString("g")) },
                 new Entry { Title = "Running as title", Detail = Safe(() => system.CurrentTitleId) },
                 new Entry { Title = "Running from", Detail = Safe(() => AppFolder.Path(Context.Ftp.Files) ?? AppFolder.DevicePath() ?? "unknown") },
+                new Entry { Title = "Version", Detail = VersionDetail() },
                 new Entry { Title = "About Silverdash360", Detail = "github.com/Digiex/Silverdash360" },
+                new Entry { Title = "Digiex", Detail = "digiex.net" },
                 new Entry { Title = "Built with Silverlight360", Detail = "github.com/Digiex/Silverlight360" },
                 new Entry { Title = "Return to the Xbox Dashboard", Detail = "Exit Silverdash", Run = system.ExitToDashboard },
             };
@@ -96,6 +98,14 @@ namespace Silverdash360.Modules
             int selected = Math.Max(0, list.SelectedIndex);
             list.Items = entries.Cast<object>().ToList();
             list.SelectedIndex = selected;
+        }
+
+        // Such as "0.1.0, build 43 (commit 56aa54d)"; "with changes" for one
+        // made from files changed since that commit.
+        private static string VersionDetail()
+        {
+            return BuildInfo.Version + ", build " + BuildInfo.Number + " (commit " + BuildInfo.Commit +
+                   (BuildInfo.Changed ? ", with changes" : "") + ")";
         }
 
         private string FtpDetail()

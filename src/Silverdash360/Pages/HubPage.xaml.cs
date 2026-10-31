@@ -50,6 +50,15 @@ namespace Silverdash360.Pages
         private bool buildWaiting;
 
         private readonly DispatcherTimer clock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+
+        // Every so often the logo turns into Digiex's for a few seconds.
+        private readonly DispatcherTimer brandTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+        private readonly Storyboard brandSwap = new Storyboard();
+        private const double BrandFadeSeconds = 0.6;
+        private const double BrandShownSeconds = 10;
+        // The swap waits for the user to leave the controller alone this long.
+        private const int BrandQuietMs = 1000;
+        private bool brandWaiting;
         private int shownWallpaper = -1;
         private bool wallpaperWaiting;
 
@@ -65,6 +74,11 @@ namespace Silverdash360.Pages
             InitializeComponent();
             Motion.UsePageTransitions(this);
             clock.Tick += delegate { ShowClock(); };
+            brandTimer.Tick += delegate { SwapLogo(); };
+            Headers.SizeChanged += delegate { CentreLogo(); };
+            LogoHost.SizeChanged += delegate { CentreLogo(); };
+            DigiexImage.ImageFailed += (s, e) => Log.Write("The Digiex logo didn't load: {0}", e.ErrorException.Message);
+            MakeBrandSwap();
             GamePadButtonDown += OnButtonDown;
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
@@ -96,6 +110,7 @@ namespace Silverdash360.Pages
             ShowGamer();
             ShowClock();
             clock.Start();
+            brandTimer.Start();
             Show(current, 0);
             Prepare();
         }
@@ -104,6 +119,8 @@ namespace Silverdash360.Pages
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
             clock.Stop();
+            brandTimer.Stop();
+            brandSwap.Stop();
             foreach (IDashboardModule module in Modules)
             {
                 module.EdgeReached -= OnModuleEdge;
@@ -344,6 +361,63 @@ namespace Silverdash360.Pages
         private void ShowLegend()
         {
             LegendText.Text = Modules[current].Legend + "   LB RB sections";
+        }
+
+        // Moves the logo so its middle is on the section names' middle: the
+        // names sit at the bottom of the header, the logo in its centre.
+        private void CentreLogo()
+        {
+            if (Headers.ActualHeight <= 0 || LogoHost.ActualHeight <= 0)
+            {
+                return;
+            }
+            Point names = Headers.TransformToVisual(LogoHost).Transform(new Point(0, Headers.ActualHeight / 2));
+            LogoShift.Y += names.Y - LogoHost.ActualHeight / 2;
+        }
+
+        // Fades the Silverdash360 logo out and the Digiex one in, holds it,
+        // and fades back.
+        private void MakeBrandSwap()
+        {
+            double fade = BrandFadeSeconds;
+            double back = fade + BrandShownSeconds;
+            brandSwap.Children.Add(Fade(SilverdashLogo, new[] { 0, fade, back, back + fade }, new double[] { 1, 0, 0, 1 }));
+            brandSwap.Children.Add(Fade(DigiexLogo, new[] { 0, fade, back, back + fade }, new double[] { 0, 1, 1, 0 }));
+        }
+
+        private static DoubleAnimationUsingKeyFrames Fade(UIElement target, double[] seconds, double[] opacities)
+        {
+            DoubleAnimationUsingKeyFrames animation = new DoubleAnimationUsingKeyFrames();
+            for (int i = 0; i < seconds.Length; i++)
+            {
+                animation.KeyFrames.Add(new LinearDoubleKeyFrame
+                {
+                    KeyTime = KeyTime.FromTimeSpan(TimeSpan.FromSeconds(seconds[i])),
+                    Value = opacities[i],
+                });
+            }
+            Storyboard.SetTarget(animation, target);
+            Storyboard.SetTargetProperty(animation, new PropertyPath("Opacity"));
+            return animation;
+        }
+
+        // Once the user is quiet, so the fade doesn't cost a scroll frames.
+        private void SwapLogo()
+        {
+            if (brandWaiting)
+            {
+                return;
+            }
+            brandWaiting = true;
+            UiIdle.Run(() =>
+            {
+                brandWaiting = false;
+                if (SectionHost.Content != null)
+                {
+                    brandSwap.Begin();
+                }
+                return false;
+            }, BrandQuietMs);
         }
 
         // Slides the section in from the side it comes from.

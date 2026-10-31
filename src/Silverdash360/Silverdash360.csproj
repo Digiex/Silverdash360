@@ -128,5 +128,55 @@
   <ItemGroup Condition="'$(DebugServer)' == 'true'">
     <Compile Include="Debugging\*.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\Digiex.png" />
+  </ItemGroup>
+  <!-- The version, and the commit the build is made from, for the settings
+       page (BuildInfo). Git's answers go through files, as MSBuild 14 can't
+       read a command's output; without git the commit is unknown. -->
+  <PropertyGroup>
+    <Silverdash360Version Condition="'$(Silverdash360Version)' == ''">0.1.0</Silverdash360Version>
+  </PropertyGroup>
+  <Target Name="WriteBuildInfo" BeforeTargets="CoreCompile">
+    <!-- Here, as the output path is set after this file is read. -->
+    <PropertyGroup>
+      <BuildInfoFile>$(IntermediateOutputPath)BuildInfo.g.cs</BuildInfoFile>
+    </PropertyGroup>
+    <Exec Command="git rev-parse --short HEAD &gt; &quot;$(IntermediateOutputPath)commit.txt&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ContinueOnError="true" StandardErrorImportance="low" />
+    <Exec Command="git rev-list --count HEAD &gt; &quot;$(IntermediateOutputPath)commits.txt&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ContinueOnError="true" StandardErrorImportance="low" />
+    <Exec Command="git status --porcelain --untracked-files=no &gt; &quot;$(IntermediateOutputPath)changes.txt&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ContinueOnError="true" StandardErrorImportance="low" />
+    <ReadLinesFromFile File="$(IntermediateOutputPath)commit.txt" Condition="Exists('$(IntermediateOutputPath)commit.txt')">
+      <Output TaskParameter="Lines" PropertyName="BuildCommit" />
+    </ReadLinesFromFile>
+    <ReadLinesFromFile File="$(IntermediateOutputPath)commits.txt" Condition="Exists('$(IntermediateOutputPath)commits.txt')">
+      <Output TaskParameter="Lines" PropertyName="BuildNumber" />
+    </ReadLinesFromFile>
+    <ReadLinesFromFile File="$(IntermediateOutputPath)changes.txt" Condition="Exists('$(IntermediateOutputPath)changes.txt')">
+      <Output TaskParameter="Lines" ItemName="BuildChanges" />
+    </ReadLinesFromFile>
+    <PropertyGroup>
+      <BuildCommit Condition="'$(BuildCommit)' == ''">unknown</BuildCommit>
+      <BuildNumber Condition="'$(BuildNumber)' == ''">0</BuildNumber>
+      <BuildChanged>false</BuildChanged>
+      <BuildChanged Condition="'@(BuildChanges)' != ''">true</BuildChanged>
+    </PropertyGroup>
+    <ItemGroup>
+      <BuildInfoLine Include="// Written by the build (WriteBuildInfo in Silverdash360.csproj)." />
+      <BuildInfoLine Include="namespace Silverdash360" />
+      <BuildInfoLine Include="{" />
+      <BuildInfoLine Include="    internal static class BuildInfo" />
+      <BuildInfoLine Include="    {" />
+      <BuildInfoLine Include="        public const string Version = &quot;$(Silverdash360Version)&quot;%3B" />
+      <BuildInfoLine Include="        public const string Commit = &quot;$(BuildCommit)&quot;%3B" />
+      <BuildInfoLine Include="        public const int Number = $(BuildNumber)%3B" />
+      <BuildInfoLine Include="        public const bool Changed = $(BuildChanged)%3B" />
+      <BuildInfoLine Include="    }" />
+      <BuildInfoLine Include="}" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(BuildInfoFile)" Lines="@(BuildInfoLine)" Overwrite="true" />
+    <ItemGroup>
+      <Compile Include="$(BuildInfoFile)" />
+    </ItemGroup>
+  </Target>
   <Import Project="$(Silverlight360Dir)msbuild\XboxSilverlight.targets" />
 </Project>

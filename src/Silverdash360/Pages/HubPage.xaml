@@ -26,8 +26,25 @@
       <!-- Logo, the sections, and the profile and clock on the right. -->
       <Grid Height="64">
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-          <TextBlock Text="silverdash" FontSize="30" Foreground="{StaticResource Silver}" FontWeight="Bold" />
-          <TextBlock Text="360" FontSize="30" Foreground="{StaticResource Accent}" FontWeight="Bold" />
+          <!-- The logo, which turns into the Digiex one for a while now and then;
+               moved to centre on the section names' line (CentreLogo). -->
+          <Grid x:Name="LogoHost" VerticalAlignment="Center">
+            <Grid.RenderTransform>
+              <TranslateTransform x:Name="LogoShift" />
+            </Grid.RenderTransform>
+            <StackPanel x:Name="SilverdashLogo" Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="silverdash" FontSize="30" Foreground="{StaticResource Silver}" FontWeight="Bold" />
+              <TextBlock Text="360" FontSize="30" Foreground="{StaticResource Accent}" FontWeight="Bold" />
+            </StackPanel>
+            <!-- On a canvas, so the wider Digiex logo and domain don't move the sections' names. -->
+            <Canvas Width="0" Height="44" HorizontalAlignment="Left" VerticalAlignment="Center">
+              <StackPanel x:Name="DigiexLogo" Orientation="Horizontal" Height="44" Opacity="0">
+                <Image x:Name="DigiexImage" Source="/Silverdash360;component/Assets/Digiex.png" Height="44" Stretch="Uniform" />
+                <TextBlock Text="digiex.net" FontSize="20" Foreground="{StaticResource Accent}" VerticalAlignment="Center"
+                           Margin="10,0,0,0" />
+              </StackPanel>
+            </Canvas>
+          </Grid>
           <StackPanel x:Name="Headers" Orientation="Horizontal" Margin="44,0,0,0" VerticalAlignment="Bottom" />
         </StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
