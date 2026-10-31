@@ -194,7 +194,7 @@ namespace Silverdash360.Pages
             if (!refreshing)
             {
                 refreshing = true;
-                UiIdle.Run(RefreshShown, UiIdle.QuietMs);
+                UiIdle.Run(RefreshShown, UiIdle.BackgroundQuietMs);
             }
             if (!preparing)
             {
@@ -261,10 +261,10 @@ namespace Silverdash360.Pages
         // The sections show the theme, settings by name, so they're redrawn.
         private void OnThemeChanged(object sender, EventArgs e)
         {
+            // Each a step of its own, as the user may move between them.
             MarkAllStale();
-            RefreshIfStale(Modules[current]);
             shownWallpaper = -1;
-            ShowWallpaper(true);
+            ShowWallpaper(false);
             Prepare();
         }
 

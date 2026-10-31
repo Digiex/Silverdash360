@@ -195,7 +195,9 @@ namespace Silverdash360.Services
             loading = true;
             List<ContentItem> installed = Installed();
             string current = force ? null : loadedKey;
-            Background.Run(() => Read(gamer, installed, current), delegate(LoadResult result, Exception error)
+            // Showing a theme decodes a wallpaper and redraws everything, so it
+            // waits until the user stops moving.
+            Background.Run(() => Read(gamer, installed, current), (result, error) => UiIdle.Post(delegate
             {
                 loading = false;
                 loaded = !partial || (result != null && result.Theme != null);
@@ -213,7 +215,7 @@ namespace Silverdash360.Services
                     return;
                 }
                 Done();
-            });
+            }));
         }
 
         // Tells the callers of Choose that their theme is in.

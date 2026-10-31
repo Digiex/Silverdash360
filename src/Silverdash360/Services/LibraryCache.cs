@@ -38,6 +38,7 @@ namespace Silverdash360.Services
         // bool, so 0 and 1 mean what they did there.
         private const byte HeaderNotRead = 0;
         private const byte HeaderMetadata = 1;
+        private const int BreatheEvery = 64;
         private const byte HeaderWithoutMetadata = 2;
 
         /// <summary>A package's identity: where it's stored and its file name.</summary>
@@ -137,6 +138,11 @@ namespace Silverdash360.Services
             int count = reader.ReadInt32();
             for (int i = 0; i < count; i++)
             {
+                // Thousands of records take seconds: they wait while the user moves.
+                if (i % BreatheEvery == 0)
+                {
+                    UiIdle.WaitWhileMoving(UiIdle.BackgroundQuietMs);
+                }
                 ContentItem item = ContentItem.ReadRecord(reader);
                 byte header = reader.ReadByte();
                 if (header == HeaderMetadata)

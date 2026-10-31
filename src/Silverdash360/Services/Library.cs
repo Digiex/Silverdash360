@@ -364,6 +364,18 @@ namespace Silverdash360.Services
         // start them, for an app that came as an add-on (Video Kinect does).
         // Each package is looked in once; the answer is saved with it.
         // Returns how many were looked in.
+        // Building the titles takes seconds over thousands of packages: every
+        // so many, it waits while the user moves.
+        private const int BreatheEvery = 64;
+
+        private static void Breathe(int step)
+        {
+            if (step % BreatheEvery == 0)
+            {
+                UiIdle.WaitWhileMoving(UiIdle.BackgroundQuietMs);
+            }
+        }
+
         // A pause between steps of the refresh, and a wait while the user moves.
         private static Action Pace(int ms)
         {
@@ -690,8 +702,10 @@ namespace Silverdash360.Services
             // Homebrew packages: QuickBoot shortcuts and packaged apps all
             // share a title ID (C0DE9999), so each is a title of its own.
             List<ContentItem> homebrew = new List<ContentItem>();
+            int step = 0;
             foreach (ContentItem item in content)
             {
+                Breathe(++step);
                 uint id = item.TitleId;
                 if (id == 0)
                 {
@@ -755,6 +769,7 @@ namespace Silverdash360.Services
             List<TitleEntry> listed = new List<TitleEntry>();
             foreach (TitleEntry t in all)
             {
+                Breathe(++step);
                 t.Name = NameOf(t);
                 t.Kind = Classify(t);
                 if (t.Kind == TitleKind.Other)

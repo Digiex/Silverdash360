@@ -76,6 +76,8 @@ namespace Silverdash360.Services
             }
             foreach (FileEntry entry in entries)
             {
+                // Each folder is looked in, found or not: wait while the user moves.
+                UiIdle.WaitWhileMoving(UiIdle.BackgroundQuietMs);
                 string path = null;
                 string name = entry.Name;
                 if (entry.IsDirectory)
