@@ -41,8 +41,8 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $root 'src\Silverdash360'
 
-function Git {
-    $output = & git -C $root @args
+function Invoke-Git {
+    $output = & git.exe -C $root @args
     if ($LASTEXITCODE -ne 0) {
         throw "git $args failed"
     }
@@ -50,16 +50,16 @@ function Git {
 }
 
 # A release is made from a commit as it is, which GitHub has.
-if (Git status --porcelain --untracked-files=no) {
+if (Invoke-Git status --porcelain --untracked-files=no) {
     throw 'There are changes not committed. Commit them, or stash them, first.'
 }
-$commit = Git rev-parse HEAD
+$commit = Invoke-Git rev-parse HEAD
 if (-not $DryRun) {
     if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
         throw 'The GitHub CLI (gh) is needed to publish: https://cli.github.com'
     }
-    Git fetch --quiet --tags origin
-    if (-not (Git branch -r --contains $commit)) {
+    Invoke-Git fetch --quiet --tags origin
+    if (-not (Invoke-Git branch -r --contains $commit)) {
         throw "Commit $commit isn't on GitHub yet. Push it first."
     }
 }
@@ -80,7 +80,7 @@ if ([regex]::Match($buildInfo, 'Changed = (\w+)').Groups[1].Value -ne 'false') {
 }
 $tag = "build-$number"
 $name = "Silverdash360 $version (build $number)"
-if (Git tag --list $tag) {
+if (Invoke-Git tag --list $tag) {
     throw "$tag is released already. Commit something new to release."
 }
 
@@ -128,8 +128,8 @@ Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $zip
 
 # The notes: the commits since the last release before this commit.
 $previous = $null
-foreach ($candidate in (Git tag --list 'build-*' --sort=-creatordate)) {
-    & git -C $root merge-base --is-ancestor $candidate $commit
+foreach ($candidate in (Invoke-Git tag --list 'build-*' --sort=-creatordate)) {
+    & git.exe -C $root merge-base --is-ancestor $candidate $commit
     if ($LASTEXITCODE -eq 0) {
         $previous = $candidate
         break
@@ -139,7 +139,7 @@ $range = if ($previous) { "$previous..$commit" } else { $commit }
 $notes = @()
 $notes += if ($previous) { "## Changes since $previous" } else { '## Changes' }
 $notes += ''
-$notes += Git log $range --no-merges --format='- %s (%h)'
+$notes += Invoke-Git log $range --no-merges --format='- %s (%h)'
 $notes += ''
 $notes += "Built from $($commit.Substring(0, 7)). The zip has Silverdash360's own files; see INSTALL.txt in it for putting it on a runtime profile you made."
 $notesFile = Join-Path $out 'notes.md'
@@ -165,4 +165,4 @@ if ($Prerelease) {
 if ($LASTEXITCODE -ne 0) {
     throw 'gh release create failed.'
 }
-Git fetch --quiet --tags origin
+Invoke-Git fetch --quiet --tags origin
