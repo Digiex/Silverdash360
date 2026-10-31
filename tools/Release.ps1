@@ -51,6 +51,12 @@ $project = Join-Path $root 'src\Silverdash360'
 $projectFile = Join-Path $project 'Silverdash360.csproj'
 $versionPattern = '(<Silverdash360Version[^>]*>)([^<]*)(</Silverdash360Version>)'
 
+# UTF-8 without the byte order mark Windows PowerShell's writes, which
+# GitHub shows in release notes.
+function Write-Utf8([string]$path, [string[]]$lines) {
+    [System.IO.File]::WriteAllLines($path, $lines, (New-Object System.Text.UTF8Encoding $false))
+}
+
 function Invoke-Git {
     $output = & git.exe -C $root @args
     if ($LASTEXITCODE -ne 0) {
@@ -160,7 +166,7 @@ if (Test-Path -LiteralPath $out) {
 New-Item -ItemType Directory -Path $staging | Out-Null
 Copy-Item -Path (Join-Path $appFiles '*') -Destination $staging -Recurse
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE.md') -Destination $staging
-@"
+$install = @"
 $name
 https://github.com/Digiex/Silverdash360
 
@@ -177,7 +183,8 @@ app you have, and isn't included.
 4. Start default.xex in that folder.
 
 Silverdash360 keeps its settings and cache in the Data folder next to it.
-"@ | Set-Content -LiteralPath (Join-Path $staging 'INSTALL.txt') -Encoding UTF8
+"@
+Write-Utf8 (Join-Path $staging 'INSTALL.txt') ($install -split "`r?`n")
 $zip = Join-Path $out "Silverdash360-$version.zip"
 Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $zip
 
@@ -199,7 +206,7 @@ $notes += Invoke-Git log $range --no-merges -E --invert-grep '--grep=^Version [0
 $notes += ''
 $notes += "Build $number, from $($commit.Substring(0, 7)). The zip has Silverdash360's own files; see INSTALL.txt in it for putting it on a runtime profile you made."
 $notesFile = Join-Path $out 'notes.md'
-$notes | Set-Content -LiteralPath $notesFile -Encoding UTF8
+Write-Utf8 $notesFile $notes
 
 Write-Host "$name ($tag)"
 Write-Host "Files: $($ours -join ', '), LICENSE.md, INSTALL.txt"
