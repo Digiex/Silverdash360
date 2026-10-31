@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Silverdash360.Core;
 using Silverdash360.Model;
 using Silverdash360.Native;
@@ -151,8 +152,9 @@ namespace Silverdash360.Services
             {
                 Kernel.NtClose(handle);
             }
-            titles.Sort((a, b) => Nullable.Compare(b.LastPlayed, a.LastPlayed));
-            return titles;
+            // Sorted by a key rather than a comparison: a comparison lambda is
+            // interpreted app code called for every pair, a key lambda once a title.
+            return titles.OrderByDescending(t => t.LastPlayed ?? DateTime.MinValue).ToList();
         }
 
         /// <summary>A title's achievements for the profile.</summary>

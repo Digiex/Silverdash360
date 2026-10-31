@@ -12,9 +12,9 @@ namespace Silverdash360.Services
     /// Keeps what was read from the console's packages (their records and
     /// header metadata) and the executables found, so the next start shows the
     /// library at once and reads only the headers of new packages. It lives
-    /// in the title's storage container. Records are written without their
-    /// runs of zeros and thumbnails aren't kept, so with thousands of packages
-    /// it stays around half a kilobyte a package. Call it from a background
+    /// in the title's storage container. Records are written with their name
+    /// fields cut at the end of the names and thumbnails aren't kept, so with
+    /// thousands of packages it stays around half a kilobyte a package. Call it from a background
     /// thread: storage blocks.
     /// </summary>
     public sealed class LibraryCache
@@ -22,7 +22,7 @@ namespace Silverdash360.Services
         private const string ContainerName = "Silverdash360";
         private const string FileName = "library.bin";
         private const uint Magic = 0x53443343; // "SD3C"
-        private const int FormatVersion = 4;
+        private const int FormatVersion = 5;
         private const int BlockSize = 0x10000;
         private static readonly TimeSpan OpenTimeout = TimeSpan.FromSeconds(60);
 

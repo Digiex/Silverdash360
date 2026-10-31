@@ -69,48 +69,57 @@ namespace Silverdash360.Model
         }
 
         /// <summary>
-        /// Writes the record with its runs of zeros left out: names fill a
-        /// fraction of their fields, so most of the 512 bytes are zeros.
+        /// Writes the record with its three name fields cut at the end of
+        /// their names: the names fill a fraction of their fields, which are
+        /// most of the 512 bytes. (A loop over the bytes looking for zeros
+        /// would be simpler, but app code is interpreted on the console and
+        /// that loop cost about a millisecond a record.)
         /// </summary>
         public void WriteRecord(BinaryWriter w)
         {
-            byte[] r = Record;
-            int at = 0;
-            while (at < r.Length)
-            {
-                int zeros = 0;
-                while (at + zeros < r.Length && r[at + zeros] == 0)
-                {
-                    zeros++;
-                }
-                int bytes = 0;
-                while (at + zeros + bytes < r.Length && r[at + zeros + bytes] != 0)
-                {
-                    bytes++;
-                }
-                w.Write((ushort)zeros);
-                w.Write((ushort)bytes);
-                w.Write(r, at + zeros, bytes);
-                at += zeros + bytes;
-            }
+            int fileNameBytes = Array.IndexOf(Record, (byte)0, 0x108, 42);
+            w.Write(Record, 0x000, 0x08);
+            WriteField(w, 0x008, DisplayName.Length * 2);
+            WriteField(w, 0x108, fileNameBytes < 0 ? 42 : fileNameBytes - 0x108);
+            w.Write(Record, 0x132, 0x158 - 0x132);
+            WriteField(w, 0x158, TitleName.Length * 2);
+            w.Write(Record, 0x1D8, RecordSize - 0x1D8);
         }
 
         public static ContentItem ReadRecord(BinaryReader r)
         {
             byte[] record = new byte[RecordSize];
-            int at = 0;
-            while (at < RecordSize)
-            {
-                at += r.ReadUInt16();
-                int bytes = r.ReadUInt16();
-                if (at + bytes > RecordSize)
-                {
-                    throw new IOException("A cached record is damaged.");
-                }
-                r.Read(record, at, bytes);
-                at += bytes;
-            }
+            ReadPart(r, record, 0x000, 0x08);
+            ReadField(r, record, 0x008, 0x100);
+            ReadField(r, record, 0x108, 42);
+            ReadPart(r, record, 0x132, 0x158 - 0x132);
+            ReadField(r, record, 0x158, 0x80);
+            ReadPart(r, record, 0x1D8, RecordSize - 0x1D8);
             return new ContentItem(record);
+        }
+
+        private void WriteField(BinaryWriter w, int offset, int bytes)
+        {
+            w.Write((ushort)bytes);
+            w.Write(Record, offset, bytes);
+        }
+
+        private static void ReadField(BinaryReader r, byte[] record, int offset, int size)
+        {
+            int bytes = r.ReadUInt16();
+            if (bytes > size)
+            {
+                throw new IOException("A cached record is damaged.");
+            }
+            ReadPart(r, record, offset, bytes);
+        }
+
+        private static void ReadPart(BinaryReader r, byte[] record, int offset, int bytes)
+        {
+            if (r.Read(record, offset, bytes) != bytes)
+            {
+                throw new IOException("A cached record is cut short.");
+            }
         }
     }
 

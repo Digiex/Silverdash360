@@ -127,31 +127,26 @@ namespace Silverdash360.Native
             SetU32(b, o + 4, (uint)v);
         }
 
+        // App code is interpreted on the console, around a thousand times
+        // slower than the framework's precompiled code, so the strings are
+        // decoded and searched by the framework rather than a loop per
+        // character.
+
         /// <summary>A NUL-terminated UTF-16BE string of at most maxChars.</summary>
         public static string Utf16(byte[] b, int o, int maxChars)
         {
-            StringBuilder s = new StringBuilder();
-            for (int i = 0; i < maxChars && o + i * 2 + 1 < b.Length; i++)
-            {
-                char c = (char)U16(b, o + i * 2);
-                if (c == '\0')
-                {
-                    break;
-                }
-                s.Append(c);
-            }
-            return s.ToString();
+            int bytes = Math.Max(0, Math.Min(maxChars * 2, (b.Length - o) & ~1));
+            string s = Encoding.BigEndianUnicode.GetString(b, o, bytes);
+            int end = s.IndexOf('\0');
+            return end < 0 ? s : s.Substring(0, end);
         }
 
         /// <summary>A NUL-terminated single-byte string of at most maxBytes.</summary>
         public static string Ansi(byte[] b, int o, int maxBytes)
         {
-            int n = 0;
-            while (n < maxBytes && o + n < b.Length && b[o + n] != 0)
-            {
-                n++;
-            }
-            return Encoding.UTF8.GetString(b, o, n);
+            int length = Math.Max(0, Math.Min(maxBytes, b.Length - o));
+            int end = Array.IndexOf(b, (byte)0, o, length);
+            return Encoding.UTF8.GetString(b, o, end < 0 ? length : end - o);
         }
     }
 }
