@@ -79,6 +79,12 @@ namespace Silverdash360.Modules
                              UriKind.Relative));
         }
 
+        /// <summary>The file browser at a path of the file tree, the drives at /.</summary>
+        public void OpenFiles(string path)
+        {
+            Navigate(new Uri("/Pages/FilesPage.xaml?path=" + Uri.EscapeDataString(path), UriKind.Relative));
+        }
+
         public void OpenStorage()
         {
             Navigate(new Uri("/Pages/StoragePage.xaml", UriKind.Relative));

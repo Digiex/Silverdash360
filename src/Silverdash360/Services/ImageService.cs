@@ -8,6 +8,7 @@ using System.Windows.Media.Imaging;
 using Silverdash360.Core;
 using Silverdash360.Model;
 using Silverdash360.Native;
+using Silverdash360.Services.Files;
 
 namespace Silverdash360.Services
 {
@@ -93,6 +94,12 @@ namespace Silverdash360.Services
         public void ContentArt(ContentItem item, Action<ImageSource> done)
         {
             Get("content:" + item.TitleId.ToString("X8") + "/" + item.FileName, () => PackagePng(item, false), done);
+        }
+
+        /// <summary>The thumbnail in a package file's header, for the file browser.</summary>
+        public void PackageThumbnail(XboxFileSystem files, string path, Action<ImageSource> done)
+        {
+            Get("file:" + path, () => PackageHeader.ReadThumbnail(files, path), done);
         }
 
         public void GamerPicture(Gamer gamer, Action<ImageSource> done)

@@ -36,7 +36,9 @@
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml"><Generator>MSBuild:Compile</Generator></ApplicationDefinition>
     <Compile Include="App.xaml.cs"><DependentUpon>App.xaml</DependentUpon></Compile>
+    <Page Include="Pages\FilesPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
     <Page Include="Pages\MediaPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Compile Include="Pages\FilesPage.xaml.cs"><DependentUpon>Pages\FilesPage.xaml</DependentUpon></Compile>
     <Compile Include="Pages\MediaPage.xaml.cs"><DependentUpon>Pages\MediaPage.xaml</DependentUpon></Compile>
     <Page Include="Pages\PlayerPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
     <Compile Include="Pages\PlayerPage.xaml.cs"><DependentUpon>Pages\PlayerPage.xaml</DependentUpon></Compile>
@@ -81,6 +83,7 @@
     <Compile Include="Services\Settings.cs" />
     <Compile Include="Services\ThemeService.cs" />
     <Compile Include="Services\AppStorage.cs" />
+    <Compile Include="Services\Files\PackageHeader.cs" />
     <Compile Include="Services\MarketplaceArt.cs" />
     <Compile Include="Services\MarketplaceArtCache.cs" />
     <Compile Include="Services\LogFile.cs" />

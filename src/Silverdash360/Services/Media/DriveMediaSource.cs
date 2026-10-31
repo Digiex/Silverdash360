@@ -23,21 +23,24 @@ namespace Silverdash360.Services.Media
 
         public string Name
         {
-            get
+            get { return NameOf(drive.Name); }
+        }
+
+        /// <summary>What a drive of the file tree is called, such as "Hard drive" for Hdd1.</summary>
+        public static string NameOf(string drive)
+        {
+            switch (drive)
             {
-                switch (drive.Name)
-                {
-                    case "Hdd1": return "Hard drive";
-                    case "Dvd": return "Disc";
-                    default:
-                        // Usb0 is the first USB drive: USB storage 1.
-                        int number;
-                        if (drive.Name.StartsWith("Usb") && int.TryParse(drive.Name.Substring(3), out number))
-                        {
-                            return "USB storage " + (number + 1);
-                        }
-                        return drive.Name.StartsWith("Mu") ? "Memory unit" : drive.Name;
-                }
+                case "Hdd1": return "Hard drive";
+                case "Dvd": return "Disc";
+                default:
+                    // Usb0 is the first USB drive: USB storage 1.
+                    int number;
+                    if (drive.StartsWith("Usb") && int.TryParse(drive.Substring(3), out number))
+                    {
+                        return "USB storage " + (number + 1);
+                    }
+                    return drive.StartsWith("Mu") ? "Memory unit" : drive;
             }
         }
 
