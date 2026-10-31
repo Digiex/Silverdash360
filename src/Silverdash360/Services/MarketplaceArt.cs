@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Xml.Linq;
 using Silverdash360.Core;
@@ -52,6 +53,15 @@ namespace Silverdash360.Services
         private const string CompleteMarker = ".complete";
         private const string ImagePrefix = "http://download.xbox.com/content/images/";
         private const string LiveNamespace = "http://www.live.com/marketplace";
+        // The server's stock "XBOX LIVE" box fronts, large and small, which
+        // it sends for a title it has no box art for, the same in every
+        // locale: by size, then SHA-1. They count as no art.
+        private static readonly int[] PlaceholderSizes = { 7095, 2339 };
+        private static readonly string[] PlaceholderHashes =
+        {
+            "7f058cdad2d6ddece27f4cb2b79150aeea7542a0", "2755da067c3d905c9734c08fbf711c6138dc6af9",
+        };
+
         // Kept for every title even when the catalog doesn't list them.
         private static readonly string[] StandardImages =
         {
@@ -188,7 +198,14 @@ namespace Silverdash360.Services
             byte[] kept = AppStorage.ReadBytes(path);
             if (kept != null && kept.Length > 0)
             {
-                return kept;
+                if (!IsPlaceholder(kept))
+                {
+                    return kept;
+                }
+                // Kept before placeholders were told apart.
+                AppStorage.Delete(path);
+                AppStorage.WriteBytes(path + MissingSuffix, new byte[0], null);
+                return null;
             }
             Activity.Art = "checking " + path;
             FileEntry missing = AppStorage.Stat(path + MissingSuffix);
@@ -206,9 +223,10 @@ namespace Silverdash360.Services
             }
             int status;
             byte[] body = Download(new Uri(url), out status);
-            if (body != null && status == 200 && !IsComplete(file, body))
+            if (body != null && status == 200 && (!IsComplete(file, body) || IsPlaceholder(body)))
             {
-                // The catalog answers an unknown title with an empty feed.
+                // The catalog answers an unknown title with an empty feed,
+                // the image server with its stock box front.
                 status = 404;
             }
             else if (body != null && status == 200)
@@ -235,6 +253,21 @@ namespace Silverdash360.Services
                 }
             }
             return null;
+        }
+
+        private static bool IsPlaceholder(byte[] body)
+        {
+            if (Array.IndexOf(PlaceholderSizes, body.Length) < 0)
+            {
+                return false;
+            }
+            byte[] digest = new SHA1Managed().ComputeHash(body);
+            StringBuilder hex = new StringBuilder(digest.Length * 2);
+            foreach (byte b in digest)
+            {
+                hex.Append(b.ToString("x2"));
+            }
+            return Array.IndexOf(PlaceholderHashes, hex.ToString()) >= 0;
         }
 
         // Whether a reply has what was asked for: the catalog's feed for an
