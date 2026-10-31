@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 using Microsoft.Xna.Framework.Storage;
 using Silverdash360.Core;
 using Silverdash360.Model;
@@ -12,19 +11,18 @@ namespace Silverdash360.Services
     /// Keeps what was read from the console's packages (their records and
     /// header metadata) and the executables found, so the next start shows the
     /// library at once and reads only the headers of new packages. It lives
-    /// in the title's storage container. Records are written with their name
-    /// fields cut at the end of the names and thumbnails aren't kept, so with
-    /// thousands of packages it stays around half a kilobyte a package. Call it from a background
-    /// thread: storage blocks.
+    /// in the title's storage container (<see cref="TitleStorage"/>). Records
+    /// are written with their name fields cut at the end of the names and
+    /// thumbnails aren't kept, so with thousands of packages it stays around
+    /// half a kilobyte a package. Call it from a background thread: storage
+    /// blocks.
     /// </summary>
     public sealed class LibraryCache
     {
-        private const string ContainerName = "Silverdash360";
         private const string FileName = "library.bin";
         private const uint Magic = 0x53443343; // "SD3C"
         private const int FormatVersion = 5;
         private const int BlockSize = 0x10000;
-        private static readonly TimeSpan OpenTimeout = TimeSpan.FromSeconds(60);
 
         /// <summary>A package's identity: where it's stored and its file name.</summary>
         public static string KeyOf(ContentItem item)
@@ -47,7 +45,8 @@ namespace Silverdash360.Services
             try
             {
                 MemoryStream bytes = new MemoryStream();
-                using (StorageContainer container = Open())
+                lock (TitleStorage.Lock)
+                using (StorageContainer container = TitleStorage.Open())
                 {
                     if (container == null || !container.FileExists(FileName))
                     {
@@ -126,7 +125,8 @@ namespace Silverdash360.Services
             try
             {
                 byte[] bytes = Serialize(items, executables);
-                using (StorageContainer container = Open())
+                lock (TitleStorage.Lock)
+                using (StorageContainer container = TitleStorage.Open())
                 {
                     if (container == null)
                     {
@@ -192,7 +192,8 @@ namespace Silverdash360.Services
         {
             try
             {
-                using (StorageContainer container = Open())
+                lock (TitleStorage.Lock)
+                using (StorageContainer container = TitleStorage.Open())
                 {
                     if (container != null && container.FileExists(FileName))
                     {
@@ -204,26 +205,6 @@ namespace Silverdash360.Services
             {
                 Log.Write("Library cache not cleared: {0}", e.Message);
             }
-        }
-
-        // The title's storage container, or null when there's no storage.
-        private static StorageContainer Open()
-        {
-            StorageDevice device = new StorageDevice();
-            IAsyncResult opening = device.BeginOpenContainer(ContainerName, ContainerName, null, null);
-            // Polled rather than waited on: the wait handle could report a
-            // timeout at once while the open went on.
-            DateTime giveUp = DateTime.UtcNow + OpenTimeout;
-            while (!opening.IsCompleted)
-            {
-                if (DateTime.UtcNow > giveUp)
-                {
-                    Log.Write("Library cache: the storage container didn't open");
-                    return null;
-                }
-                Thread.Sleep(20);
-            }
-            return device.EndOpenContainer(opening);
         }
     }
 }

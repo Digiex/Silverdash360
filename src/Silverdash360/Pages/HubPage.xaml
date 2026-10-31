@@ -4,6 +4,17 @@
     xmlns:xbox="clr-namespace:Microsoft.Xbox.Controls;assembly=Microsoft.Xbox"
     Title="Silverdash360">
   <Grid Background="{StaticResource PageBackground}">
+    <!-- The theme's wallpaper, darkened so the text over it reads. -->
+    <Image x:Name="Wallpaper" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center" />
+    <Rectangle x:Name="WallpaperShade" Visibility="Collapsed">
+      <Rectangle.Fill>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+          <GradientStop Color="#B0000000" Offset="0" />
+          <GradientStop Color="#60000000" Offset="0.35" />
+          <GradientStop Color="#90000000" Offset="1" />
+        </LinearGradientBrush>
+      </Rectangle.Fill>
+    </Rectangle>
     <Grid Margin="64,36,64,28">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />

@@ -42,7 +42,7 @@ namespace Silverdash360.Debugging
         {
             commands.Add("ui.state", "", "The page, the hub's section, and the focused control and selection.", r => UiThread.Invoke(() => State()));
             commands.Add("ui.section", "<index|header>", "Shows a hub section.", Section);
-            commands.Add("ui.navigate", "<hub|search|storage|title <key>>", "Goes to a page.", Navigate);
+            commands.Add("ui.navigate", "<hub|search|storage|theme|title <key>>", "Goes to a page.", Navigate);
             commands.Add("ui.back", "", "Goes back a page.", r =>
             {
                 UiThread.Invoke(() => Back());
@@ -231,6 +231,7 @@ namespace Silverdash360.Debugging
                     case "hub": context.Navigate(new Uri("/Pages/HubPage.xaml", UriKind.Relative)); break;
                     case "search": context.OpenSearch(); break;
                     case "storage": context.OpenStorage(); break;
+                    case "theme": context.OpenThemes(); break;
                     case "title": context.OpenTitle(LibraryCommands.Find(context, request.Arg(1, "title", true))); break;
                     default: throw new DebugException("No page " + page + ".");
                 }

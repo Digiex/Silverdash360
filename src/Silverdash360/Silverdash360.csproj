@@ -50,6 +50,8 @@
     <Compile Include="Pages\SearchPage.xaml.cs"><DependentUpon>Pages\SearchPage.xaml</DependentUpon></Compile>
     <Page Include="Pages\StoragePage.xaml"><Generator>MSBuild:Compile</Generator></Page>
     <Compile Include="Pages\StoragePage.xaml.cs"><DependentUpon>Pages\StoragePage.xaml</DependentUpon></Compile>
+    <Page Include="Pages\ThemePage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Compile Include="Pages\ThemePage.xaml.cs"><DependentUpon>Pages\ThemePage.xaml</DependentUpon></Compile>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Native\NativeBuffer.cs" />
@@ -72,6 +74,8 @@
     <Compile Include="Services\ProfileService.cs" />
     <Compile Include="Services\SearchIndex.cs" />
     <Compile Include="Services\SystemService.cs" />
+    <Compile Include="Services\ThemeService.cs" />
+    <Compile Include="Services\TitleStorage.cs" />
     <Compile Include="Services\TitleClassifier.cs" />
     <Compile Include="Services\Files\XboxFileSystem.cs" />
     <Compile Include="Services\Ftp\FtpServer.cs" />

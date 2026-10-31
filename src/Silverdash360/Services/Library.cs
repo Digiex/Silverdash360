@@ -227,12 +227,12 @@ namespace Silverdash360.Services
             Action paceSave = shown ? () => Thread.Sleep(PaceSave) : (Action)null;
 
             // Common content (games, apps, add-ons) is stored under XUID 0, the
-            // profile's own (saves) under its XUID.
+            // profile's own (saves, its themes) under its offline XUID.
             Report("Looking for content...", null);
             List<ContentItem> content = source.Enumerate(0, count => Report("Looking for content... " + count + " found", null), pace);
             if (gamer != null)
             {
-                content.AddRange(source.Enumerate(gamer.Xuid, null, pace));
+                content.AddRange(source.Enumerate(gamer.OfflineXuid, null, pace));
             }
             // Once each: a package reported twice would show twice.
             Dictionary<string, bool> seen = new Dictionary<string, bool>();

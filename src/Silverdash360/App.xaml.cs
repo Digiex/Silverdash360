@@ -53,9 +53,9 @@ namespace Silverdash360
             ProfileService profiles = new ProfileService();
             XamContentSource content = new XamContentSource();
             XboxFileSystem files = new XboxFileSystem();
-            Context = new DashboardContext(new Library(content, profiles, new LibraryCache(), new ExecutableScanner(files)),
-                                           profiles, new ImageService(content), new SystemService(), new FtpServer(files),
-                                           new MediaService(files));
+            Library library = new Library(content, profiles, new LibraryCache(), new ExecutableScanner(files));
+            Context = new DashboardContext(library, profiles, new ImageService(content), new SystemService(),
+                                           new FtpServer(files), new MediaService(files), new ThemeService(library));
             Context.Ftp.Message += text => Background.OnUi(() => Context.ShowStatus(text));
             Modules = ModuleRegistry.CreateAll(Context);
 

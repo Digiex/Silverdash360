@@ -28,7 +28,15 @@ namespace Silverdash360.Pages
         // Kept with the sections, which outlive the page.
         private static readonly Dictionary<IDashboardModule, bool> stale = new Dictionary<IDashboardModule, bool>();
 
+        // The theme the sections were last drawn with.
+        private static int themeVersion;
+
         private readonly DispatcherTimer clock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+        private readonly DispatcherTimer wallpaperDelay = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(Motion.SectionMs + 30),
+        };
+        private int shownWallpaper = -1;
         private readonly List<TextBlock> headers = new List<TextBlock>();
         private readonly Storyboard sliding = new Storyboard();
         private readonly Storyboard sectionSlide = new Storyboard();
@@ -38,6 +46,7 @@ namespace Silverdash360.Pages
             InitializeComponent();
             Motion.UsePageTransitions(this);
             clock.Tick += delegate { ShowClock(); };
+            wallpaperDelay.Tick += delegate { ShowWallpaper(true); };
             GamePadButtonDown += OnButtonDown;
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
@@ -59,6 +68,11 @@ namespace Silverdash360.Pages
             Context.Status += OnStatus;
             Context.Library.Changed += OnLibraryChanged;
             Context.Library.Progress += OnLibraryProgress;
+            Context.Themes.Changed += OnThemeChanged;
+            if (themeVersion != Context.Themes.Version)
+            {
+                MarkAllStale();
+            }
             ShowProgress(Context.Library.CurrentProgress);
             ShowGamer();
             ShowClock();
@@ -77,8 +91,11 @@ namespace Silverdash360.Pages
             Context.Status -= OnStatus;
             Context.Library.Changed -= OnLibraryChanged;
             Context.Library.Progress -= OnLibraryProgress;
+            Context.Themes.Changed -= OnThemeChanged;
             sliding.Stop();
+            wallpaperDelay.Stop();
             SectionHost.Content = null;
+            Wallpaper.Source = null;
         }
 
         protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -147,6 +164,24 @@ namespace Silverdash360.Pages
             RefreshIfStale(Modules[current]);
             ShowGamer();
             Modules[current].Activate();
+        }
+
+        // The sections show the theme, settings by name, so they're redrawn.
+        private void OnThemeChanged(object sender, EventArgs e)
+        {
+            MarkAllStale();
+            RefreshIfStale(Modules[current]);
+            shownWallpaper = -1;
+            ShowWallpaper(true);
+        }
+
+        private static void MarkAllStale()
+        {
+            themeVersion = Context.Themes.Version;
+            foreach (IDashboardModule module in Modules)
+            {
+                stale[module] = true;
+            }
         }
 
         private static void RefreshIfStale(IDashboardModule module)
@@ -233,6 +268,36 @@ namespace Silverdash360.Pages
                 Slide(direction);
             }
             module.Activate();
+            ShowWallpaper(direction == 0);
+        }
+
+        // Each section has a wallpaper of its own, as each blade had one in
+        // the console's first dashboard. One that isn't decoded is decoded
+        // once the section has slid in, so the decode doesn't stall the slide.
+        private void ShowWallpaper(bool now)
+        {
+            wallpaperDelay.Stop();
+            ThemeService themes = Context.Themes;
+            if (themes.Current == null || themes.Current.Wallpapers.Count == 0)
+            {
+                Wallpaper.Source = null;
+                WallpaperShade.Visibility = Visibility.Collapsed;
+                shownWallpaper = -1;
+                return;
+            }
+            int index = current % themes.Current.Wallpapers.Count;
+            if (index == shownWallpaper)
+            {
+                return;
+            }
+            if (!now && !themes.IsDecoded(index))
+            {
+                wallpaperDelay.Start();
+                return;
+            }
+            Wallpaper.Source = themes.Wallpaper(index);
+            WallpaperShade.Visibility = Wallpaper.Source != null ? Visibility.Visible : Visibility.Collapsed;
+            shownWallpaper = index;
         }
 
         // A slide alone by default: fading the whole section redraws all of

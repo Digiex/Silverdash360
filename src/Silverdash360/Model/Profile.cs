@@ -7,6 +7,13 @@ namespace Silverdash360.Model
     {
         public uint UserIndex { get; set; }
         public ulong Xuid { get; set; }
+
+        /// <summary>
+        /// The profile's own XUID, which its content and its package are
+        /// stored under; the same as <see cref="Xuid"/> unless it's signed in
+        /// to LIVE.
+        /// </summary>
+        public ulong OfflineXuid { get; set; }
         public string Gamertag { get; set; }
         public SigninState State { get; set; }
         public int Gamerscore { get; set; }

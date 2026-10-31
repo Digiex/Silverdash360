@@ -74,6 +74,7 @@ namespace Silverdash360.Modules
             List<ContentItem> content = library.AllContent.ToList();
             List<Entry> entries = new List<Entry>
             {
+                new Entry { Title = "Theme", Detail = Context.Themes.Describe(), Run = Context.OpenThemes },
                 new Entry { Title = "Storage", Detail = SystemService.FormatSize(content.Sum(c => c.BestSize)) + " in " + content.Count + " items", Run = Context.OpenStorage },
                 new Entry { Title = "Search", Detail = "Find a game or app", Run = Context.OpenSearch },
                 new Entry { Title = "FTP server", Detail = FtpDetail(), Run = ToggleFtp },

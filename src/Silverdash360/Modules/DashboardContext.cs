@@ -11,7 +11,7 @@ namespace Silverdash360.Modules
     public sealed class DashboardContext
     {
         public DashboardContext(Library library, ProfileService profiles, ImageService images, SystemService system,
-                                FtpServer ftp, MediaService media)
+                                FtpServer ftp, MediaService media, ThemeService themes)
         {
             Library = library;
             Profiles = profiles;
@@ -19,6 +19,7 @@ namespace Silverdash360.Modules
             System = system;
             Ftp = ftp;
             Media = media;
+            Themes = themes;
         }
 
         public Library Library { get; private set; }
@@ -27,6 +28,7 @@ namespace Silverdash360.Modules
         public SystemService System { get; private set; }
         public FtpServer Ftp { get; private set; }
         public MediaService Media { get; private set; }
+        public ThemeService Themes { get; private set; }
 
         /// <summary>Goes to a page by its URI; set by the app.</summary>
         public Action<Uri> Navigate { get; set; }
@@ -80,6 +82,11 @@ namespace Silverdash360.Modules
         public void OpenStorage()
         {
             Navigate(new Uri("/Pages/StoragePage.xaml", UriKind.Relative));
+        }
+
+        public void OpenThemes()
+        {
+            Navigate(new Uri("/Pages/ThemePage.xaml", UriKind.Relative));
         }
 
         /// <summary>Starts an installed title, or says why it can't.</summary>

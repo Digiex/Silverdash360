@@ -39,6 +39,30 @@ namespace Silverdash360.Native
         [DllImport("xam.xex", EntryPoint = "#622")]
         public static extern uint XamContentGetMetaDataInternal(uint contentData, uint metadata, uint overlapped);
 
+        // 0x271: DWORD XamContentCreateInternal(LPCSTR rootName,
+        //   XCONTENT_DATA_INTERNAL*, DWORD flags, PDWORD disposition,
+        //   PDWORD licenseMask, DWORD cacheSize, ULONGLONG contentSize,
+        //   PXOVERLAPPED). Mounts the package as rootName: (flags 3 opens an
+        //   existing one), as the console's dashboard mounts themes.
+        [DllImport("xam.xex", EntryPoint = "#625", CharSet = CharSet.Ansi)]
+        public static extern uint XamContentCreateInternal(string rootName, uint contentData, uint flags,
+                                                           uint disposition, uint licenseMask, uint cacheSize,
+                                                           ulong contentSize, uint overlapped);
+
+        // 0x25A: DWORD XamContentClose(LPCSTR rootName, PXOVERLAPPED)
+        [DllImport("xam.xex", EntryPoint = "#602", CharSet = CharSet.Ansi)]
+        public static extern uint XamContentClose(string rootName, uint overlapped);
+
+        // 0x237: DWORD XamProfileOpen(XUID, LPCSTR mountName, DWORD flags,
+        //   XCONTENT_DATA*). Mounts a signed-in profile's own package, where
+        //   the console's dashboard keeps its per-profile files.
+        [DllImport("xam.xex", EntryPoint = "#567", CharSet = CharSet.Ansi)]
+        public static extern uint XamProfileOpen(ulong xuid, string mountName, uint flags, uint contentData);
+
+        // 0x238: DWORD XamProfileClose(LPCSTR mountName)
+        [DllImport("xam.xex", EntryPoint = "#568", CharSet = CharSet.Ansi)]
+        public static extern uint XamProfileClose(string mountName);
+
         // 0x294: DWORD XamContentLaunchImageInternalEx(XCONTENT_DATA_INTERNAL*,
         //   LPCSTR xexName, DWORD)
         [DllImport("xam.xex", EntryPoint = "#660", CharSet = CharSet.Ansi)]
@@ -61,7 +85,10 @@ namespace Silverdash360.Native
         public static extern uint XamUserGetSigninState(uint userIndex);
 
         // 0x227: DWORD XamUserGetSigninInfo(DWORD userIndex, DWORD flags,
-        //   XUSER_SIGNIN_INFO*), 0x28 bytes
+        //   XUSER_SIGNIN_INFO*), 0x28 bytes. Without flags the XUID is the
+        //   online one for a profile signed in to LIVE.
+        public const uint SigninInfoOfflineXuidOnly = 2;
+
         [DllImport("xam.xex", EntryPoint = "#551")]
         public static extern uint XamUserGetSigninInfo(uint userIndex, uint flags, uint info);
 

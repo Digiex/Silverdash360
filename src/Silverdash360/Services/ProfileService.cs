@@ -53,6 +53,8 @@ namespace Silverdash360.Services
                 gamer.Xuid = info.U64(0x00);
                 gamer.State = (SigninState)info.U32(0x0C);
                 gamer.Gamertag = info.Ansi(0x18, 16);
+                gamer.OfflineXuid = Xam.XamUserGetSigninInfo(userIndex, Xam.SigninInfoOfflineXuidOnly, info.Address) ==
+                                    Xam.ErrorSuccess ? info.U64(0x00) : gamer.Xuid;
             }
             ReadGamercard(gamer);
             return gamer;
