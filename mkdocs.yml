@@ -1,0 +1,50 @@
+# Documentation site, published to GitHub Pages from the gh-pages branch.
+# A push to master that changes the docs publishes them on its own
+# (.github/workflows/docs.yml); to do it by hand:
+#   python -m mkdocs serve       preview at http://127.0.0.1:8000
+#   python -m mkdocs gh-deploy   build and push to gh-pages
+site_name: Silverdash360
+site_description: A dashboard for the Xbox 360
+site_url: https://digiex.github.io/Silverdash360/
+repo_url: https://github.com/Digiex/Silverdash360
+repo_name: Digiex/Silverdash360
+edit_uri: edit/master/docs/
+copyright: Silverdash360 is licensed under the PolyForm Noncommercial License 1.0.0 with an additional condition. Xbox, Xbox 360 and Silverlight are trademarks of Microsoft.
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: readthedocs
+  highlightjs: true
+  hljs_languages:
+    - powershell
+    - csharp
+    - python
+  navigation_depth: 3
+  collapse_navigation: true
+
+extra_css:
+  - extra.css
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - tables
+  - fenced_code
+  - admonition
+
+hooks:
+  - tools/mkdocs_hooks.py
+
+nav:
+  - Home: index.md
+  - Installing: install.md
+  - Updating: updating.md
+  - Using it:
+      - Getting around: getting-around.md
+      - Games and apps: games-and-apps.md
+      - Media: media.md
+      - Settings: settings.md
+  - Troubleshooting: troubleshooting.md
+  - Development: development.md

@@ -1,0 +1,21 @@
+/* Documentation site additions to the readthedocs theme. */
+
+.wy-side-nav-search,
+.wy-nav-top {
+  background-color: #107c10;
+}
+
+.rst-content img {
+  border: 1px solid #d0d7de;
+  border-radius: 4px;
+  max-width: 100%;
+}
+
+.rst-content table img {
+  display: block;
+}
+
+.wy-table-responsive table td,
+.wy-table-responsive table th {
+  white-space: normal;
+}
