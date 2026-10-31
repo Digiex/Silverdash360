@@ -83,6 +83,33 @@ namespace Silverdash360.Model
         /// <summary>Whether the package holds an app: one of the App constants.</summary>
         public byte AppCheck { get; set; }
 
+        // What a look inside a homebrew package (title ID C0DE...) found: a
+        // QuickBoot shortcut, which holds a config.ini naming the executable
+        // it starts, or an app packaged whole, such as XeXMenu.
+        public const byte InsideNotChecked = 0;
+        public const byte InsideNothing = 1;
+        public const byte InsideShortcut = 2;
+        public const byte InsideExecutable = 3;
+
+        /// <summary>One of the Inside constants.</summary>
+        public byte Inside { get; set; }
+
+        /// <summary>
+        /// A shortcut's executable, as QuickBoot writes it: from the root of
+        /// a drive, such as \Games\Some Game\default.xex.
+        /// </summary>
+        public string ShortcutTarget { get; set; }
+
+        /// <summary>For a packaged app, its default.xex's title ID and size.</summary>
+        public uint InsideTitleId { get; set; }
+        public long InsideSize { get; set; }
+
+        /// <summary>A homebrew package, which the look inside is for.</summary>
+        public bool IsHomebrewPackage
+        {
+            get { return (TitleId >> 16) == 0xC0DE; }
+        }
+
         /// <summary>Starts a title: a launchable type, or an add-on holding an app.</summary>
         public bool IsLaunchable
         {

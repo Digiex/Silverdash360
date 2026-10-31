@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using Silverdash360.Core;
 using Silverdash360.Model;
@@ -26,6 +27,12 @@ namespace Silverdash360.Services
 
         /// <summary>Whether the package holds a default.xex, opening it to look.</summary>
         bool HoldsApp(ContentItem item);
+
+        /// <summary>
+        /// Opens a homebrew package and fills in what it is
+        /// (<see cref="ContentItem.Inside"/> and the fields that go with it).
+        /// </summary>
+        void LookInside(ContentItem item);
     }
 
     /// <summary>
@@ -147,6 +154,89 @@ namespace Silverdash360.Services
                 {
                     Xam.XamContentClose(AppMount, 0);
                 }
+            }
+        }
+
+        private const string ShortcutConfig = "config.ini";
+        private const int ShortcutConfigSize = 1024;
+
+        public void LookInside(ContentItem item)
+        {
+            item.Inside = ContentItem.InsideNothing;
+            using (NativeBuffer record = new NativeBuffer(item.Record))
+            {
+                uint result = Xam.XamContentCreateInternal(AppMount, record.Address, OpenExisting, 0, 0, 0, 0, 0);
+                if (result != Xam.ErrorSuccess)
+                {
+                    Log.Write("Couldn't open {0} to look inside: {1}", item, result);
+                    return;
+                }
+                try
+                {
+                    string root = @"\??\" + AppMount + @":\";
+                    string target = FirstLine(root + ShortcutConfig);
+                    if (target != null)
+                    {
+                        item.Inside = ContentItem.InsideShortcut;
+                        item.ShortcutTarget = target;
+                        return;
+                    }
+                    KernelFile executable;
+                    if (KernelFile.TryOpen(root + DefaultExecutable, Kernel.GenericRead | Kernel.Synchronize,
+                                           Kernel.FileShareRead, Kernel.FileOpen, Kernel.FileNonDirectoryFile,
+                                           out executable) == Kernel.StatusSuccess)
+                    {
+                        using (executable)
+                        {
+                            item.InsideTitleId = ExecutableScanner.TitleIdOf(executable);
+                        }
+                        item.InsideSize = SizeOf(root + DefaultExecutable);
+                        item.Inside = ContentItem.InsideExecutable;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.Write("Couldn't look inside {0}: {1}", item, e.Message);
+                }
+                finally
+                {
+                    Xam.XamContentClose(AppMount, 0);
+                }
+            }
+        }
+
+        // A small file's first line that has something on it, or null.
+        private static string FirstLine(string device)
+        {
+            KernelFile file;
+            if (KernelFile.TryOpen(device, Kernel.GenericRead | Kernel.Synchronize, Kernel.FileShareRead,
+                                   Kernel.FileOpen, Kernel.FileNonDirectoryFile, out file) != Kernel.StatusSuccess)
+            {
+                return null;
+            }
+            using (file)
+            using (NativeBuffer buffer = new NativeBuffer(ShortcutConfigSize))
+            {
+                int read = file.Read(buffer, buffer.Length, 0);
+                foreach (string line in Encoding.UTF8.GetString(buffer.Bytes, 0, Math.Max(0, read)).Split('\r', '\n'))
+                {
+                    if (line.Trim().Length > 0)
+                    {
+                        return line.Trim();
+                    }
+                }
+            }
+            return null;
+        }
+
+        private static long SizeOf(string device)
+        {
+            using (ObjectName name = new ObjectName(device))
+            using (NativeBuffer information = new NativeBuffer(0x38))
+            {
+                // FILE_NETWORK_OPEN_INFORMATION: the end of file at 0x28.
+                return Kernel.NtQueryFullAttributesFile(name.Attributes, information.Address) == Kernel.StatusSuccess
+                    ? (long)information.U64(0x28) : 0;
             }
         }
 

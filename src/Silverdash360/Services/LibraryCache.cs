@@ -24,9 +24,11 @@ namespace Silverdash360.Services
     {
         private const string FileName = "library.bin";
         private const uint Magic = 0x53443343; // "SD3C"
-        private const int FormatVersion = 7;
-        // Without the app check's byte; still read, so a new build doesn't
-        // read every header again.
+        private const int FormatVersion = 8;
+        // Without what's inside homebrew packages; still read, so a new
+        // build doesn't read every header again.
+        private const int NoInsideVersion = 7;
+        // Without the app check's byte either.
         private const int NoAppCheckVersion = 6;
         // Packages, then executables, in one section, and no app check.
         private const int UnsectionedVersion = 5;
@@ -95,7 +97,7 @@ namespace Silverdash360.Services
             if (version == UnsectionedVersion)
             {
                 contents.Outdated = true;
-                ReadPackages(reader, contents, false);
+                ReadPackages(reader, contents, false, false);
                 ReadExecutables(reader, contents);
                 contents.Complete = true;
                 if (section != null)
@@ -104,17 +106,18 @@ namespace Silverdash360.Services
                 }
                 return contents;
             }
-            if (version != FormatVersion && version != NoAppCheckVersion)
+            if (version != FormatVersion && version != NoInsideVersion && version != NoAppCheckVersion)
             {
                 return contents;
             }
-            bool appCheck = version == FormatVersion;
-            contents.Outdated = !appCheck;
+            bool appCheck = version != NoAppCheckVersion;
+            bool inside = version == FormatVersion;
+            contents.Outdated = !inside;
             ReadExecutables(reader, contents);
             int sections = reader.ReadInt32();
             for (int s = 0; s < sections; s++)
             {
-                ReadPackages(reader, contents, appCheck);
+                ReadPackages(reader, contents, appCheck, inside);
                 contents.Complete = s == sections - 1;
                 if (section != null)
                 {
@@ -125,7 +128,7 @@ namespace Silverdash360.Services
             return contents;
         }
 
-        private static void ReadPackages(BinaryReader reader, Contents contents, bool appCheck)
+        private static void ReadPackages(BinaryReader reader, Contents contents, bool appCheck, bool inside)
         {
             int count = reader.ReadInt32();
             for (int i = 0; i < count; i++)
@@ -140,6 +143,19 @@ namespace Silverdash360.Services
                 if (appCheck)
                 {
                     item.AppCheck = reader.ReadByte();
+                }
+                if (inside)
+                {
+                    item.Inside = reader.ReadByte();
+                    if (item.Inside == ContentItem.InsideShortcut)
+                    {
+                        item.ShortcutTarget = reader.ReadString();
+                    }
+                    else if (item.Inside == ContentItem.InsideExecutable)
+                    {
+                        item.InsideTitleId = reader.ReadUInt32();
+                        item.InsideSize = reader.ReadInt64();
+                    }
                 }
                 contents.Content.Add(item);
             }
@@ -227,6 +243,16 @@ namespace Silverdash360.Services
                         item.Metadata.Write(writer);
                     }
                     writer.Write(item.AppCheck);
+                    writer.Write(item.Inside);
+                    if (item.Inside == ContentItem.InsideShortcut)
+                    {
+                        writer.Write(item.ShortcutTarget ?? "");
+                    }
+                    else if (item.Inside == ContentItem.InsideExecutable)
+                    {
+                        writer.Write(item.InsideTitleId);
+                        writer.Write(item.InsideSize);
+                    }
                 }
             }
             writer.Flush();

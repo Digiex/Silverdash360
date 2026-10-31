@@ -132,35 +132,44 @@ namespace Silverdash360.Services
             try
             {
                 using (KernelFile file = files.OpenRead(path))
-                using (NativeBuffer header = new NativeBuffer(HeaderRead))
                 {
-                    int read = file.Read(header, header.Length, 0);
-                    if (read < 0x18 || header.U32(0) != XexMagic)
-                    {
-                        return 0;
-                    }
-                    // Optional headers: a count, then key and value pairs. The
-                    // execution info's value is the offset of its 0x18 bytes.
-                    uint count = header.U32(0x14);
-                    for (int i = 0; i < count && 0x18 + i * 8 + 8 <= read; i++)
-                    {
-                        if (header.U32(0x18 + i * 8) != ExecutionInfoKey)
-                        {
-                            continue;
-                        }
-                        uint at = header.U32(0x1C + i * 8);
-                        if (at + 0x10 <= read)
-                        {
-                            return header.U32((int)at + 0xC);
-                        }
-                        read = file.Read(header, 0x10, at);
-                        return read >= 0x10 ? header.U32(0xC) : 0;
-                    }
+                    return TitleIdOf(file);
                 }
             }
             catch (IOException e)
             {
                 Log.Write("Couldn't read {0}: {1}", path, e.Message);
+            }
+            return 0;
+        }
+
+        /// <summary>The title ID in an open XEX's execution info, or 0.</summary>
+        public static uint TitleIdOf(KernelFile file)
+        {
+            using (NativeBuffer header = new NativeBuffer(HeaderRead))
+            {
+                int read = file.Read(header, header.Length, 0);
+                if (read < 0x18 || header.U32(0) != XexMagic)
+                {
+                    return 0;
+                }
+                // Optional headers: a count, then key and value pairs. The
+                // execution info's value is the offset of its 0x18 bytes.
+                uint count = header.U32(0x14);
+                for (int i = 0; i < count && 0x18 + i * 8 + 8 <= read; i++)
+                {
+                    if (header.U32(0x18 + i * 8) != ExecutionInfoKey)
+                    {
+                        continue;
+                    }
+                    uint at = header.U32(0x1C + i * 8);
+                    if (at + 0x10 <= read)
+                    {
+                        return header.U32((int)at + 0xC);
+                    }
+                    read = file.Read(header, 0x10, at);
+                    return read >= 0x10 ? header.U32(0xC) : 0;
+                }
             }
             return 0;
         }

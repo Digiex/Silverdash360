@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Silverdash360.Model;
@@ -47,6 +48,24 @@ namespace Silverdash360.Services
     }
 
     /// <summary>The Xbox 360 video, music and other apps released for the console.</summary>
+    /// <summary>
+    /// A QuickBoot shortcut whose executable the scan didn't find: an app or
+    /// a game by the folder it names, Apps or anything else.
+    /// </summary>
+    public sealed class ShortcutClassifier : ITitleClassifier
+    {
+        public TitleKind? Classify(TitleEntry title)
+        {
+            ContentItem launch = title.LaunchItem;
+            if (launch == null || launch.Inside != ContentItem.InsideShortcut || launch.ShortcutTarget == null)
+            {
+                return null;
+            }
+            return launch.ShortcutTarget.StartsWith(@"\Apps\", StringComparison.OrdinalIgnoreCase)
+                ? TitleKind.App : TitleKind.Game;
+        }
+    }
+
     public sealed class KnownAppsClassifier : ITitleClassifier
     {
         private static readonly Dictionary<uint, bool> Apps = new uint[]

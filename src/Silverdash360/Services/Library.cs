@@ -41,7 +41,7 @@ namespace Silverdash360.Services
             this.executables = executables;
             Classifiers = new List<ITitleClassifier>
             {
-                new VideoOnlyClassifier(), new KnownAppsClassifier(), new NoAchievementsClassifier(), new FolderClassifier(),
+                new VideoOnlyClassifier(), new ShortcutClassifier(), new KnownAppsClassifier(), new NoAchievementsClassifier(), new FolderClassifier(),
                 new ContentClassifier(),
             };
         }
@@ -202,6 +202,7 @@ namespace Silverdash360.Services
             // What earlier runs read from package and executable headers.
             Dictionary<string, ContentMetadata> known = new Dictionary<string, ContentMetadata>();
             Dictionary<string, byte> knownApps = new Dictionary<string, byte>();
+            Dictionary<string, ContentItem> knownInside = new Dictionary<string, ContentItem>();
             Dictionary<string, ExecutableItem> knownExecutables = new Dictionary<string, ExecutableItem>();
             int cachedCount = 0;
             bool outdated = false;
@@ -240,6 +241,10 @@ namespace Silverdash360.Services
                     if (item.AppCheck != ContentItem.AppNotChecked)
                     {
                         knownApps[LibraryCache.KeyOf(item)] = item.AppCheck;
+                    }
+                    if (item.Inside != ContentItem.InsideNotChecked)
+                    {
+                        knownInside[LibraryCache.KeyOf(item)] = item;
                     }
                 }
                 foreach (ExecutableItem item in cached.Executables)
@@ -330,7 +335,7 @@ namespace Silverdash360.Services
                 }
             }
 
-            int appsChecked = CheckForApps(content, knownApps, paceHeader);
+            int appsChecked = CheckForApps(content, knownApps, paceHeader) + LookInsideHomebrew(content, knownInside, paceHeader);
 
             // Saved whenever the set of packages or executables changed.
             bool executablesChanged = found.Count != knownExecutables.Count ||
@@ -395,6 +400,41 @@ namespace Silverdash360.Services
                 }
             }
             return checkedCount;
+        }
+
+        // Opens each homebrew package once to see whether it's a QuickBoot
+        // shortcut or an app packaged whole; the answer is saved with it.
+        // Returns how many were opened.
+        private int LookInsideHomebrew(List<ContentItem> content, Dictionary<string, ContentItem> known, Action pace)
+        {
+            int opened = 0;
+            foreach (ContentItem item in content)
+            {
+                if (!item.IsHomebrewPackage || item.IsCorrupt || item.IsPartial)
+                {
+                    continue;
+                }
+                ContentItem before;
+                if (known.TryGetValue(LibraryCache.KeyOf(item), out before))
+                {
+                    item.Inside = before.Inside;
+                    item.ShortcutTarget = before.ShortcutTarget;
+                    item.InsideTitleId = before.InsideTitleId;
+                    item.InsideSize = before.InsideSize;
+                    continue;
+                }
+                if (opened == 0)
+                {
+                    Report("Looking in homebrew packages...", null);
+                }
+                source.LookInside(item);
+                opened++;
+                if (pace != null)
+                {
+                    pace();
+                }
+            }
+            return opened;
         }
 
         // The profile's played titles, with the packages that start the most
@@ -501,6 +541,57 @@ namespace Silverdash360.Services
             }
         }
 
+        // A homebrew package that starts an executable the scan found, a
+        // shortcut to it or a package of the same one, is left out: the
+        // executable's title shows it once. The rest are titles of their own.
+        private static void AddHomebrewPackages(List<ContentItem> homebrew, IEnumerable<ExecutableItem> found,
+                                                List<TitleEntry> all)
+        {
+            foreach (ContentItem item in homebrew)
+            {
+                if (FindExecutable(item, found) != null)
+                {
+                    continue;
+                }
+                TitleEntry own = new TitleEntry(item.TitleId, "pkg:" + item.DeviceId.ToString("X8") + "/" + item.FileName);
+                own.Content.Add(item);
+                all.Add(own);
+            }
+        }
+
+        // The executable a homebrew package stands for. A shortcut names it
+        // from the root of a drive without saying which: QuickBoot puts
+        // shortcuts on the hard drive, so that's looked at first. A packaged
+        // app matches an executable with its title ID and size: homebrew
+        // shares title IDs, so the ID alone isn't enough.
+        private static ExecutableItem FindExecutable(ContentItem item, IEnumerable<ExecutableItem> found)
+        {
+            ExecutableItem match = null;
+            foreach (ExecutableItem executable in found)
+            {
+                bool same;
+                if (item.Inside == ContentItem.InsideShortcut)
+                {
+                    string path = executable.Path;
+                    int slash = path.IndexOf('/', 1);
+                    same = slash > 0 && string.Equals(path.Substring(slash).Replace('/', '\\'), item.ShortcutTarget,
+                                                      StringComparison.OrdinalIgnoreCase);
+                }
+                else
+                {
+                    same = item.Inside == ContentItem.InsideExecutable && executable.TitleId == item.InsideTitleId &&
+                           executable.Size == item.InsideSize;
+                }
+                if (same && (match == null || executable.Path.StartsWith(HardDrivePrefix, StringComparison.OrdinalIgnoreCase)))
+                {
+                    match = executable;
+                }
+            }
+            return match;
+        }
+
+        private const string HardDrivePrefix = "/Hdd1/";
+
         // The title with an ID, made when it's first asked for.
         private static TitleEntry TitleFor(Dictionary<uint, TitleEntry> byId, uint id)
         {
@@ -524,6 +615,9 @@ namespace Silverdash360.Services
             // Original Xbox games the console filed under its compatibility
             // title rather than their own: one title each.
             List<TitleEntry> separate = new List<TitleEntry>();
+            // Homebrew packages: QuickBoot shortcuts and packaged apps all
+            // share a title ID (C0DE9999), so each is a title of its own.
+            List<ContentItem> homebrew = new List<ContentItem>();
             foreach (ContentItem item in content)
             {
                 uint id = item.TitleId;
@@ -532,6 +626,11 @@ namespace Silverdash360.Services
                     continue;
                 }
                 allContent.Add(item);
+                if (item.IsHomebrewPackage && ContentType.IsLaunchable(item.Type))
+                {
+                    homebrew.Add(item);
+                    continue;
+                }
                 if (id == TitleEntry.XboxCompatibilityTitleId && item.Type == ContentType.XboxOriginalGame)
                 {
                     TitleEntry own = new TitleEntry(id, "xbox:" + item.DeviceId.ToString("X8") + "/" + item.FileName);
@@ -575,6 +674,7 @@ namespace Silverdash360.Services
                 }
                 t.Executables.Add(item);
             }
+            AddHomebrewPackages(homebrew, found, all);
 
             List<TitleEntry> games = new List<TitleEntry>();
             List<TitleEntry> apps = new List<TitleEntry>();
