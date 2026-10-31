@@ -248,7 +248,8 @@ namespace Silverdash360.Services.Media
             }
         }
 
-        // An item with a resource the console plays, or null.
+        // An item with a resource the console plays; media in a format it
+        // doesn't is listed as unplayable, and anything else is null.
         private MediaEntry Item(XElement node, string id, string title)
         {
             string upnpClass = (string)node.Element(Upnp + "class") ?? "";
@@ -290,11 +291,49 @@ namespace Silverdash360.Services.Media
                 }
                 return entry;
             }
-            if (upnpClass.Length > 0)
+            MediaKind? classKind = upnpClass.StartsWith("object.item.videoItem") ? MediaKind.Video
+                : upnpClass.StartsWith("object.item.audioItem") ? MediaKind.Music
+                : upnpClass.StartsWith("object.item.imageItem") ? MediaKind.Picture : (MediaKind?)null;
+            XElement first = node.Element(Didl + "res");
+            if (!classKind.HasValue || first == null)
             {
-                Log.Write("DLNA: nothing playable for {0} ({1})", title, upnpClass);
+                return null;
             }
-            return null;
+            string[] firstInfo = ((string)first.Attribute("protocolInfo") ?? "").Split(':');
+            MediaEntry unplayable = new MediaEntry
+            {
+                Source = this, Id = id, Name = title, Kind = classKind.Value,
+                Unplayable = FormatName(firstInfo.Length > 2 ? firstInfo[2] : ""),
+            };
+            long bytes;
+            if (long.TryParse((string)first.Attribute("size"), NumberStyles.Integer, CultureInfo.InvariantCulture, out bytes))
+            {
+                unplayable.Size = bytes;
+            }
+            TimeSpan length;
+            string lengthText = (string)first.Attribute("duration");
+            if (lengthText != null && TimeSpan.TryParse(lengthText.Split('.')[0], out length))
+            {
+                unplayable.Duration = length;
+            }
+            return unplayable;
+        }
+
+        // A short name for a MIME type the console doesn't play.
+        private static string FormatName(string mime)
+        {
+            switch (mime.ToLowerInvariant())
+            {
+                case "video/x-matroska": return "MKV";
+                case "video/x-msvideo": case "video/avi": return "AVI";
+                case "video/mp2t": case "video/vnd.dlna.mpeg-tts": case "video/mpeg": return "MPEG";
+                case "video/x-flv": return "FLV";
+                case "audio/flac": case "audio/x-flac": return "FLAC";
+                case "audio/ogg": case "audio/vorbis": return "Ogg";
+            }
+            int slash = mime.IndexOf('/');
+            string subtype = slash >= 0 ? mime.Substring(slash + 1) : mime;
+            return subtype.Length > 0 ? subtype.ToUpperInvariant() : "this format";
         }
 
         private static string Escape(string text)

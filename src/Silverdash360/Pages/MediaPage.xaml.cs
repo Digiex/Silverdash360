@@ -162,7 +162,12 @@ namespace Silverdash360.Pages
                 App.Context.OpenMedia(source, entry);
                 return;
             }
-            List<MediaEntry> shown = Items.Items.Cast<MediaEntry>().ToList();
+            if (entry.Unplayable != null)
+            {
+                StatusText.Text = "The Xbox 360 can't play " + entry.Unplayable + " files.";
+                return;
+            }
+            List<MediaEntry> shown = Items.Items.Cast<MediaEntry>().Where(e => e.Unplayable == null).ToList();
             App.Context.PlayMedia(shown, entry);
         }
 
@@ -171,7 +176,8 @@ namespace Silverdash360.Pages
             List<string> details = new List<string>();
             if (!entry.IsFolder)
             {
-                details.Add(MediaFormats.NameOf(entry.Kind));
+                details.Add(entry.Unplayable != null ? entry.Unplayable + ", which the Xbox 360 can't play"
+                                                     : MediaFormats.NameOf(entry.Kind));
             }
             if (!string.IsNullOrEmpty(entry.Artist))
             {
@@ -188,6 +194,7 @@ namespace Silverdash360.Pages
                 Detail = entry.Duration.HasValue ? FormatTime(entry.Duration.Value)
                     : entry.Size > 0 ? SystemService.FormatSize(entry.Size) : "",
                 ArtSeed = (uint)entry.Name.GetHashCode(),
+                Dimmed = entry.Unplayable != null,
             };
         }
 

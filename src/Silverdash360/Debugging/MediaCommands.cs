@@ -216,6 +216,7 @@ namespace Silverdash360.Debugging
                 { "album", e.Album },
                 { "durationMs", e.Duration.HasValue ? (long?)e.Duration.Value.TotalMilliseconds : null },
                 { "url", e.Url != null ? e.Url.ToString() : null },
+                { "unplayable", e.Unplayable },
             };
         }
     }

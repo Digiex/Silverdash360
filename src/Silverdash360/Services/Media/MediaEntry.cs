@@ -26,6 +26,12 @@ namespace Silverdash360.Services.Media
         public TimeSpan? Duration;
         /// <summary>Where a media server serves it.</summary>
         public Uri Url;
+        /// <summary>
+        /// For media the console can't play, the format it's in, such as MKV;
+        /// it's listed so a folder of it isn't empty, but not played.
+        /// </summary>
+        public string Unplayable;
+
         /// <summary>A media server's picture for it, such as an album cover.</summary>
         public Uri ArtUrl;
 
