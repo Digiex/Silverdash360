@@ -66,39 +66,7 @@ namespace Silverdash360.Services
                     }
                 }
                 bytes.Position = 0;
-                using (BinaryReader reader = new BinaryReader(bytes))
-                {
-                    if (reader.ReadUInt32() != Magic || reader.ReadInt32() != FormatVersion)
-                    {
-                        return contents;
-                    }
-                    int count = reader.ReadInt32();
-                    for (int i = 0; i < count; i++)
-                    {
-                        ContentItem item = ContentItem.ReadRecord(reader);
-                        if (reader.ReadBoolean())
-                        {
-                            item.Metadata = ContentMetadata.Read(reader);
-                        }
-                        contents.Content.Add(item);
-                    }
-                    int executables = reader.ReadInt32();
-                    for (int i = 0; i < executables; i++)
-                    {
-                        contents.Executables.Add(new ExecutableItem
-                        {
-                            Path = reader.ReadString(),
-                            DevicePath = reader.ReadString(),
-                            DeviceFolder = reader.ReadString(),
-                            Name = reader.ReadString(),
-                            Collection = reader.ReadString(),
-                            Drive = reader.ReadString(),
-                            TitleId = reader.ReadUInt32(),
-                            Size = reader.ReadInt64(),
-                            Modified = new DateTime(reader.ReadInt64()),
-                        });
-                    }
-                }
+                contents = Deserialize(bytes);
                 Log.Write("Library cache: {0} packages, {1} executables", contents.Content.Count,
                           contents.Executables.Count);
             }
@@ -111,6 +79,44 @@ namespace Silverdash360.Services
             return contents;
         }
 
+        /// <summary>Reads what <see cref="Serialize"/> wrote; empty for another format version.</summary>
+        public static Contents Deserialize(Stream bytes)
+        {
+            Contents contents = new Contents();
+            BinaryReader reader = new BinaryReader(bytes);
+            if (reader.ReadUInt32() != Magic || reader.ReadInt32() != FormatVersion)
+            {
+                return contents;
+            }
+            int count = reader.ReadInt32();
+            for (int i = 0; i < count; i++)
+            {
+                ContentItem item = ContentItem.ReadRecord(reader);
+                if (reader.ReadBoolean())
+                {
+                    item.Metadata = ContentMetadata.Read(reader);
+                }
+                contents.Content.Add(item);
+            }
+            int executables = reader.ReadInt32();
+            for (int i = 0; i < executables; i++)
+            {
+                contents.Executables.Add(new ExecutableItem
+                {
+                    Path = reader.ReadString(),
+                    DevicePath = reader.ReadString(),
+                    DeviceFolder = reader.ReadString(),
+                    Name = reader.ReadString(),
+                    Collection = reader.ReadString(),
+                    Drive = reader.ReadString(),
+                    TitleId = reader.ReadUInt32(),
+                    Size = reader.ReadInt64(),
+                    Modified = new DateTime(reader.ReadInt64()),
+                });
+            }
+            return contents;
+        }
+
         /// <summary>
         /// Saves the library. pace, when given, is called between blocks so a
         /// background save leaves the console to the UI.
@@ -119,35 +125,7 @@ namespace Silverdash360.Services
         {
             try
             {
-                MemoryStream buffer = new MemoryStream();
-                BinaryWriter writer = new BinaryWriter(buffer);
-                writer.Write(Magic);
-                writer.Write(FormatVersion);
-                writer.Write(items.Count);
-                foreach (ContentItem item in items)
-                {
-                    item.WriteRecord(writer);
-                    writer.Write(item.Metadata != null);
-                    if (item.Metadata != null)
-                    {
-                        item.Metadata.Write(writer);
-                    }
-                }
-                writer.Write(executables.Count);
-                foreach (ExecutableItem item in executables)
-                {
-                    writer.Write(item.Path);
-                    writer.Write(item.DevicePath);
-                    writer.Write(item.DeviceFolder);
-                    writer.Write(item.Name);
-                    writer.Write(item.Collection);
-                    writer.Write(item.Drive);
-                    writer.Write(item.TitleId);
-                    writer.Write(item.Size);
-                    writer.Write(item.Modified.Ticks);
-                }
-                writer.Flush();
-                byte[] bytes = buffer.ToArray();
+                byte[] bytes = Serialize(items, executables);
                 using (StorageContainer container = Open())
                 {
                     if (container == null)
@@ -173,6 +151,40 @@ namespace Silverdash360.Services
             {
                 Log.Write("Library cache not saved: {0}", e.Message);
             }
+        }
+
+        /// <summary>The cache file's bytes for the library.</summary>
+        public static byte[] Serialize(IList<ContentItem> items, IList<ExecutableItem> executables)
+        {
+            MemoryStream buffer = new MemoryStream();
+            BinaryWriter writer = new BinaryWriter(buffer);
+            writer.Write(Magic);
+            writer.Write(FormatVersion);
+            writer.Write(items.Count);
+            foreach (ContentItem item in items)
+            {
+                item.WriteRecord(writer);
+                writer.Write(item.Metadata != null);
+                if (item.Metadata != null)
+                {
+                    item.Metadata.Write(writer);
+                }
+            }
+            writer.Write(executables.Count);
+            foreach (ExecutableItem item in executables)
+            {
+                writer.Write(item.Path);
+                writer.Write(item.DevicePath);
+                writer.Write(item.DeviceFolder);
+                writer.Write(item.Name);
+                writer.Write(item.Collection);
+                writer.Write(item.Drive);
+                writer.Write(item.TitleId);
+                writer.Write(item.Size);
+                writer.Write(item.Modified.Ticks);
+            }
+            writer.Flush();
+            return buffer.ToArray();
         }
 
         /// <summary>Forgets the cache, so the next refresh reads every header again.</summary>

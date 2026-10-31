@@ -9,12 +9,20 @@ lands in src\Silverdash360\bin\<Configuration>\xbox\.
 The SDK is the one given with -Sdk, else the SILVERLIGHT360 environment
 variable, else a Silverlight360 clone next to this repository.
 
+The debug server (a TCP port for testing on a console, see tests\README.md)
+is built in unless -NoDebugServer is given.
+
 .EXAMPLE
 .\tools\Build.ps1 -Sdk ..\Silverlight360
+
+.EXAMPLE
+.\tools\Build.ps1 -NoDebugServer
 #>
 param(
     [string]$Sdk = $env:SILVERLIGHT360,
-    [ValidateSet('Debug', 'Release')] [string]$Configuration = 'Release'
+    [ValidateSet('Debug', 'Release')] [string]$Configuration = 'Release',
+    # Leaves out the debug server, which is in by default for now.
+    [switch]$NoDebugServer
 )
 
 $ErrorActionPreference = 'Stop'
@@ -29,4 +37,6 @@ if (-not (Test-Path -LiteralPath $buildScript)) {
 
 # The project finds the SDK through the same variable.
 $env:SILVERLIGHT360 = (Resolve-Path -LiteralPath $Sdk).Path
+# MSBuild reads environment variables as properties.
+$env:DebugServer = if ($NoDebugServer) { 'false' } else { 'true' }
 & $buildScript -Project (Join-Path $root 'src\Silverdash360\Silverdash360.csproj') -Configuration $Configuration

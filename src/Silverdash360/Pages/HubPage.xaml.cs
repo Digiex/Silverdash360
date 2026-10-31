@@ -176,18 +176,34 @@ namespace Silverdash360.Pages
             }
         }
 
+        /// <summary>The index in <see cref="App.Modules"/> of the section shown.</summary>
+        public static int CurrentSection { get { return current; } }
+
         private void OnButtonDown(object sender, GamePadButtonEventArgs e)
         {
-            if (e.Button == GamePadButton.LeftShoulder)
+            e.Handled = Press(e.Button);
+        }
+
+        /// <summary>Does what a press of the button does on the hub; false when it does nothing.</summary>
+        public bool Press(GamePadButton button)
+        {
+            if (button == GamePadButton.LeftShoulder)
             {
                 Show((current + Modules.Count - 1) % Modules.Count, -1);
-                e.Handled = true;
+                return true;
             }
-            else if (e.Button == GamePadButton.RightShoulder)
+            if (button == GamePadButton.RightShoulder)
             {
                 Show((current + 1) % Modules.Count, 1);
-                e.Handled = true;
+                return true;
             }
+            return false;
+        }
+
+        /// <summary>Shows a section, sliding it in from the side it's on.</summary>
+        public void ShowSection(int index)
+        {
+            Show(index, Math.Sign(index - current));
         }
 
         // Slides the section in from the side it comes from.

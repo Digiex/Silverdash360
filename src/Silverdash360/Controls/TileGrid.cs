@@ -381,28 +381,33 @@ namespace Silverdash360.Controls
 
         private void OnButtonDown(object sender, GamePadButtonEventArgs e)
         {
-            switch (e.Button)
+            e.Handled = Press(e.Button);
+        }
+
+        /// <summary>Does what a press of the button does; false when nothing took it.</summary>
+        public bool Press(GamePadButton button)
+        {
+            switch (button)
             {
-                case GamePadButton.DPadLeft: e.Handled = Move(-1, 0); break;
-                case GamePadButton.DPadRight: e.Handled = Move(1, 0); break;
-                case GamePadButton.DPadUp: e.Handled = Move(0, -1); break;
-                case GamePadButton.DPadDown: e.Handled = Move(0, 1); break;
+                case GamePadButton.DPadLeft: return Move(-1, 0);
+                case GamePadButton.DPadRight: return Move(1, 0);
+                case GamePadButton.DPadUp: return Move(0, -1);
+                case GamePadButton.DPadDown: return Move(0, 1);
                 case GamePadButton.A:
                     if (SelectedItem != null && ItemInvoked != null)
                     {
-                        ItemEventArgs args = new ItemEventArgs(SelectedItem, e.Button);
-                        ItemInvoked(this, args);
-                        e.Handled = true;
+                        ItemInvoked(this, new ItemEventArgs(SelectedItem, button));
+                        return true;
                     }
-                    break;
+                    return false;
                 default:
                     if (ItemButton != null)
                     {
-                        ItemEventArgs args = new ItemEventArgs(SelectedItem, e.Button);
+                        ItemEventArgs args = new ItemEventArgs(SelectedItem, button);
                         ItemButton(this, args);
-                        e.Handled = args.Handled;
+                        return args.Handled;
                     }
-                    break;
+                    return false;
             }
         }
 

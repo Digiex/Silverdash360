@@ -27,6 +27,7 @@ The screenshots are from xenia-edge with a test set of app packages.
 - **Storage**: everything stored, largest first, filtered by games, apps, add-ons, title updates, saves and media.
 - **FTP server**: the console's drives over FTP while the dashboard runs, turned on in settings.
 - **Settings**: system version, language, console time, sign-in, refreshing the library and returning to the Xbox Dashboard.
+- **Debug server and tests**: a TCP port that takes commands, for testing and debugging on a console without a development kit, and API, functional and performance tests that run over it from a PC. Built in by default for now.
 - **Launching**: Play on a title's page, or Start on a title in the hub.
 
 ## Controls
@@ -54,6 +55,8 @@ You need what the Silverlight360 SDK needs (see its [getting started guide](http
 `-Sdk` can be left out when the `SILVERLIGHT360` environment variable points to the SDK, or when it's cloned next to this repository as `Silverlight360`. The package lands in `src\Silverdash360\bin\Release\xbox\`.
 
 The package runs as the title the SDK's runtime profile came from (Plex by default), so it's started like that app.
+
+The debug server is built in unless you add `-NoDebugServer`. It listens on port 4601 without a password, so leave it out of builds for others.
 
 ## Running in xenia-edge
 
@@ -83,6 +86,17 @@ Settings has an FTP server that shares the console's drives while the dashboard 
 
 In xenia-edge, run with `--systemlink_transport=off` (for example `.\tools\Run.ps1 -ExtraArgs '--systemlink_transport=off'`): otherwise its System Link emulation carries the dashboard's sockets and nothing listens on the PC. xenia moves port 21 to 10021, and the hard drive has only its `Content` folder there. Renaming needs the `pr-rename-device-path` branch.
 
+## Debug server and tests
+
+While the dashboard runs, the debug server takes commands on TCP port 4601, one line each, and answers with a line of JSON: what the library holds, the console's functions called directly, memory, the log, what's on screen, button presses, frame rates and benchmarks of the dashboard's own work. Settings shows its address.
+
+```bash
+python tests/run_tests.py 192.168.1.20
+python tests/debugclient.py 192.168.1.20
+```
+
+The first runs the API, functional and performance tests against the console and can compare performance with an earlier run; the second is a shell for typing commands. See [tests/README.md](tests/README.md) for the commands, the protocol and adding tests.
+
 ## How it works
 
 Everything is C#. The console's own functions are called with `DllImport` by ordinal, with structures passed as pinned big-endian buffers.
@@ -97,6 +111,8 @@ src/Silverdash360/
   Controls/   TileGrid (the virtualized grid), tile templates, OnScreenKeyboard, Theme
   Modules/    The hub's sections and the registry they're listed in
   Pages/      Hub, title details, search, storage
+  Debugging/  The debug server and its commands, built in with the DebugServer build property
+tests/        The tests that run over the debug server, and a client for it
 ```
 
 The library is read the way the console's dashboard reads it:

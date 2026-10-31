@@ -140,5 +140,12 @@ namespace Silverdash360.Native
         // 0x84: VOID KeQuerySystemTime(PLARGE_INTEGER)
         [DllImport("xboxkrnl.exe", EntryPoint = "#132")]
         public static extern void KeQuerySystemTime(out long fileTime);
+
+        // 0xC6: NTSTATUS MmQueryStatistics(PMM_STATISTICS stats). stats starts
+        //   with its own size, 104: total physical pages at 4, kernel pages
+        //   at 8, then the title's and the system's 11 counts each (available
+        //   pages first), then the highest physical page.
+        [DllImport("xboxkrnl.exe", EntryPoint = "#198")]
+        public static extern int MmQueryStatistics(uint stats);
     }
 }

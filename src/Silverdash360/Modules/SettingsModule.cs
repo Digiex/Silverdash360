@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using Silverdash360.Controls;
+#if DEBUG_SERVER
+using Silverdash360.Debugging;
+#endif
 using Silverdash360.Model;
 using Silverdash360.Services;
 using Silverdash360.Services.Ftp;
@@ -84,6 +87,9 @@ namespace Silverdash360.Modules
                 new Entry { Title = "Built with Silverlight360", Detail = "github.com/Digiex/Silverlight360" },
                 new Entry { Title = "Return to the Xbox Dashboard", Detail = "Exit Silverdash", Run = system.ExitToDashboard },
             };
+#if DEBUG_SERVER
+            entries.Insert(3, new Entry { Title = "Debug server", Detail = DebugDetail() });
+#endif
             int selected = Math.Max(0, list.SelectedIndex);
             list.Items = entries.Cast<object>().ToList();
             list.SelectedIndex = selected;
@@ -100,6 +106,19 @@ namespace Silverdash360.Modules
                                  ftp.ListeningPort, FtpServer.UserName, ftp.Password);
         }
 
+#if DEBUG_SERVER
+        private string DebugDetail()
+        {
+            DebugServer server = DebugServer.Current;
+            if (server == null || !server.IsRunning)
+            {
+                return "Not running";
+            }
+            return string.Format("{0}:{1}, {2} connected. A development build.", Context.Ftp.Address ?? "this console",
+                                 server.ListeningPort, server.ClientCount);
+        }
+
+#endif
         private void ToggleFtp()
         {
             try

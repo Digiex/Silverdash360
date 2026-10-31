@@ -4,6 +4,9 @@ using System.Windows;
 using System.Windows.Input;
 using Microsoft.Xbox.Controls;
 using Silverdash360.Core;
+#if DEBUG_SERVER
+using Silverdash360.Debugging;
+#endif
 using Silverdash360.Modules;
 using Silverdash360.Services;
 using Silverdash360.Services.Files;
@@ -13,8 +16,6 @@ namespace Silverdash360
 {
     public partial class App : Application
     {
-        private XboxApplicationFrame frame;
-
         public App()
         {
             InitializeComponent();
@@ -25,6 +26,9 @@ namespace Silverdash360
 
         /// <summary>The hub's sections, kept for the whole run.</summary>
         public static IList<IDashboardModule> Modules { get; private set; }
+
+        /// <summary>The frame the pages are shown in.</summary>
+        public static XboxApplicationFrame Frame { get; private set; }
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {
@@ -39,7 +43,8 @@ namespace Silverdash360
 
             // XboxApplicationFrame also starts GamerServices and plays the
             // page transitions.
-            frame = new XboxApplicationFrame();
+            XboxApplicationFrame frame = new XboxApplicationFrame();
+            Frame = frame;
             Context.Navigate = uri => frame.Navigate(uri);
             frame.Source = new Uri("/Pages/HubPage.xaml", UriKind.Relative);
             frame.GamePadButtonDown += delegate(object s, GamePadButtonEventArgs args)
@@ -53,6 +58,10 @@ namespace Silverdash360
             };
             RootVisual = frame;
             Context.Library.Refresh();
+#if DEBUG_SERVER
+            // On by default for now; see the DebugServer build property.
+            DebugServer.StartDefault(Context);
+#endif
         }
 
         private void Application_UnhandledException(object sender, ApplicationUnhandledExceptionEventArgs e)

@@ -21,12 +21,12 @@ namespace Silverdash360.Services
     public sealed class ImageService
     {
         // XamReadTile tile types.
-        private const uint TileAchievement = 0;
-        private const uint TileGameIcon = 1;
-        private const uint TileGamerPicture = 2;
+        public const uint TileAchievement = 0;
+        public const uint TileGameIcon = 1;
+        public const uint TileGamerPicture = 2;
 
         // The image ID of a title's own image in its achievement data.
-        private const ulong TitleImageId = 0x8000;
+        public const ulong TitleImageId = 0x8000;
 
         /// <summary>Decoded images kept: a few screens of tiles, in the console's small memory.</summary>
         public const int MaxImages = 120;
@@ -116,7 +116,8 @@ namespace Silverdash360.Services
                               : metadata.ThumbnailPng ?? metadata.TitleThumbnailPng;
         }
 
-        private static byte[] ReadTile(uint type, uint titleId, ulong imageId, uint userIndex)
+        /// <summary>A tile's PNG from XamReadTile, or null.</summary>
+        public static byte[] ReadTile(uint type, uint titleId, ulong imageId, uint userIndex)
         {
             using (NativeBuffer size = new NativeBuffer(4))
             {
