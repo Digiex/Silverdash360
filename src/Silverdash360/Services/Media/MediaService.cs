@@ -97,6 +97,7 @@ namespace Silverdash360.Services.Media
                         DlnaMediaSource server = DlnaMediaSource.Describe(location);
                         if (server != null && !found.Any(s => s.Udn == server.Udn))
                         {
+                            server.Relay = LocalServer;
                             found.Add(server);
                         }
                     }
@@ -133,6 +134,7 @@ namespace Silverdash360.Services.Media
             {
                 throw new System.IO.IOException(location + " isn't a media server.");
             }
+            server.Relay = LocalServer;
             Background.OnUi(() =>
             {
                 servers = servers.Where(s => s.Udn != server.Udn).Concat(new[] { server })

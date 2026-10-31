@@ -30,6 +30,11 @@ namespace Silverdash360.Debugging
                 Kernel.HalOpenCloseODDTray(r.Arg(0, "open|close", true) == "open" ? 1u : 0u);
                 return null;
             });
+            commands.Add("disc.poll", "<on|off>", "Starts or stops the disc service asking for the tray's state.", r =>
+            {
+                context.Discs.Paused = r.Arg(0, "on|off", true) == "off";
+                return new JsonObject { { "paused", context.Discs.Paused } };
+            });
             commands.Add("disc.state", "", "XamLoaderGetDvdTrayState and XamLoaderGetMediaInfo, raw, and what the disc holds.", r =>
             {
                 uint mediaType, titleId;

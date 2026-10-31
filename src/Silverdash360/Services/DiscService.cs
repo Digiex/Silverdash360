@@ -42,6 +42,9 @@ namespace Silverdash360.Services
 
         public bool IsTrayOpen { get { return tray == TrayOpen; } }
 
+        /// <summary>Stops asking for the tray's state, for the debug server.</summary>
+        public bool Paused { get; set; }
+
         /// <summary>The tray moved, or what's in the drive changed; on the UI thread.</summary>
         public event EventHandler Changed;
 
@@ -117,6 +120,11 @@ namespace Silverdash360.Services
             {
                 try
                 {
+                    if (Paused)
+                    {
+                        Thread.Sleep(PollMs);
+                        continue;
+                    }
                     uint state = Xam.XamLoaderGetDvdTrayState();
                     if (state != tray)
                     {

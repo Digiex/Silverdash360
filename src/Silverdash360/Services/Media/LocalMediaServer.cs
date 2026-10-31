@@ -66,6 +66,40 @@ namespace Silverdash360.Services.Media
             return new Uri(url.ToString(), UriKind.Absolute);
         }
 
+        /// <summary>
+        /// A URL for media on another machine, such as a media server's: the
+        /// player is pointed here and the server fetches it. The console's
+        /// player won't play from another machine on the network itself (it
+        /// fails at once with 4001), only from the console.
+        /// </summary>
+        public Uri RelayFor(Uri remote)
+        {
+            Start();
+            // The remote URL in hex as one path segment (escaped, its slashes
+            // could come back as slashes), then its file name: the player
+            // goes by the name's extension.
+            string name = remote.AbsolutePath.Substring(remote.AbsolutePath.LastIndexOf('/') + 1);
+            StringBuilder hex = new StringBuilder();
+            foreach (byte b in Encoding.UTF8.GetBytes(remote.ToString()))
+            {
+                hex.Append(b.ToString("x2"));
+            }
+            return new Uri("http://" + Host + ":" + Port + "/" + token + RelayPrefix + hex + "/" +
+                           Uri.EscapeDataString(name.Length > 0 ? name : "media"), UriKind.Absolute);
+        }
+
+        private const string RelayPrefix = "/relay/";
+
+        private static string FromHex(string hex)
+        {
+            byte[] bytes = new byte[hex.Length / 2];
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                bytes[i] = byte.Parse(hex.Substring(i * 2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+            }
+            return Encoding.UTF8.GetString(bytes, 0, bytes.Length);
+        }
+
         private void Start()
         {
             lock (sync)
@@ -123,6 +157,15 @@ namespace Silverdash360.Services.Media
                 if (parts.Length < 2 || (parts[0] != "GET" && parts[0] != "HEAD"))
                 {
                     Reply(client, "405 Method Not Allowed", null);
+                    return;
+                }
+                if (parts[1].StartsWith("/" + token + RelayPrefix))
+                {
+                    string asked;
+                    headers.TryGetValue("Range", out asked);
+                    string hex = parts[1].Substring(token.Length + 1 + RelayPrefix.Length);
+                    int slash = hex.IndexOf('/');
+                    Relay(client, new Uri(FromHex(slash >= 0 ? hex.Substring(0, slash) : hex), UriKind.Absolute), parts[0], asked);
                     return;
                 }
                 string path = PathOf(parts[1]);
@@ -232,6 +275,71 @@ namespace Silverdash360.Services.Media
                     client.Send(block, read);
                     at += read;
                 }
+            }
+        }
+
+        // Fetches the remote media with the player's range and hands the
+        // answer over as it comes.
+        private static void Relay(NativeSocket client, Uri remote, string method, string range)
+        {
+            Dictionary<string, string> asked = new Dictionary<string, string>();
+            if (range != null)
+            {
+                asked["Range"] = range;
+            }
+            using (Http.Response response = Http.Send(method, remote, asked, null))
+            {
+                StringBuilder header = new StringBuilder();
+                header.Append("HTTP/1.1 ").Append(response.Status).Append(' ').Append(StatusText(response.Status)).Append("\r\n");
+                foreach (string name in RelayedHeaders)
+                {
+                    string value = response.Header(name);
+                    if (value != null)
+                    {
+                        header.Append(name).Append(": ").Append(value).Append("\r\n");
+                    }
+                }
+                header.Append("Connection: close\r\n\r\n");
+                client.Send(header.ToString());
+                if (method == "HEAD")
+                {
+                    return;
+                }
+                long left = response.ContentLength;
+                using (NativeBuffer block = new NativeBuffer(BlockSize))
+                {
+                    while (left != 0)
+                    {
+                        int want = left < 0 ? BlockSize : (int)Math.Min(BlockSize, left);
+                        int got = response.Reader.Read(block.Bytes, 0, want);
+                        if (got <= 0)
+                        {
+                            break;
+                        }
+                        client.Send(block, got);
+                        if (left > 0)
+                        {
+                            left -= got;
+                        }
+                    }
+                }
+            }
+        }
+
+        private static readonly string[] RelayedHeaders =
+        {
+            "Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "Transfer-Encoding",
+        };
+
+        private static string StatusText(int status)
+        {
+            switch (status)
+            {
+                case 200: return "OK";
+                case 206: return "Partial Content";
+                case 404: return "Not Found";
+                case 416: return "Range Not Satisfiable";
+                default: return "Status";
             }
         }
 

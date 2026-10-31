@@ -168,10 +168,14 @@ namespace Silverdash360.Services.Media
         }
 
         /// <summary>The server's own URL: the player fetches from it directly.</summary>
+        /// <summary>Through the console's own media server, which the player plays from.</summary>
         public Uri Locate(MediaEntry entry)
         {
-            return entry.Url;
+            return Relay != null ? Relay.RelayFor(entry.Url) : entry.Url;
         }
+
+        /// <summary>The console's media server, set by the media service.</summary>
+        public LocalMediaServer Relay { get; set; }
 
         private string Browse(string id, int start, out int returned, out int total)
         {
