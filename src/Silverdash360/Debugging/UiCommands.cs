@@ -42,7 +42,7 @@ namespace Silverdash360.Debugging
         {
             commands.Add("ui.state", "", "The page, the hub's section, and the focused control and selection.", r => UiThread.Invoke(() => State()));
             commands.Add("ui.section", "<index|header>", "Shows a hub section.", Section);
-            commands.Add("ui.navigate", "<hub|search|storage|theme|files [path]|shelf <header>|title <key>>", "Goes to a page.", Navigate);
+            commands.Add("ui.navigate", "<hub|search|storage|theme|files [path]|media <source>|shelf <header>|title <key>>", "Goes to a page.", Navigate);
             commands.Add("ui.back", "", "Goes back a page.", r =>
             {
                 UiThread.Invoke(() => Back());
@@ -233,6 +233,7 @@ namespace Silverdash360.Debugging
                     case "storage": context.OpenStorage(); break;
                     case "theme": context.OpenThemes(); break;
                     case "files": context.OpenFiles(request.Arg(1, "/")); break;
+                    case "media": context.OpenMedia(context.Media.Find(request.Arg(1, "source", true)), null); break;
                     case "shelf": context.OpenShelfOptions(request.Arg(1, "shelf", true)); break;
                     case "title": context.OpenTitle(LibraryCommands.Find(context, request.Arg(1, "title", true))); break;
                     default: throw new DebugException("No page " + page + ".");

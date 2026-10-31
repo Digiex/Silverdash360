@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Navigation;
 using Microsoft.Xbox.Controls;
 using Silverdash360.Controls;
@@ -195,6 +196,8 @@ namespace Silverdash360.Pages
                     : entry.Size > 0 ? SystemService.FormatSize(entry.Size) : "",
                 ArtSeed = (uint)entry.Name.GetHashCode(),
                 Dimmed = entry.Unplayable != null,
+                // A downloaded video's own thumbnail, as the console's dashboard shows it.
+                Art = entry.Package != null ? (Action<Action<ImageSource>>)(done => App.Context.Images.ContentArt(entry.Package, done)) : null,
             };
         }
 

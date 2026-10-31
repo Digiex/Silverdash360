@@ -32,6 +32,9 @@ namespace Silverdash360.Services.Media
         /// </summary>
         public string Unplayable;
 
+        /// <summary>The package it's in, for a downloaded video: its thumbnail is the entry's icon.</summary>
+        public Model.ContentItem Package;
+
         /// <summary>A media server's picture for it, such as an album cover.</summary>
         public Uri ArtUrl;
 

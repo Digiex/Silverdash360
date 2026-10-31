@@ -59,6 +59,7 @@ namespace Silverdash360.Services.Media
                     Kind = MediaKind.Video,
                     Size = c.BestSize,
                     Album = c.Metadata != null && c.Metadata.TitleName.Length > 0 ? c.Metadata.TitleName : c.TitleName,
+                    Package = c,
                 })
                 .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();

@@ -204,7 +204,7 @@ namespace Silverdash360.Services
                 return;
             }
             pending.Remove(key);
-            ImageSource image = Decode(png);
+            ImageSource image = Decode(key, png);
             Keep(key, image);
             if (image != null)
             {
@@ -280,7 +280,7 @@ namespace Silverdash360.Services
 
         // A PNG or a JPEG; null for an icon with nothing to show, such as
         // the fully transparent thumbnail some packages carry.
-        private static ImageSource Decode(byte[] png)
+        private static ImageSource Decode(string key, byte[] png)
         {
             if (png == null || png.Length < 8)
             {
@@ -298,7 +298,7 @@ namespace Silverdash360.Services
             }
             catch (Exception e)
             {
-                Log.Write("Couldn't decode an image: {0}", e.Message);
+                Log.Write("Couldn't decode the image for {0}: {1}", key, e.Message);
                 return null;
             }
         }
