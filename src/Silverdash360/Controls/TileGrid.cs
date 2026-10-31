@@ -87,6 +87,7 @@ namespace Silverdash360.Controls
             Lines = 1;
             Direction = ScrollDirection.Horizontal;
             LeadTiles = 1;
+            ShowsSelectionUnfocused = true;
 
             viewport.Clip = new RectangleGeometry();
             surface.RenderTransform = scroll;
@@ -227,6 +228,18 @@ namespace Silverdash360.Controls
         /// <summary>How many tiles to keep visible past the selection when scrolling.</summary>
         public int LeadTiles { get; set; }
 
+        /// <summary>
+        /// Whether the selection shows, dimmed, while the grid doesn't have
+        /// focus; on by default. Off where grids sit together and only the
+        /// one in use should show a selection.
+        /// </summary>
+        public bool ShowsSelectionUnfocused { get; set; }
+
+        /// <summary>Whether the grid has focus.</summary>
+        public bool HasFocus { get { return focused; } }
+
+        private bool ShowsSelection { get { return focused || ShowsSelectionUnfocused; } }
+
         public ITileTemplate TileTemplate { get; set; }
 
         public string EmptyText
@@ -327,7 +340,7 @@ namespace Silverdash360.Controls
             }
             if (realized.TryGetValue(index, out tile))
             {
-                TileTemplate.SetSelected(tile, true, focused);
+                TileTemplate.SetSelected(tile, ShowsSelection, focused);
                 Canvas.SetZIndex(tile, 1);
             }
             if (previous != index && SelectionChanged != null)
@@ -341,7 +354,7 @@ namespace Silverdash360.Controls
             FrameworkElement tile;
             if (selectedIndex >= 0 && realized.TryGetValue(selectedIndex, out tile))
             {
-                TileTemplate.SetSelected(tile, true, focused);
+                TileTemplate.SetSelected(tile, ShowsSelection, focused);
             }
         }
 
@@ -449,7 +462,7 @@ namespace Silverdash360.Controls
                 Point at = PositionOf(index);
                 Canvas.SetLeft(tile, at.X);
                 Canvas.SetTop(tile, at.Y);
-                TileTemplate.SetSelected(tile, index == selectedIndex, focused);
+                TileTemplate.SetSelected(tile, index == selectedIndex && ShowsSelection, focused);
                 Canvas.SetZIndex(tile, index == selectedIndex ? 1 : 0);
                 surface.Children.Add(tile);
                 realized.Add(index, tile);

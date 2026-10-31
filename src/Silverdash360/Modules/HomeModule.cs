@@ -81,15 +81,19 @@ namespace Silverdash360.Modules
             foreach (TileGrid grid in new[] { recent, apps })
             {
                 ForwardEdges(grid, Edge.Left, Edge.Right);
+                // One selection on the page: the row in use's.
+                grid.ShowsSelectionUnfocused = false;
                 grid.ItemInvoked += delegate(object sender, ItemEventArgs e) { Context.OpenTitle((TitleEntry)e.Item); };
+                // The footer names what's selected in the row in use; the
+                // other row's selection changes when the library does.
                 grid.SelectionChanged += delegate(object sender, System.EventArgs e)
                 {
-                    TitleEntry title = ((TileGrid)sender).SelectedItem as TitleEntry;
-                    if (title != null)
+                    if (((TileGrid)sender).HasFocus)
                     {
-                        Context.ShowStatus(title.Name);
+                        ShowSelected((TileGrid)sender);
                     }
                 };
+                grid.GotFocus += delegate(object sender, RoutedEventArgs e) { ShowSelected((TileGrid)sender); };
                 grid.ItemButton += delegate(object sender, ItemEventArgs e)
                 {
                     if (e.Button == GamePadButton.X)
@@ -121,6 +125,15 @@ namespace Silverdash360.Modules
                 }
             };
             return view;
+        }
+
+        private void ShowSelected(TileGrid grid)
+        {
+            TitleEntry title = grid.SelectedItem as TitleEntry;
+            if (title != null)
+            {
+                Context.ShowStatus(title.Name);
+            }
         }
 
         public override void Activate()
