@@ -142,7 +142,7 @@
        page (BuildInfo). Git's answers go through files, as MSBuild 14 can't
        read a command's output; without git the commit is unknown. -->
   <PropertyGroup>
-    <Silverdash360Version Condition="'$(Silverdash360Version)' == ''">0.1.0</Silverdash360Version>
+    <Silverdash360Version Condition="'$(Silverdash360Version)' == ''">0.1.1</Silverdash360Version>
   </PropertyGroup>
   <Target Name="WriteBuildInfo" BeforeTargets="CoreCompile">
     <!-- Here, as the output path is set after this file is read. -->
