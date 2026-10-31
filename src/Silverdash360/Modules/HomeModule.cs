@@ -46,6 +46,7 @@ namespace Silverdash360.Modules
             {
                 Lines = 1,
                 TileWidth = 214,
+                Margin = Theme.GrowRoom,
                 TileHeight = 286,
                 Spacing = 20,
                 PadOutside = 24,
@@ -63,6 +64,7 @@ namespace Silverdash360.Modules
             {
                 Lines = 1,
                 TileWidth = 104,
+                Margin = Theme.GrowRoom,
                 TileHeight = 104,
                 Spacing = 14,
                 PadOutside = 12,

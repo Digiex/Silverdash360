@@ -335,6 +335,12 @@ namespace Silverdash360.Services.Files
                 {
                     status = Kernel.NtQueryDirectoryFile(directory.Handle, 0, 0, 0, io.Address, buffer.Address,
                                                          (uint)buffer.Length, 0, restart);
+                    // An empty folder answers the first query with no such
+                    // file rather than no more files.
+                    if (restart != 0 && status == Kernel.StatusNoSuchFile)
+                    {
+                        status = Kernel.StatusNoMoreFiles;
+                    }
                     restart = 0;
                     if (status != Kernel.StatusSuccess)
                     {

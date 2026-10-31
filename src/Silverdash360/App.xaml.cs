@@ -37,6 +37,7 @@ namespace Silverdash360
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {
+            LogFile.Start();
             Log.Write("Starting");
 #if DEBUG_SERVER
             if (StartPendingInstall())
@@ -47,6 +48,8 @@ namespace Silverdash360
             StartDashboard(null);
         }
 
+        private MarketplaceArtCache artCache;
+
         // In host when given, else as the root visual.
         private void StartDashboard(Panel host)
         {
@@ -54,6 +57,7 @@ namespace Silverdash360
             XamContentSource content = new XamContentSource();
             XboxFileSystem files = new XboxFileSystem();
             Library library = new Library(content, profiles, new LibraryCache(), new ExecutableScanner(files));
+            artCache = new MarketplaceArtCache(library);
             MediaService media = new MediaService(files);
             media.Downloads = new DownloadedVideoSource(library, files, media.LocalServer);
             Context = new DashboardContext(library, profiles, new ImageService(content), new SystemService(),
@@ -90,6 +94,7 @@ namespace Silverdash360
 #if DEBUG_SERVER
             // On by default for now; see the DebugServer build property.
             DebugServer.StartDefault(Context);
+            Heartbeat.Start();
 #endif
         }
 

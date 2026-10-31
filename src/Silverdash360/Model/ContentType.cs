@@ -97,12 +97,17 @@ namespace Silverdash360.Model
             return false;
         }
 
-        /// <summary>Content that starts a title of its own.</summary>
+        /// <summary>
+        /// Content that starts a title of its own. An original Xbox game's
+        /// package starts as a Games on Demand one does: the launch request
+        /// goes to the system with the package's record whatever its type.
+        /// </summary>
         public static bool IsLaunchable(uint type)
         {
             switch (type)
             {
                 case GameOnDemand:
+                case XboxOriginalGame:
                 case ArcadeTitle:
                 case GameDemo:
                 case GameTitle:

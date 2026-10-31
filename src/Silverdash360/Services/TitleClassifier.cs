@@ -69,7 +69,35 @@ namespace Silverdash360.Services
 
         public TitleKind? Classify(TitleEntry title)
         {
-            return Apps.ContainsKey(title.TitleId) ? TitleKind.App : (TitleKind?)null;
+            // Homebrew shortcuts (C0DE) start tools, whatever package they come in.
+            return Apps.ContainsKey(title.TitleId) || (title.TitleId >> 16) == TitleEntry.HomebrewShortcutPrefix
+                ? TitleKind.App : (TitleKind?)null;
+        }
+    }
+
+    /// <summary>
+    /// Apps by having no achievements: every Xbox 360 game, disc, Games on
+    /// Demand or Arcade, has to have some, and apps have none. Known only for
+    /// a title the profile has played; original Xbox games had none either,
+    /// so their packages don't count.
+    /// </summary>
+    public sealed class NoAchievementsClassifier : ITitleClassifier
+    {
+        public TitleKind? Classify(TitleEntry title)
+        {
+            ContentItem launch = title.LaunchItem;
+            if (title.Played == null || title.Played.AchievementsTotal > 0 || launch == null)
+            {
+                return null;
+            }
+            switch (launch.Type)
+            {
+                case ContentType.GameOnDemand:
+                case ContentType.GameTitle:
+                case ContentType.ArcadeTitle:
+                    return TitleKind.App;
+            }
+            return null;
         }
     }
 

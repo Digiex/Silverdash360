@@ -4,6 +4,7 @@ using System.Threading;
 using Silverdash360.Core;
 using Silverdash360.Model;
 using Silverdash360.Native;
+using Silverdash360.Services.Files;
 
 namespace Silverdash360.Services
 {
@@ -22,6 +23,9 @@ namespace Silverdash360.Services
 
         /// <summary>The package header's metadata, or null; with its thumbnails when asked for.</summary>
         ContentMetadata ReadMetadata(ContentItem item, bool thumbnails);
+
+        /// <summary>Whether the package holds a default.xex, opening it to look.</summary>
+        bool HoldsApp(ContentItem item);
     }
 
     /// <summary>
@@ -115,6 +119,35 @@ namespace Silverdash360.Services
                           result, empty > MaxEmptyCalls ? " after waiting for more" : "");
             }
             return items;
+        }
+
+        private const string AppMount = "sdapp";
+        private const uint OpenExisting = 3;
+        private const string DefaultExecutable = "default.xex";
+
+        public bool HoldsApp(ContentItem item)
+        {
+            using (NativeBuffer record = new NativeBuffer(item.Record))
+            {
+                uint result = Xam.XamContentCreateInternal(AppMount, record.Address, OpenExisting, 0, 0, 0, 0, 0);
+                if (result != Xam.ErrorSuccess)
+                {
+                    Log.Write("Couldn't open {0} to look for an app: {1}", item, result);
+                    return false;
+                }
+                try
+                {
+                    using (ObjectName name = new ObjectName(@"\??\" + AppMount + @":\" + DefaultExecutable))
+                    using (NativeBuffer information = new NativeBuffer(0x38))
+                    {
+                        return Kernel.NtQueryFullAttributesFile(name.Attributes, information.Address) == Kernel.StatusSuccess;
+                    }
+                }
+                finally
+                {
+                    Xam.XamContentClose(AppMount, 0);
+                }
+            }
         }
 
         public ContentMetadata ReadMetadata(ContentItem item, bool thumbnails)

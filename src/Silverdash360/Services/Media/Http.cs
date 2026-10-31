@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using Silverdash360.Core;
 using Silverdash360.Native;
 using Silverdash360.Services.Ftp;
 
@@ -10,9 +11,12 @@ namespace Silverdash360.Services.Media
 {
     /// <summary>
     /// A small HTTP/1.1 client on the console's plain sockets, for media
-    /// servers on the local network: their descriptions and their SOAP
-    /// actions. Servers are named by IPv4 address, as DLNA servers name
-    /// themselves.
+    /// servers on the local network (their descriptions and their SOAP
+    /// actions) and the Xbox Marketplace's images and catalog. Servers are
+    /// named by IPv4 address, as DLNA servers name themselves, or by a host
+    /// name the console's DNS looks up. It runs on the calling thread only:
+    /// the platform's own HttpWebRequest works on the UI thread, which a
+    /// slow server then holds up.
     /// </summary>
     public static class Http
     {
@@ -44,6 +48,13 @@ namespace Silverdash360.Services.Media
 
             /// <summary>The whole body as text, chunked or not.</summary>
             public string ReadText()
+            {
+                byte[] bytes = ReadBytes();
+                return Encoding.UTF8.GetString(bytes, 0, bytes.Length);
+            }
+
+            /// <summary>The whole body, chunked or not.</summary>
+            public byte[] ReadBytes()
             {
                 MemoryStream body = new MemoryStream();
                 byte[] block = new byte[0x4000];
@@ -79,8 +90,7 @@ namespace Silverdash360.Services.Media
                         }
                     }
                 }
-                byte[] bytes = body.ToArray();
-                return Encoding.UTF8.GetString(bytes, 0, bytes.Length);
+                return body.ToArray();
             }
 
             private void Copy(MemoryStream body, byte[] block, long count)
@@ -106,11 +116,8 @@ namespace Silverdash360.Services.Media
         /// <summary>Sends a request and reads the status line and headers; the body is left to read.</summary>
         public static Response Send(string method, Uri url, IDictionary<string, string> headers, byte[] body)
         {
-            uint ip = NativeSocket.ParseAddress(url.Host);
-            if (ip == 0)
-            {
-                throw new IOException("Only servers named by IP address can be reached: " + url.Host + ".");
-            }
+            uint ip = NativeSocket.Resolve(url.Host);
+            Activity.Art = "connecting to " + url.Host;
             NativeSocket socket = NativeSocket.Connect(ip, url.Port);
             SocketReader reader = new SocketReader(socket);
             try
@@ -118,7 +125,14 @@ namespace Silverdash360.Services.Media
                 StringBuilder request = new StringBuilder();
                 // Silverlight 3's Uri has no PathAndQuery.
                 request.Append(method).Append(' ').Append(url.AbsolutePath).Append(url.Query).Append(" HTTP/1.1\r\n");
-                request.Append("Host: ").Append(url.Host).Append(':').Append(url.Port).Append("\r\n");
+                // Without the default port: content delivery networks can
+                // refuse a host they don't know with it.
+                request.Append("Host: ").Append(url.Host);
+                if (url.Port != 80)
+                {
+                    request.Append(':').Append(url.Port);
+                }
+                request.Append("\r\n");
                 request.Append("User-Agent: Silverdash360 UPnP/1.0 DLNADOC/1.50\r\n");
                 request.Append("Connection: close\r\n");
                 if (headers != null)

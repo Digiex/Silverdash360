@@ -1,6 +1,7 @@
 """The dashboard's features: the library, search, the cache, the hub and pages."""
 
 import time
+from urllib.parse import quote
 
 from harness import test
 
@@ -183,7 +184,8 @@ def a_opens_title_and_b_returns(t):
     time.sleep(0.5)
     opened = t.call('ui.state')
     t.equal(opened['page'], 'TitlePage', 'page after A')
-    t.check(selected['key'] in (opened['uri'] or '') or selected['key'].replace(':', '%3A') in (opened['uri'] or ''),
+    # The page's address carries the key escaped, as Uri.EscapeDataString does.
+    t.check(quote(selected['key'], safe='') in (opened['uri'] or ''),
             'title page for %s, not %s' % (selected['key'], opened['uri']))
     t.check(opened['focused'] is not None, 'nothing has focus on the title page')
     t.call('ui.press', 'b')

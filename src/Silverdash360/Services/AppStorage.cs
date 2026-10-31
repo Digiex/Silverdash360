@@ -14,7 +14,8 @@ namespace Silverdash360.Services
     /// title storage to keep them in. A build started from the staging folder
     /// deploy.py uses keeps them in the folder above it. One caller at a time:
     /// hold <see cref="Lock"/> around a read or write. Call it from a
-    /// background thread: the disk blocks.
+    /// background thread: the disk blocks. A file name can have folders, as
+    /// in Art/415607F7/boxartlg.jpg.
     /// </summary>
     public static class AppStorage
     {
@@ -119,8 +120,8 @@ namespace Silverdash360.Services
                 lock (Lock)
                 {
                     Init();
-                    CreateFolders(folder);
                     string path = folder + "/" + fileName;
+                    CreateFolders(path.Substring(0, path.LastIndexOf('/')));
                     string written = path + NewSuffix;
                     using (KernelFile file = files.OpenWrite(written))
                     using (NativeBuffer buffer = new NativeBuffer(BlockSize))
@@ -148,6 +149,23 @@ namespace Silverdash360.Services
             {
                 Log.Write("App storage: {0} not saved: {1}", fileName, e.Message);
                 return false;
+            }
+        }
+
+        /// <summary>A file's size and time, or null when it isn't there.</summary>
+        public static FileEntry Stat(string fileName)
+        {
+            try
+            {
+                lock (Lock)
+                {
+                    Init();
+                    return files.Stat(folder + "/" + fileName);
+                }
+            }
+            catch (Exception)
+            {
+                return null;
             }
         }
 

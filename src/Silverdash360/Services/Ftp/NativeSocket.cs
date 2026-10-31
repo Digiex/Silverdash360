@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
+using Silverdash360.Core;
 using Silverdash360.Native;
 
 namespace Silverdash360.Services.Ftp
@@ -283,6 +286,76 @@ namespace Silverdash360.Services.Ftp
         }
 
         /// <summary>An IPv4 address in dotted form, or 0 when the text isn't one.</summary>
+        private const int LookupTimeout = 10000;
+        // Looked-up names, for a while: the art cache asks for the same few
+        // servers over and over.
+        private const int LookupKeptMs = 600000;
+        private static readonly Dictionary<string, KeyValuePair<uint, int>> lookups =
+            new Dictionary<string, KeyValuePair<uint, int>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>A host's IPv4 address: as written, or looked up with the console's DNS.</summary>
+        public static uint Resolve(string host)
+        {
+            uint ip = ParseAddress(host);
+            if (ip != 0)
+            {
+                return ip;
+            }
+            lock (lookups)
+            {
+                KeyValuePair<uint, int> kept;
+                if (lookups.TryGetValue(host, out kept) && Environment.TickCount - kept.Value < LookupKeptMs)
+                {
+                    return kept.Key;
+                }
+            }
+            StartNetworking();
+            Activity.Art = "looking up " + host;
+            using (NativeBuffer result = new NativeBuffer(4))
+            {
+                int error = Net.XNetDnsLookup(Net.CallerTitle, host, 0, result.Address);
+                uint dns = result.U32(0);
+                if (error != 0 || dns == 0)
+                {
+                    throw new IOException("Couldn't look up " + host + ": " + error + ".");
+                }
+                try
+                {
+                    // Polled: a wait with a timeout isn't dependable on this runtime.
+                    int start = Environment.TickCount;
+                    byte[] answer;
+                    while (true)
+                    {
+                        answer = Kernel.ReadMemory(dns, 12);
+                        if (BigEndian.U32(answer, 0) != Net.WsaeInProgress)
+                        {
+                            break;
+                        }
+                        if (Environment.TickCount - start > LookupTimeout)
+                        {
+                            throw new IOException("Looking up " + host + " took too long.");
+                        }
+                        Thread.Sleep(20);
+                    }
+                    int status = (int)BigEndian.U32(answer, 0);
+                    if (status != 0 || BigEndian.U32(answer, 4) == 0)
+                    {
+                        throw new IOException("Couldn't find " + host + ": " + status + ".");
+                    }
+                    ip = BigEndian.U32(answer, 8);
+                }
+                finally
+                {
+                    Net.XNetDnsRelease(Net.CallerTitle, dns);
+                }
+            }
+            lock (lookups)
+            {
+                lookups[host] = new KeyValuePair<uint, int>(ip, Environment.TickCount);
+            }
+            return ip;
+        }
+
         public static uint ParseAddress(string text)
         {
             string[] parts = (text ?? "").Split('.');

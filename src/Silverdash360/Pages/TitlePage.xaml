@@ -20,7 +20,7 @@
       <StackPanel>
         <Grid x:Name="ArtFrame" Width="300" Height="300">
           <TextBlock x:Name="ArtInitials" FontSize="96" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
-          <Image x:Name="Art" Stretch="UniformToFill" />
+          <Image x:Name="Art" Stretch="Uniform" />
         </Grid>
         <local:TileGrid x:Name="Actions" Height="300" Margin="0,18,0,0" />
       </StackPanel>

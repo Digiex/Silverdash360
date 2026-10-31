@@ -9,7 +9,9 @@ namespace Silverdash360.Core
     /// Debug output through the kernel's DbgPrint, which xenia writes to its log
     /// as "(DbgPrint) ..." and a development kit shows in its debug output.
     /// Debug.WriteLine goes nowhere on the console. The latest lines are kept
-    /// too, for the debug server to hand out on a console without a kit.
+    /// too, for the debug server to hand out on a console without a kit, and
+    /// go to <see cref="Sink"/> when one is set (a file, so they outlast a
+    /// hang).
     /// </summary>
     public static class Log
     {
@@ -17,16 +19,40 @@ namespace Silverdash360.Core
 
         private static readonly Queue<string> recent = new Queue<string>();
 
+        /// <summary>Also given each line, with its time; a failure in it is ignored.</summary>
+        public static Action<string> Sink;
+
+        // A line the sink writes about itself isn't handed back to it.
+        [ThreadStatic]
+        private static bool sinking;
+
         public static void Write(string text)
         {
             text = text ?? "";
+            string line = DateTime.Now.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture) + " " + text;
             lock (recent)
             {
                 if (recent.Count == Kept)
                 {
                     recent.Dequeue();
                 }
-                recent.Enqueue(DateTime.Now.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture) + " " + text);
+                recent.Enqueue(line);
+            }
+            Action<string> sink = Sink;
+            if (sink != null && !sinking)
+            {
+                sinking = true;
+                try
+                {
+                    sink(line);
+                }
+                catch (Exception)
+                {
+                }
+                finally
+                {
+                    sinking = false;
+                }
             }
             try
             {

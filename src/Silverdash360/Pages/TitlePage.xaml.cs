@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using Microsoft.Xbox.Controls;
 using Silverdash360.Controls;
@@ -88,7 +89,34 @@ namespace Silverdash360.Pages
             Unloaded += delegate { App.Context.Status -= OnStatus; };
         }
 
+        // The Marketplace's backdrops are made to sit behind text; the title's
+        // own art, standing in for one, is kept fainter.
+        private const double MarketplaceBackdropOpacity = 0.3;
+        // A box front's width in the 300-pixel frame, at its 219 by 300.
+        private const double BoxFrontWidth = 219;
+
         private static DashboardContext Context { get { return App.Context; } }
+
+        // Who made it, where it's from and its description, with what the
+        // Marketplace adds when it has the title.
+        private void ShowInfo(TitleDetails details)
+        {
+            ContentItem launch = title.LaunchItem;
+            List<string> info = new List<string>();
+            string publisher = title.Publisher.Length > 0 ? title.Publisher : details != null ? details.Publisher : "";
+            if (publisher.Length > 0) info.Add(publisher);
+            if (details != null && details.Developer.Length > 0 && details.Developer != publisher) info.Add(details.Developer);
+            if (details != null && details.Genre.Length > 0) info.Add(details.Genre);
+            if (details != null && details.ReleaseDate.Length >= 4) info.Add(details.ReleaseDate.Substring(0, 4));
+            info.Add(title.Source);
+            if (launch != null && launch.Metadata != null) info.Add("version " + launch.Metadata.VersionText);
+            info.Add("title " + title.TitleIdText);
+            InfoText.Text = string.Join("  ·  ", info.ToArray());
+            // The Marketplace's description is the store's, usually the
+            // fuller one.
+            DescriptionText.Text = details != null && details.Description.Length > title.Description.Length
+                ? details.Description : title.Description;
+        }
 
         private void OnStatus(object sender, StatusEventArgs e)
         {
@@ -112,22 +140,46 @@ namespace Silverdash360.Pages
         private void ShowTitle()
         {
             NameText.Text = title.Name;
-            ArtFrame.Background = Theme.PlaceholderBrush(title.TitleId);
-            ArtInitials.Text = Theme.Initials(title.Name);
+            ArtFrame.Background = null;
+            ArtInitials.Text = "";
+            // The kind's cover, a box front's shape in the square frame,
+            // with the title's icon; the box front goes over it.
+            Covers.Cover cover = Covers.For(title, 1.3);
+            cover.Root.Width = BoxFrontWidth;
+            ArtFrame.Children.Insert(0, cover.Root);
+            bool hasBackdrop = false;
             Context.Images.TitleArt(title, Context.UserIndex, source =>
             {
-                Art.Source = source;
-                Backdrop.Source = source;
-                ArtInitials.Text = "";
+                cover.SetIcon(source);
+                if (!hasBackdrop && Backdrop.Source == null)
+                {
+                    Backdrop.Source = source;
+                }
             });
-
-            ContentItem launch = title.LaunchItem;
-            List<string> info = new List<string>();
-            if (title.Publisher.Length > 0) info.Add(title.Publisher);
-            info.Add(title.Source);
-            if (launch != null && launch.Metadata != null) info.Add("version " + launch.Metadata.VersionText);
-            info.Add("title " + title.TitleIdText);
-            InfoText.Text = string.Join("  ·  ", info.ToArray());
+            Context.Images.BoxArt(title, source =>
+            {
+                Art.Source = source;
+                cover.Root.Visibility = Visibility.Collapsed;
+                if (!hasBackdrop)
+                {
+                    Backdrop.Source = source;
+                }
+            });
+            Context.Images.Backdrop(title, source =>
+            {
+                hasBackdrop = true;
+                Backdrop.Source = source;
+                Backdrop.Opacity = MarketplaceBackdropOpacity;
+            });
+            ShowInfo(null);
+            TitleEntry shown = title;
+            Core.Background.Run(() => MarketplaceArt.ReadDetails(shown.TitleId), delegate(TitleDetails details, Exception error)
+            {
+                if (details != null && title == shown)
+                {
+                    ShowInfo(details);
+                }
+            });
 
             List<string> stats = new List<string>();
             if (title.Played != null)
@@ -138,7 +190,6 @@ namespace Silverdash360.Pages
             }
             if (title.TotalSize > 0) stats.Add(SystemService.FormatSize(title.TotalSize) + " on this console");
             StatsText.Text = string.Join("  ·  ", stats.ToArray());
-            DescriptionText.Text = title.Description;
 
             List<ActionEntry> actions = new List<ActionEntry>();
             if (title.IsInstalled)

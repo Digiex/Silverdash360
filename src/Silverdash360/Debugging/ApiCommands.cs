@@ -42,6 +42,7 @@ namespace Silverdash360.Debugging
             commands.Add("xam.content", "[xuid]", "Enumerates every package for common content (XUID 0) or a profile.", Content);
             commands.Add("xam.metadata", "<contentIndex>", "Reads a package header (as library.content numbers them).", Metadata);
             commands.Add("xam.tile", "<titleId> [type] [imageId]", "XamReadTile: type 1 (game icon) and image 0x8000 by default.", Tile);
+            commands.Add("marketplace", "<titleId> [file]", "A title's Marketplace art (boxartlg.jpg by default) and details, kept or downloaded.", Marketplace);
             commands.Add("xam.played", "", "The signed-in profile's played titles.", r => Played());
             commands.Add("xam.achievements", "<titleId>", "The signed-in profile's achievements for a title.", Achievements);
             commands.Add("net.address", "", "The console's address from XNetGetTitleXnAddr.", r => Address());
@@ -125,6 +126,30 @@ namespace Silverdash360.Debugging
             JsonObject result = Png(png);
             result.Add("readMs", Environment.TickCount - start);
             return result;
+        }
+
+        private object Marketplace(DebugRequest request)
+        {
+            uint titleId = request.Hex(0, "title ID");
+            string file = request.Args.Count > 1 ? request.Args[1] : MarketplaceArt.BoxArt;
+            int start = Environment.TickCount;
+            byte[] image = MarketplaceArt.Image(titleId, file);
+            int imageMs = Environment.TickCount - start;
+            start = Environment.TickCount;
+            TitleDetails details = MarketplaceArt.ReadDetails(titleId);
+            return new JsonObject
+            {
+                { "file", file },
+                { "bytes", image != null ? image.Length : -1 },
+                { "imageMs", imageMs },
+                { "detailsMs", Environment.TickCount - start },
+                { "name", details != null ? details.Name : null },
+                { "publisher", details != null ? details.Publisher : null },
+                { "developer", details != null ? details.Developer : null },
+                { "genre", details != null ? details.Genre : null },
+                { "released", details != null ? details.ReleaseDate : null },
+                { "description", details != null ? details.Description : null },
+            };
         }
 
         private object Played()

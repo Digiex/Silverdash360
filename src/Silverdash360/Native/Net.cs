@@ -101,6 +101,19 @@ namespace Silverdash360.Native
         public static extern int sendto(uint caller, uint s, uint buffer, int length, int flags, uint to,
                                         int toLength);
 
+        /// <summary>XNDNS.iStatus while a lookup is still going.</summary>
+        public const int WsaeInProgress = 10036;
+
+        // 0x43: int XNetDnsLookup(DWORD caller, const char* host, HANDLE event,
+        //   XNDNS** result). The XNDNS, which the system allocates: iStatus,
+        //   the count of addresses, then up to 8 IPv4 addresses.
+        [DllImport("xam.xex", EntryPoint = "#67")]
+        public static extern int XNetDnsLookup(uint caller, string host, uint ev, uint result);
+
+        // 0x44: int XNetDnsRelease(DWORD caller, XNDNS*)
+        [DllImport("xam.xex", EntryPoint = "#68")]
+        public static extern int XNetDnsRelease(uint caller, uint dns);
+
         // 0x1B: int WSAGetLastError()
         [DllImport("xam.xex", EntryPoint = "#27")]
         public static extern int WSAGetLastError();

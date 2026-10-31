@@ -29,8 +29,8 @@ namespace Silverdash360.Pages
         private readonly List<Filter> filters = new List<Filter>
         {
             new Filter { Name = "all", Matches = c => true },
-            new Filter { Name = "games", Matches = c => ContentType.IsLaunchable(c.Type) && Kind(c) == TitleKind.Game },
-            new Filter { Name = "apps", Matches = c => ContentType.IsLaunchable(c.Type) && Kind(c) == TitleKind.App },
+            new Filter { Name = "games", Matches = c => c.IsLaunchable && Kind(c) == TitleKind.Game },
+            new Filter { Name = "apps", Matches = c => c.IsLaunchable && Kind(c) == TitleKind.App },
             new Filter { Name = "add-ons", Matches = c => c.Type == ContentType.MarketplaceContent },
             new Filter { Name = "updates", Matches = c => c.Type == ContentType.Installer },
             new Filter { Name = "saves", Matches = c => c.Type == ContentType.SavedGame },

@@ -164,7 +164,11 @@ namespace Silverdash360.Debugging
                             client.Send(Json.Write(new JsonObject { { "ok", true }, { "command", request.Command } }) + "\n");
                             break;
                         }
-                        client.Send(Handle(request) + "\n");
+                        Activity.Debug = request.Command + " (handling)";
+                        string reply = Handle(request);
+                        Activity.Debug = request.Command + " (sending " + reply.Length + " chars)";
+                        client.Send(reply + "\n");
+                        Activity.Debug = request.Command + " (done)";
                     }
                 }
                 catch (Exception e)

@@ -12,11 +12,14 @@ using Silverdash360.Native;
 namespace Silverdash360.Services
 {
     /// <summary>
-    /// Art for titles and profiles: the thumbnails in package headers, the
-    /// game tiles a profile keeps for the titles it played, and gamer pictures.
-    /// Art is read when a tile asks for it, which with the grids' virtualizing
-    /// is the tiles on screen. PNGs are read in the background, decoded on the
-    /// UI thread, and the most recently used <see cref="MaxImages"/> are kept.
+    /// Art for titles and profiles: box art and backdrops from the Xbox
+    /// Marketplace (<see cref="MarketplaceArt"/>), the thumbnails in package
+    /// headers, the game tiles a profile keeps for the titles it played, and
+    /// gamer pictures. Art is read when a tile asks for it, which with the
+    /// grids' virtualizing is the tiles on screen. Images are read in the
+    /// background, decoded on the UI thread, and the most recently used are
+    /// kept, up to <see cref="MaxImages"/> of them and <see cref="MaxPixels"/>
+    /// pixels in all.
     /// </summary>
     public sealed class ImageService
     {
@@ -30,6 +33,12 @@ namespace Silverdash360.Services
 
         /// <summary>Decoded images kept: a few screens of tiles, in the console's small memory.</summary>
         public const int MaxImages = 120;
+
+        /// <summary>
+        /// Decoded pixels kept, at four bytes each: about 60 box fronts, or
+        /// fewer with a backdrop or two.
+        /// </summary>
+        public const int MaxPixels = 4 * 1024 * 1024;
 
         // Requests waiting for the worker. Scrolling fast through thousands
         // of titles asks for far more art than can be read; the newest
@@ -50,6 +59,8 @@ namespace Silverdash360.Services
 
         private readonly IContentSource source;
         private readonly Dictionary<string, ImageSource> cache = new Dictionary<string, ImageSource>();
+        private readonly Dictionary<string, int> pixels = new Dictionary<string, int>();
+        private int keptPixels;
         private readonly LinkedList<string> recent = new LinkedList<string>();
         private readonly Dictionary<string, List<Action<ImageSource>>> pending = new Dictionary<string, List<Action<ImageSource>>>();
 
@@ -62,6 +73,20 @@ namespace Silverdash360.Services
         public void TitleArt(TitleEntry title, uint userIndex, Action<ImageSource> done)
         {
             Get("title:" + title.Key, () => TitlePng(title, userIndex), done);
+        }
+
+        /// <summary>The Marketplace's box front for the title; the callback isn't called when there's none.</summary>
+        public void BoxArt(TitleEntry title, Action<ImageSource> done)
+        {
+            Get("boxart:" + title.TitleId.ToString("X8"), () => MarketplaceArt.Image(title.TitleId, MarketplaceArt.BoxArt),
+                done);
+        }
+
+        /// <summary>The backdrop the Marketplace has for the title; the callback isn't called when there's none.</summary>
+        public void Backdrop(TitleEntry title, Action<ImageSource> done)
+        {
+            Get("backdrop:" + title.TitleId.ToString("X8"), () => MarketplaceArt.Image(title.TitleId, MarketplaceArt.Background),
+                done);
         }
 
         /// <summary>A package's own thumbnail, such as an add-on's.</summary>
@@ -224,10 +249,12 @@ namespace Silverdash360.Services
                 }
                 if (request == null)
                 {
+                    Activity.Images = "idle";
                     queued.WaitOne();
                     continue;
                 }
                 byte[] png = null;
+                Activity.Images = request.Key;
                 try
                 {
                     png = request.Read();
@@ -236,10 +263,16 @@ namespace Silverdash360.Services
                 {
                     Log.Write("Couldn't read art for {0}: {1}", request.Key, e.Message);
                 }
+                Activity.Images = request.Key + " (done)";
                 Background.OnUi(() => Finish(request.Key, png));
             }
         }
 
+        // Icons up to this size are checked for having anything to show.
+        private const int CheckedPixels = 128 * 128;
+
+        // A PNG or a JPEG; null for an icon with nothing to show, such as
+        // the fully transparent thumbnail some packages carry.
         private static ImageSource Decode(byte[] png)
         {
             if (png == null || png.Length < 8)
@@ -250,6 +283,10 @@ namespace Silverdash360.Services
             {
                 BitmapImage bitmap = new BitmapImage();
                 bitmap.SetSource(new MemoryStream(png));
+                if (bitmap.PixelWidth * bitmap.PixelHeight <= CheckedPixels && IsBlank(bitmap))
+                {
+                    return null;
+                }
                 return bitmap;
             }
             catch (Exception e)
@@ -259,23 +296,54 @@ namespace Silverdash360.Services
             }
         }
 
-        // Keeps an image, dropping the least recently used past the limit.
+        // No pixel that isn't fully transparent.
+        private static bool IsBlank(BitmapSource bitmap)
+        {
+            int[] pixels = new WriteableBitmap(bitmap).Pixels;
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                if ((pixels[i] & unchecked((int)0xFF000000)) != 0)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Keeps an image, dropping the least recently used past the limits.
         private void Keep(string key, ImageSource image)
         {
+            Forget(key);
+            BitmapSource bitmap = image as BitmapSource;
+            int size = bitmap != null ? bitmap.PixelWidth * bitmap.PixelHeight : 0;
             cache[key] = image;
-            recent.Remove(key);
+            pixels[key] = size;
+            keptPixels += size;
             recent.AddLast(key);
-            while (recent.Count > MaxImages)
+            while (recent.Count > 1 && (recent.Count > MaxImages || keptPixels > MaxPixels))
             {
-                cache.Remove(recent.First.Value);
-                recent.RemoveFirst();
+                Forget(recent.First.Value);
             }
+        }
+
+        private void Forget(string key)
+        {
+            int size;
+            if (pixels.TryGetValue(key, out size))
+            {
+                keptPixels -= size;
+                pixels.Remove(key);
+            }
+            cache.Remove(key);
+            recent.Remove(key);
         }
 
         /// <summary>Forgets everything, for when the library is read again.</summary>
         public void Clear()
         {
             cache.Clear();
+            pixels.Clear();
+            keptPixels = 0;
             recent.Clear();
         }
     }

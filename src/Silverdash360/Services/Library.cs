@@ -41,7 +41,8 @@ namespace Silverdash360.Services
             this.executables = executables;
             Classifiers = new List<ITitleClassifier>
             {
-                new VideoOnlyClassifier(), new KnownAppsClassifier(), new FolderClassifier(), new ContentClassifier(),
+                new VideoOnlyClassifier(), new KnownAppsClassifier(), new NoAchievementsClassifier(), new FolderClassifier(),
+                new ContentClassifier(),
             };
         }
 
@@ -126,6 +127,7 @@ namespace Silverdash360.Services
             Background.Run(() => Load(full), delegate(LoadResult result, Exception error)
             {
                 IsLoading = false;
+                Activity.Library = "idle";
                 Publish(result);
                 OnProgress(null);
             });
@@ -186,6 +188,7 @@ namespace Silverdash360.Services
 
         private void Report(string text, double? fraction)
         {
+            Activity.Library = text;
             LibraryProgress progress = new LibraryProgress { Text = text, Fraction = fraction };
             Background.OnUi(() => OnProgress(progress));
         }
@@ -198,6 +201,7 @@ namespace Silverdash360.Services
 
             // What earlier runs read from package and executable headers.
             Dictionary<string, ContentMetadata> known = new Dictionary<string, ContentMetadata>();
+            Dictionary<string, byte> knownApps = new Dictionary<string, byte>();
             Dictionary<string, ExecutableItem> knownExecutables = new Dictionary<string, ExecutableItem>();
             int cachedCount = 0;
             bool outdated = false;
@@ -232,6 +236,10 @@ namespace Silverdash360.Services
                     if (item.Metadata != null || item.HeaderRead)
                     {
                         known[LibraryCache.KeyOf(item)] = item.Metadata;
+                    }
+                    if (item.AppCheck != ContentItem.AppNotChecked)
+                    {
+                        knownApps[LibraryCache.KeyOf(item)] = item.AppCheck;
                     }
                 }
                 foreach (ExecutableItem item in cached.Executables)
@@ -322,11 +330,13 @@ namespace Silverdash360.Services
                 }
             }
 
+            int appsChecked = CheckForApps(content, knownApps, paceHeader);
+
             // Saved whenever the set of packages or executables changed.
             bool executablesChanged = found.Count != knownExecutables.Count ||
                                       found.Any(e => !knownExecutables.ContainsKey(e.Path) ||
                                                      knownExecutables[e.Path].TitleId != e.TitleId);
-            bool changed = outdated || unread.Count > 0 || content.Count != cachedCount ||
+            bool changed = outdated || unread.Count > 0 || appsChecked > 0 || content.Count != cachedCount ||
                            known.Count != content.Count(c => c.HeaderRead) || executablesChanged;
             // What's on screen came from the same packages: nothing to redo.
             LoadResult built = changed || !shown ? Build(content, found, gamer, played) : null;
@@ -339,6 +349,52 @@ namespace Silverdash360.Services
                       unread.Count, found.Count, changed ? "changed" : "unchanged",
                       (int)(DateTime.UtcNow - started).TotalMilliseconds);
             return built;
+        }
+
+        // Looks inside the add-on packages of titles with nothing else to
+        // start them, for an app that came as an add-on (Video Kinect does).
+        // Each package is looked in once; the answer is saved with it.
+        // Returns how many were looked in.
+        private int CheckForApps(List<ContentItem> content, Dictionary<string, byte> knownApps, Action pace)
+        {
+            Dictionary<uint, bool> startable = new Dictionary<uint, bool>();
+            foreach (ContentItem item in content)
+            {
+                byte check;
+                if (knownApps.TryGetValue(LibraryCache.KeyOf(item), out check))
+                {
+                    item.AppCheck = check;
+                }
+                if (item.IsLaunchable || item.Type == ContentType.InstalledGame)
+                {
+                    startable[item.TitleId] = true;
+                }
+            }
+            int checkedCount = 0;
+            foreach (ContentItem item in content)
+            {
+                if (item.Type != ContentType.MarketplaceContent || item.AppCheck != ContentItem.AppNotChecked ||
+                    startable.ContainsKey(item.TitleId) || item.IsCorrupt || item.IsPartial)
+                {
+                    continue;
+                }
+                if (checkedCount == 0)
+                {
+                    Report("Looking for apps in add-ons...", null);
+                }
+                item.AppCheck = source.HoldsApp(item) ? ContentItem.AppInside : ContentItem.AppNone;
+                checkedCount++;
+                if (item.AppCheck == ContentItem.AppInside)
+                {
+                    Log.Write("Library: {0} holds an app", item);
+                    startable[item.TitleId] = true;
+                }
+                if (pace != null)
+                {
+                    pace();
+                }
+            }
+            return checkedCount;
         }
 
         // The profile's played titles, with the packages that start the most
@@ -420,8 +476,7 @@ namespace Silverdash360.Services
             foreach (ContentItem item in title.Content)
             {
                 uint type = item.Type;
-                if (ContentType.IsLaunchable(type) || type == ContentType.XboxOriginalGame ||
-                    type == ContentType.InstalledGame)
+                if (item.IsLaunchable || type == ContentType.InstalledGame)
                 {
                     any = true;
                     if (!placed.ContainsKey(item))
@@ -466,14 +521,25 @@ namespace Silverdash360.Services
         {
             Dictionary<uint, TitleEntry> byId = new Dictionary<uint, TitleEntry>();
             List<ContentItem> allContent = new List<ContentItem>();
+            // Original Xbox games the console filed under its compatibility
+            // title rather than their own: one title each.
+            List<TitleEntry> separate = new List<TitleEntry>();
             foreach (ContentItem item in content)
             {
                 uint id = item.TitleId;
-                if (id != 0)
+                if (id == 0)
                 {
-                    TitleFor(byId, id).Content.Add(item);
-                    allContent.Add(item);
+                    continue;
                 }
+                allContent.Add(item);
+                if (id == TitleEntry.XboxCompatibilityTitleId && item.Type == ContentType.XboxOriginalGame)
+                {
+                    TitleEntry own = new TitleEntry(id, "xbox:" + item.DeviceId.ToString("X8") + "/" + item.FileName);
+                    own.Content.Add(item);
+                    separate.Add(own);
+                    continue;
+                }
+                TitleFor(byId, id).Content.Add(item);
             }
             foreach (PlayedTitle p in played)
             {
@@ -481,15 +547,18 @@ namespace Silverdash360.Services
             }
 
             // An executable joins the title with its ID, which brings its
-            // saves, played stats and art. Homebrew often shares a title ID
-            // or has none, so one that would join another executable's title
+            // saves, played stats and art. Homebrew often shares a title ID,
+            // declares a system one (the dashboard's) or has none, so one
+            // that would join another executable's title or a system title
             // is a title of its own.
             List<TitleEntry> all = byId.Values.ToList();
+            all.AddRange(separate);
             Dictionary<uint, bool> fromExecutables = new Dictionary<uint, bool>();
             foreach (ExecutableItem item in found)
             {
                 TitleEntry t;
-                if (item.TitleId != 0 && !fromExecutables.ContainsKey(item.TitleId))
+                if (item.TitleId != 0 && !TitleEntry.IsSystemTitle(item.TitleId) &&
+                    !fromExecutables.ContainsKey(item.TitleId))
                 {
                     bool existed = byId.ContainsKey(item.TitleId);
                     t = TitleFor(byId, item.TitleId);

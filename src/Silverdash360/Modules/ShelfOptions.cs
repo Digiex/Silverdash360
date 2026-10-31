@@ -15,6 +15,11 @@ namespace Silverdash360.Modules
     public sealed class ShelfOptions
     {
         public const string All = "all";
+        /// <summary>
+        /// What a shelf shows unless set otherwise: titles there's something
+        /// to start, without those only saves or add-ons are left of.
+        /// </summary>
+        public const string Installed = "installed";
 
         public sealed class Choice
         {
@@ -31,6 +36,7 @@ namespace Silverdash360.Modules
 
         private static readonly List<Kind> Kinds = new List<Kind>
         {
+            new Kind { Key = Installed, Name = "Installed", Matches = t => t.IsInstalled },
             new Kind { Key = "360", Name = "Xbox 360 games", Matches = t => LaunchType(t) == ContentType.GameOnDemand || LaunchType(t) == ContentType.GameTitle },
             new Kind { Key = "arcade", Name = "Arcade", Matches = t => LaunchType(t) == ContentType.ArcadeTitle },
             new Kind { Key = "indie", Name = "Indie and XNA", Matches = t => LaunchType(t) == ContentType.Xna || LaunchType(t) == ContentType.CommunityGame },
@@ -59,7 +65,7 @@ namespace Silverdash360.Modules
 
         public string Show
         {
-            get { return Settings.Get(shelf + ".show", All); }
+            get { return Settings.Get(shelf + ".show", Installed); }
             set { Settings.Set(shelf + ".show", value); }
         }
 
@@ -83,15 +89,23 @@ namespace Silverdash360.Modules
 
         public bool IsFiltered
         {
-            get { return Show != All || Location != All; }
+            get { return Show != Installed || Location != All; }
         }
 
-        /// <summary>The kinds of title the shelf has, after "all".</summary>
+        /// <summary>
+        /// The kinds of title the shelf has: installed ones first, then
+        /// everything, installed or not, then each kind.
+        /// </summary>
         public List<Choice> ShowChoices(IEnumerable<TitleEntry> titles)
         {
             List<TitleEntry> list = titles.ToList();
-            List<Choice> choices = new List<Choice> { new Choice { Key = All, Name = "Everything" } };
-            choices.AddRange(Kinds.Where(k => list.Any(k.Matches)).Select(k => new Choice { Key = k.Key, Name = k.Name }));
+            List<Choice> choices = new List<Choice>
+            {
+                new Choice { Key = Installed, Name = "Installed" },
+                new Choice { Key = All, Name = "Everything" },
+            };
+            choices.AddRange(Kinds.Where(k => k.Key != Installed && list.Any(k.Matches))
+                                  .Select(k => new Choice { Key = k.Key, Name = k.Name }));
             return choices;
         }
 

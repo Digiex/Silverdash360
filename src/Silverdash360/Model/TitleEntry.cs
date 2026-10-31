@@ -19,13 +19,43 @@ namespace Silverdash360.Model
     /// </summary>
     public sealed class TitleEntry
     {
+        /// <summary>
+        /// The title ID the console files original Xbox packages under when it
+        /// doesn't know the game's own; each is a title of its own.
+        /// </summary>
+        public const uint XboxCompatibilityTitleId = 0xFFFE07D2;
+
+        /// <summary>
+        /// The console's own titles (the dashboard, Xbox compatibility):
+        /// IDs starting FFFE. Homebrew such as XeLL launchers can declare one.
+        /// </summary>
+        public static bool IsSystemTitle(uint titleId)
+        {
+            return (titleId >> 16) == 0xFFFE;
+        }
+
+        /// <summary>
+        /// IDs homebrew gives itself: FFFF, and C0DE for homebrew shortcuts
+        /// such as XeXMenu's. The Marketplace has nothing for them.
+        /// </summary>
+        public static bool IsHomebrewTitle(uint titleId)
+        {
+            uint prefix = titleId >> 16;
+            return prefix == HomebrewPrefix || prefix == HomebrewShortcutPrefix;
+        }
+
+        public const uint HomebrewPrefix = 0xFFFF;
+        public const uint HomebrewShortcutPrefix = 0xC0DE;
+
         public TitleEntry(uint titleId) : this(titleId, titleId.ToString("X8"))
         {
         }
 
         /// <summary>
         /// A title with a key of its own, for executables that share a title
-        /// ID with other ones (homebrew often does) but are separate titles.
+        /// ID with other ones (homebrew often does) but are separate titles,
+        /// and original Xbox packages filed under
+        /// <see cref="XboxCompatibilityTitleId"/>.
         /// </summary>
         public TitleEntry(uint titleId, string key)
         {
@@ -61,7 +91,8 @@ namespace Silverdash360.Model
                 ContentItem launch = LaunchItem;
                 if (launch != null)
                 {
-                    return launch.TypeName;
+                    // An app's package is often a Games on Demand one.
+                    return Kind == TitleKind.App ? "App" : launch.TypeName;
                 }
                 ExecutableItem executable = Executables.FirstOrDefault();
                 return executable != null ? executable.Location : "Not installed";
@@ -91,7 +122,7 @@ namespace Silverdash360.Model
                     int best = int.MaxValue;
                     foreach (ContentItem item in Content)
                     {
-                        if (ContentType.IsLaunchable(item.Type) && !item.IsCorrupt)
+                        if (item.IsLaunchable && !item.IsCorrupt)
                         {
                             int priority = LaunchPriority(item.Type);
                             if (priority < best)
@@ -156,6 +187,8 @@ namespace Silverdash360.Model
                 case ContentType.GameTitle: return 2;
                 case ContentType.CommunityGame: return 3;
                 case ContentType.Xna: return 4;
+                case ContentType.XboxOriginalGame: return 5;
+                case ContentType.MarketplaceContent: return 6;
                 default: return 9;
             }
         }

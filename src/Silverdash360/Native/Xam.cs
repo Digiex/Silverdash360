@@ -165,6 +165,35 @@ namespace Silverdash360.Native
         [DllImport("xboxkrnl.exe", EntryPoint = "#3", CharSet = CharSet.Ansi)]
         public static extern int DbgPrint(string format, string text);
 
+        // 0x121: VOID RtlCopyString(PANSI_STRING destination, const ANSI_STRING* source):
+        //   copies the smaller of the source's length and the destination's
+        //   maximum length.
+        [DllImport("xboxkrnl.exe", EntryPoint = "#289")]
+        public static extern void RtlCopyString(uint destination, uint source);
+
+        /// <summary>
+        /// Bytes at an address the system handed back, such as a structure
+        /// it allocated; at most 65535. Marshal's reads aren't public on this
+        /// runtime, so RtlCopyString copies them, with both strings' lengths
+        /// set to the count so nothing past it is touched.
+        /// </summary>
+        public static byte[] ReadMemory(uint address, int length)
+        {
+            using (NativeBuffer strings = new NativeBuffer(16))
+            using (NativeBuffer copy = new NativeBuffer(length))
+            {
+                // Two ANSI_STRINGs: length, maximum length, buffer.
+                strings.SetU16(0, (ushort)length);
+                strings.SetU16(2, (ushort)length);
+                strings.SetU32(4, address);
+                strings.SetU16(8, 0);
+                strings.SetU16(10, (ushort)length);
+                strings.SetU32(12, copy.Address);
+                RtlCopyString(strings[8], strings.Address);
+                return copy.Slice(0, length);
+            }
+        }
+
         // 0xCF: NTSTATUS NtClose(HANDLE)
         [DllImport("xboxkrnl.exe", EntryPoint = "#207")]
         public static extern int NtClose(uint handle);

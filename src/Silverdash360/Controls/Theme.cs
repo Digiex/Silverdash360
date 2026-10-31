@@ -24,6 +24,21 @@ namespace Silverdash360.Controls
             public Color[] Background;
         }
 
+        // What a selected tile grows past its slot by: 6% of the widest
+        // tiles' 214 pixels on each side, and a little more.
+        private const double GrowMargin = 8;
+
+        /// <summary>
+        /// Room beside a grid for its selected tile to grow into, so a grid at
+        /// the page's edge keeps the tile inside the safe area; televisions
+        /// can crop the 64 pixels outside it. Made each time: a static
+        /// readonly struct can read as zero on the console's runtime.
+        /// </summary>
+        public static Thickness GrowRoom
+        {
+            get { return new Thickness(GrowMargin, 0, GrowMargin, 0); }
+        }
+
         public static readonly SolidColorBrush Accent = new SolidColorBrush(Color.FromArgb(0xFF, 0x3F, 0xA9, 0xF5));
         public static readonly SolidColorBrush Text = new SolidColorBrush(Colors.White);
         public static readonly SolidColorBrush SubText = new SolidColorBrush(Color.FromArgb(0xFF, 0x9A, 0xA8, 0xB6));

@@ -7,6 +7,7 @@ namespace Silverdash360.Native
     {
         public const int StatusSuccess = 0;
         public const int StatusNoMoreFiles = unchecked((int)0x80000006);
+        public const int StatusNoSuchFile = unchecked((int)0xC000000F);
         public const int StatusEndOfFile = unchecked((int)0xC0000011);
 
         public const uint GenericRead = 0x80000000;

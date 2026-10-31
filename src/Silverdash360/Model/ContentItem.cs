@@ -74,6 +74,21 @@ namespace Silverdash360.Model
         /// <summary>The package header was read, whether or not it had metadata.</summary>
         public bool HeaderRead { get; set; }
 
+        // What a look inside an add-on package found: some apps, such as
+        // Video Kinect, come as add-ons holding their default.xex.
+        public const byte AppNotChecked = 0;
+        public const byte AppNone = 1;
+        public const byte AppInside = 2;
+
+        /// <summary>Whether the package holds an app: one of the App constants.</summary>
+        public byte AppCheck { get; set; }
+
+        /// <summary>Starts a title: a launchable type, or an add-on holding an app.</summary>
+        public bool IsLaunchable
+        {
+            get { return ContentType.IsLaunchable(Type) || AppCheck == AppInside; }
+        }
+
         /// <summary>Filled in from the package header when it has been read.</summary>
         public ContentMetadata Metadata { get; set; }
 

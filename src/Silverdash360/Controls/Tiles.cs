@@ -73,20 +73,19 @@ namespace Silverdash360.Controls
         public override FrameworkElement Create(object item)
         {
             TitleEntry title = (TitleEntry)item;
-            Grid tile = NewTile(Theme.PlaceholderBrush(title.TitleId));
-            TextBlock initials = Theme.TextBlock(Theme.Initials(title.Name), 56, Theme.Text);
-            initials.HorizontalAlignment = HorizontalAlignment.Center;
-            initials.VerticalAlignment = VerticalAlignment.Center;
-            initials.Margin = new Thickness(0, 0, 0, 40);
-            initials.Opacity = 0.85;
-            tile.Children.Add(initials);
+            Grid tile = NewTile(Theme.Panel);
+            // The kind's cover with the title's icon, until the box front
+            // arrives over it.
+            Covers.Cover cover = Covers.For(title, 1);
+            tile.Children.Add(cover.Root);
+            images.TitleArt(title, userIndex(), cover.SetIcon);
 
             Image art = new Image { Stretch = Stretch.UniformToFill };
             tile.Children.Add(art);
-            images.TitleArt(title, userIndex(), delegate(ImageSource source)
+            images.BoxArt(title, delegate(ImageSource source)
             {
                 art.Source = source;
-                initials.Visibility = Visibility.Collapsed;
+                cover.Root.Visibility = Visibility.Collapsed;
             });
 
             Grid caption = new Grid

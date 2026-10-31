@@ -124,6 +124,7 @@ namespace Silverdash360.Modules
                 grid.Spacing = 12;
                 grid.LeadTiles = 1;
                 grid.PadOutside = 6;
+                grid.Margin = new Thickness(0);
                 grid.TileTemplate = new RowTemplate(o => Row((TitleEntry)o));
             }
             else
@@ -135,6 +136,7 @@ namespace Silverdash360.Modules
                 grid.Spacing = 18;
                 grid.LeadTiles = 1;
                 grid.PadOutside = 24;
+                grid.Margin = Theme.GrowRoom;
                 grid.TileTemplate = new CoverTileTemplate(Context.Images, () => Context.UserIndex);
             }
         }
