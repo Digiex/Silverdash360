@@ -156,7 +156,7 @@ namespace Silverdash360.Services
         {
             setting = choice;
             string text = choice;
-            Background.Run(() => { TitleStorage.WriteText(SettingFile, text); return 0; }, (r, e) => { });
+            Background.Run(() => { AppStorage.WriteText(SettingFile, text); return 0; }, (r, e) => { });
             if (done != null)
             {
                 waiting.Add(done);
@@ -303,7 +303,7 @@ namespace Silverdash360.Services
         {
             if (setting == null)
             {
-                string saved = TitleStorage.ReadText(SettingFile);
+                string saved = AppStorage.ReadText(SettingFile);
                 setting = string.IsNullOrEmpty(saved) ? FollowDashboard : saved.Trim();
             }
             LoadResult result = new LoadResult();

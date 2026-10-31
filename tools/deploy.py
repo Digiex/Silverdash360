@@ -14,8 +14,8 @@ runs from, the build goes to <target>/_update and starts from there, copies
 the changed files into the target and starts that (see Debugging/SelfInstall.cs).
 The first time, that folder gets the whole package; after that only changes.
 
-Without the dashboard running, give another FTP server with --ftp (Aurora's,
-say): the files go straight into the target and you start it yourself.
+Without the dashboard running, give another FTP server with --ftp (a homebrew
+dashboard's, say): the files go straight into the target and you start it yourself.
 """
 
 import argparse

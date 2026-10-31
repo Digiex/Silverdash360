@@ -25,7 +25,7 @@ With the dashboard running, it:
 
 A running dashboard's files aren't overwritten. When the target is where it runs from, the build goes to `<target>/_update` instead, with a `deploy-install.txt` naming the target and the changed files. The dashboard started from there copies those files into the target and starts it. If that fails, it starts the dashboard from `_update`, and deploy.py prints the error and the log. The first time, `_update` gets the whole package (about 107 MB); after that, only what changed. `--mode direct` uploads into the target anyway, and `--mode staging` stages even when the target isn't the running folder.
 
-When the dashboard isn't running, give another FTP server with `--ftp host:port --user ... --password ...` (Aurora's, for one); the files go straight into the target, and you start it yourself. `--no-launch` uploads without starting anything, and `--full` uploads every file.
+When the dashboard isn't running, give another FTP server with `--ftp host:port --user ... --password ...` (a homebrew dashboard's, for one); the files go straight into the target, and you start it yourself. `--no-launch` uploads without starting anything, and `--full` uploads every file.
 
 Staging needs a build with the debug server, since that build does the install.
 

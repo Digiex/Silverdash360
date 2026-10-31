@@ -15,6 +15,9 @@ namespace Silverdash360.Services
         /// <summary>Where the dashboard is kept when where it runs from isn't known or can't be written.</summary>
         public const string Fallback = "/Hdd1/Apps/Silverdash360";
 
+        /// <summary>The folder in the app's folder tools/deploy.py stages a build in.</summary>
+        public const string StagingFolder = "_update";
+
         /// <summary>The kernel's name for a file in the title's folder: DrivePrefix + "default.xex".</summary>
         public const string DrivePrefix = @"\??\D:\";
 

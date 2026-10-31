@@ -85,7 +85,6 @@ namespace Silverdash360
             {
                 RootVisual = frame;
             }
-            // Storage needs GamerServices, which the frame starts.
             Settings.Load();
             Context.Library.Refresh();
 #if DEBUG_SERVER
@@ -112,6 +111,7 @@ namespace Silverdash360
             }
             if (plan == null)
             {
+                SelfInstall.ClearStarted();
                 return false;
             }
             // The root visual can be set only once: a panel the dashboard can

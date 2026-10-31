@@ -79,7 +79,7 @@
     <Compile Include="Services\SystemService.cs" />
     <Compile Include="Services\Settings.cs" />
     <Compile Include="Services\ThemeService.cs" />
-    <Compile Include="Services\TitleStorage.cs" />
+    <Compile Include="Services\AppStorage.cs" />
     <Compile Include="Services\TitleClassifier.cs" />
     <Compile Include="Services\Files\XboxFileSystem.cs" />
     <Compile Include="Services\Ftp\FtpServer.cs" />

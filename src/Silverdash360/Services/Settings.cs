@@ -7,7 +7,7 @@ namespace Silverdash360.Services
 {
     /// <summary>
     /// What the dashboard remembers across launches, such as each shelf's view
-    /// and filters: text values by name, kept in the title's storage. Read and
+    /// and filters: text values by name, kept in the app's storage (<see cref="AppStorage"/>). Read and
     /// written on the UI thread; storage is read once at start and written in
     /// the background after a change.
     /// </summary>
@@ -27,7 +27,7 @@ namespace Silverdash360.Services
         /// <summary>Reads the stored values in the background.</summary>
         public static void Load()
         {
-            Background.Run(() => TitleStorage.ReadText(FileName), delegate(string text, Exception error)
+            Background.Run(() => AppStorage.ReadText(FileName), delegate(string text, Exception error)
             {
                 foreach (string line in (text ?? "").Split('\n'))
                 {
@@ -91,7 +91,7 @@ namespace Silverdash360.Services
                 text.Append(pair.Key).Append('=').Append(pair.Value).Append('\n');
             }
             string contents = text.ToString();
-            Background.Run(() => { TitleStorage.WriteText(FileName, contents); return 0; }, delegate
+            Background.Run(() => { AppStorage.WriteText(FileName, contents); return 0; }, delegate
             {
                 saving = false;
                 if (saveAgain)

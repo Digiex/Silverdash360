@@ -35,7 +35,7 @@ namespace Silverdash360.Debugging
         /// <summary>The note that the install has started the target.</summary>
         public const string StartedName = "deploy-started.txt";
         /// <summary>The folder in the app's folder deploy.py stages a build in.</summary>
-        public const string StagingFolder = "_update";
+        public const string StagingFolder = AppFolder.StagingFolder;
         private const string Header = "silverdash360-install 1";
         private const int BlockSize = 0x10000;
         private const uint FileOpenIf = 3;
@@ -221,6 +221,26 @@ namespace Silverdash360.Debugging
             using (NativeBuffer information = new NativeBuffer(0x38))
             {
                 return Kernel.NtQueryFullAttributesFile(name.Attributes, information.Address) == Kernel.StatusSuccess;
+            }
+        }
+
+        /// <summary>
+        /// Deletes a note left in the staging folder when the target started
+        /// without the console starting the staged build again.
+        /// </summary>
+        public static void ClearStarted()
+        {
+            try
+            {
+                string note = AppFolder.DrivePrefix + StagingFolder + @"\" + StartedName;
+                if (Exists(note))
+                {
+                    DeleteMarker(note);
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Write("Install note not deleted: {0}", e.Message);
             }
         }
 

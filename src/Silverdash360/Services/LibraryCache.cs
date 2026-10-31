@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Microsoft.Xna.Framework.Storage;
 using Silverdash360.Core;
 using Silverdash360.Model;
 
@@ -11,7 +10,7 @@ namespace Silverdash360.Services
     /// Keeps what was read from the console's packages (their records and
     /// header metadata) and the executables found, so the next start shows the
     /// library at once and reads only the headers of new packages. It lives
-    /// in the title's storage container (<see cref="TitleStorage"/>). Records
+    /// in the app's storage (<see cref="AppStorage"/>). Records
     /// are written with their name fields cut at the end of the names and
     /// thumbnails aren't kept, so with thousands of packages it stays around
     /// half a kilobyte a package. Call it from a background thread: storage
@@ -29,7 +28,6 @@ namespace Silverdash360.Services
         // Packages, then executables, in one section; still read, so a new
         // build doesn't read every header again.
         private const int UnsectionedVersion = 5;
-        private const int BlockSize = 0x10000;
         // After each package, what's known of its header. Older files wrote a
         // bool, so 0 and 1 mean what they did there.
         private const byte HeaderNotRead = 0;
@@ -64,28 +62,12 @@ namespace Silverdash360.Services
             Contents contents = new Contents();
             try
             {
-                MemoryStream bytes = new MemoryStream();
-                lock (TitleStorage.Lock)
-                using (StorageContainer container = TitleStorage.Open())
+                byte[] bytes = AppStorage.ReadBytes(FileName);
+                if (bytes == null)
                 {
-                    if (container == null || !container.FileExists(FileName))
-                    {
-                        return contents;
-                    }
-                    // Read to the end: a container stream's Length can count
-                    // more than the file holds.
-                    using (Stream stream = container.OpenFile(FileName, FileMode.Open))
-                    {
-                        byte[] block = new byte[BlockSize];
-                        int got;
-                        while ((got = stream.Read(block, 0, block.Length)) > 0)
-                        {
-                            bytes.Write(block, 0, got);
-                        }
-                    }
+                    return contents;
                 }
-                bytes.Position = 0;
-                contents = Deserialize(bytes, section);
+                contents = Deserialize(new MemoryStream(bytes), section);
                 Log.Write("Library cache: {0} packages, {1} executables", contents.Content.Count,
                           contents.Executables.Count);
             }
@@ -185,24 +167,9 @@ namespace Silverdash360.Services
             try
             {
                 byte[] bytes = Serialize(sections, executables);
-                lock (TitleStorage.Lock)
-                using (StorageContainer container = TitleStorage.Open())
+                if (!AppStorage.WriteBytes(FileName, bytes, pace))
                 {
-                    if (container == null)
-                    {
-                        return;
-                    }
-                    using (Stream stream = container.CreateFile(FileName))
-                    {
-                        for (int at = 0; at < bytes.Length; at += BlockSize)
-                        {
-                            stream.Write(bytes, at, Math.Min(BlockSize, bytes.Length - at));
-                            if (pace != null)
-                            {
-                                pace();
-                            }
-                        }
-                    }
+                    return;
                 }
                 int packages = 0;
                 foreach (IList<ContentItem> section in sections)
@@ -260,21 +227,7 @@ namespace Silverdash360.Services
         /// <summary>Forgets the cache, so the next refresh reads every header again.</summary>
         public void Clear()
         {
-            try
-            {
-                lock (TitleStorage.Lock)
-                using (StorageContainer container = TitleStorage.Open())
-                {
-                    if (container != null && container.FileExists(FileName))
-                    {
-                        container.DeleteFile(FileName);
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Log.Write("Library cache not cleared: {0}", e.Message);
-            }
+            AppStorage.Delete(FileName);
         }
     }
 }
