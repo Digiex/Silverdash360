@@ -15,23 +15,31 @@ Microsoft's and the donor app's binaries, which aren't ours to hand out.
 Whoever installs it lays the zip over the package folder of a runtime
 profile they made themselves (see INSTALL.txt in the zip).
 
-Each release is tagged build-<number>, the number being the commits up to
-it, the build number settings shows. The commit must be clean and pushed:
-the release is tagged on GitHub at that commit, and nothing is pushed.
+Every release has a higher version than the last, and is tagged v<version>.
+The version is Silverdash360Version in Silverdash360.csproj when that's
+higher than the last release's, as when a minor or major version is set by
+hand; otherwise the last release's with its patch (or -Bump's part) raised.
+A new version is committed to the project file and that commit pushed, so
+the release is built and tagged from it. Everything before it must be
+committed and pushed already: nothing else is pushed.
 
 Needs the GitHub CLI (gh), signed in, unless -DryRun is given.
 
 .EXAMPLE
 .\tools\Release.ps1 -DryRun
 
-Builds and zips, and shows the release notes, without publishing.
+Shows the version, builds and zips, and shows the notes, without
+committing, pushing or publishing.
 
 .EXAMPLE
-.\tools\Release.ps1 -Sdk ..\Silverlight360
+.\tools\Release.ps1 -Bump Minor
 #>
 param(
     [string]$Sdk = $env:SILVERLIGHT360,
-    # Builds the zip and shows the notes, without tagging or publishing.
+    # The part of the last release's version to raise, when the project's
+    # isn't higher already.
+    [ValidateSet('Patch', 'Minor', 'Major')] [string]$Bump = 'Patch',
+    # Shows what would be released, without committing, pushing or publishing.
     [switch]$DryRun,
     # Publishes the release as a prerelease.
     [switch]$Prerelease
@@ -40,6 +48,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $root 'src\Silverdash360'
+$projectFile = Join-Path $project 'Silverdash360.csproj'
+$versionPattern = '(<Silverdash360Version[^>]*>)([^<]*)(</Silverdash360Version>)'
 
 function Invoke-Git {
     $output = & git.exe -C $root @args
@@ -53,14 +63,61 @@ function Invoke-Git {
 if (Invoke-Git status --porcelain --untracked-files=no) {
     throw 'There are changes not committed. Commit them, or stash them, first.'
 }
+Invoke-Git fetch --quiet --tags origin
 $commit = Invoke-Git rev-parse HEAD
 if (-not $DryRun) {
     if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
         throw 'The GitHub CLI (gh) is needed to publish: https://cli.github.com'
     }
-    Invoke-Git fetch --quiet --tags origin
     if (-not (Invoke-Git branch -r --contains $commit)) {
         throw "Commit $commit isn't on GitHub yet. Push it first."
+    }
+}
+
+# The releases so far, by their v<version> tags.
+$released = @()
+foreach ($tagName in (Invoke-Git tag --list 'v*')) {
+    $parsed = $null
+    if ([version]::TryParse($tagName.Substring(1), [ref]$parsed)) {
+        $released += [pscustomobject]@{ Tag = $tagName; Version = $parsed }
+    }
+}
+$last = $released | Sort-Object Version -Descending | Select-Object -First 1
+
+# The version: the project's when it's higher than the last release's, else
+# the last release's raised.
+$projectText = Get-Content -LiteralPath $projectFile -Raw
+$projectVersion = [version][regex]::Match($projectText, $versionPattern).Groups[2].Value
+$version = $projectVersion
+if ($last -and $projectVersion -le $last.Version) {
+    $v = $last.Version
+    $version = switch ($Bump) {
+        'Major' { [version]::new($v.Major + 1, 0, 0) }
+        'Minor' { [version]::new($v.Major, $v.Minor + 1, 0) }
+        default { [version]::new($v.Major, $v.Minor, [Math]::Max($v.Build, 0) + 1) }
+    }
+}
+$version = "$version"
+$tag = "v$version"
+if ($released | Where-Object { $_.Tag -eq $tag }) {
+    throw "$tag is released already."
+}
+Write-Host ("Version $version" + $(if ($last) { ", after $($last.Tag)" } else { ', the first release' }))
+
+if ($version -ne "$projectVersion") {
+    if ($DryRun) {
+        # Built with the new version without committing it.
+        $env:Silverdash360Version = $version
+    }
+    else {
+        # The new version, committed and pushed, so the release is built and
+        # tagged from it.
+        $projectText = [regex]::Replace($projectText, $versionPattern, "`${1}$version`${3}")
+        [System.IO.File]::WriteAllText($projectFile, $projectText)
+        Invoke-Git add -- $projectFile
+        Invoke-Git commit --quiet -m "Version $version"
+        Invoke-Git push --quiet origin HEAD
+        $commit = Invoke-Git rev-parse HEAD
     }
 }
 
@@ -71,18 +128,16 @@ if ($LASTEXITCODE -ne 0) {
     throw 'The build failed.'
 }
 
-# The version and build number the build wrote into BuildInfo.
+# The build number the build wrote into BuildInfo, which settings shows.
 $buildInfo = Get-Content -LiteralPath (Join-Path $project 'obj\Release\BuildInfo.g.cs') -Raw
-$version = [regex]::Match($buildInfo, 'Version = "([^"]*)"').Groups[1].Value
 $number = [regex]::Match($buildInfo, 'Number = (\d+)').Groups[1].Value
+if ([regex]::Match($buildInfo, 'Version = "([^"]*)"').Groups[1].Value -ne $version) {
+    throw "The build isn't version $version."
+}
 if ([regex]::Match($buildInfo, 'Changed = (\w+)').Groups[1].Value -ne 'false') {
     throw 'The build has changes not committed.'
 }
-$tag = "build-$number"
 $name = "Silverdash360 $version (build $number)"
-if (Invoke-Git tag --list $tag) {
-    throw "$tag is released already. Commit something new to release."
-}
 
 # Nothing of the runtime's: the app-only build leaves it out.
 $appFiles = Join-Path $project 'bin\Release\app'
@@ -123,15 +178,16 @@ app you have, and isn't included.
 
 Silverdash360 keeps its settings and cache in the Data folder next to it.
 "@ | Set-Content -LiteralPath (Join-Path $staging 'INSTALL.txt') -Encoding UTF8
-$zip = Join-Path $out "Silverdash360-$version-build$number.zip"
+$zip = Join-Path $out "Silverdash360-$version.zip"
 Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $zip
 
-# The notes: the commits since the last release before this commit.
+# The notes: the commits since the last release before this commit, without
+# the version commits.
 $previous = $null
-foreach ($candidate in (Invoke-Git tag --list 'build-*' --sort=-creatordate)) {
-    & git.exe -C $root merge-base --is-ancestor $candidate $commit
+foreach ($candidate in ($released | Sort-Object Version -Descending)) {
+    & git.exe -C $root merge-base --is-ancestor $candidate.Tag $commit
     if ($LASTEXITCODE -eq 0) {
-        $previous = $candidate
+        $previous = $candidate.Tag
         break
     }
 }
@@ -139,9 +195,9 @@ $range = if ($previous) { "$previous..$commit" } else { $commit }
 $notes = @()
 $notes += if ($previous) { "## Changes since $previous" } else { '## Changes' }
 $notes += ''
-$notes += Invoke-Git log $range --no-merges --format='- %s (%h)'
+$notes += Invoke-Git log $range --no-merges -E --invert-grep '--grep=^Version [0-9]+\.[0-9]+\.[0-9]+$' --format='- %s (%h)'
 $notes += ''
-$notes += "Built from $($commit.Substring(0, 7)). The zip has Silverdash360's own files; see INSTALL.txt in it for putting it on a runtime profile you made."
+$notes += "Build $number, from $($commit.Substring(0, 7)). The zip has Silverdash360's own files; see INSTALL.txt in it for putting it on a runtime profile you made."
 $notesFile = Join-Path $out 'notes.md'
 $notes | Set-Content -LiteralPath $notesFile -Encoding UTF8
 
@@ -152,7 +208,7 @@ Write-Host ''
 Get-Content -LiteralPath $notesFile | Write-Host
 if ($DryRun) {
     Write-Host ''
-    Write-Host 'Dry run: nothing published.'
+    Write-Host 'Dry run: nothing committed, pushed or published.'
     return
 }
 

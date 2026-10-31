@@ -74,7 +74,9 @@ The debug server listens on port 4601 without a password, which is why it's only
 .\tools\Release.ps1
 ```
 
-`Release.ps1` makes a Release build of the dashboard's own files (the SDK's `XboxAppOnly`), zips them with an `INSTALL.txt`, and publishes the zip on GitHub Releases with the commits since the last release as its notes. The zip has no `default.xex`, runtime or framework assemblies: those are Microsoft's and the donor app's, so whoever installs it lays it over a runtime profile of their own. Each release is tagged `build-<number>`, the build number settings shows. The commit has to be committed and pushed; the script pushes nothing, and needs the GitHub CLI (`gh`) signed in. `-DryRun` builds the zip and shows the notes without publishing.
+`Release.ps1` makes a Release build of the dashboard's own files (the SDK's `XboxAppOnly`), zips them with an `INSTALL.txt`, and publishes the zip on GitHub Releases with the commits since the last release as its notes. The zip has no `default.xex`, runtime or framework assemblies: those are Microsoft's and the donor app's, so whoever installs it lays it over a runtime profile of their own.
+
+Every release has a higher version than the last, tagged `v<version>`. That's `Silverdash360Version` in `Silverdash360.csproj` when it's higher than the last release's, so a minor or major version can be set by hand; otherwise the script raises the last release's patch number (or the part `-Bump Minor` or `-Bump Major` names). A new version is committed to the project file and that commit pushed, so the release is built and tagged from it; everything before it has to be committed and pushed already. The release's title has the build number settings shows. The script needs the GitHub CLI (`gh`) signed in. `-DryRun` shows the version, builds the zip and shows the notes, without committing, pushing or publishing.
 
 ## Running in xenia-edge
 
