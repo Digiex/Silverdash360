@@ -191,7 +191,7 @@ namespace Silverdash360.Model
             }
         }
 
-        public bool IsInstalled { get { return LaunchItem != null || Executables.Count > 0; } }
+        public bool IsInstalled { get { return IsDisc || LaunchItem != null || Executables.Count > 0; } }
 
         public long TotalSize { get { return Content.Sum(c => c.BestSize); } }
 

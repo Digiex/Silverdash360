@@ -84,7 +84,8 @@ namespace Silverdash360.Modules
                 ForwardEdges(grid, Edge.Left, Edge.Right);
                 // One selection on the page: the row in use's.
                 grid.ShowsSelectionUnfocused = false;
-                grid.ItemInvoked += delegate(object sender, ItemEventArgs e) { Open((TitleEntry)e.Item); };
+                // A plays, Start shows the details.
+                grid.ItemInvoked += delegate(object sender, ItemEventArgs e) { Context.Play((TitleEntry)e.Item); };
                 // The footer names what's selected in the row in use; the
                 // other row's selection changes when the library does.
                 grid.SelectionChanged += delegate(object sender, System.EventArgs e)
@@ -110,15 +111,7 @@ namespace Silverdash360.Modules
                     }
                     else if (e.Button == GamePadButton.Start && e.Item != null)
                     {
-                        TitleEntry title = (TitleEntry)e.Item;
-                        if (title.IsDisc)
-                        {
-                            Context.OpenDisc(title);
-                        }
-                        else
-                        {
-                            Context.Launch(title);
-                        }
+                        Context.ShowDetails((TitleEntry)e.Item);
                         e.Handled = true;
                     }
                 };
@@ -143,19 +136,6 @@ namespace Silverdash360.Modules
             return view;
         }
 
-        // A disc opens as it is (a game starts); a title shows its page.
-        private void Open(TitleEntry title)
-        {
-            if (title.IsDisc)
-            {
-                Context.OpenDisc(title);
-            }
-            else
-            {
-                Context.OpenTitle(title);
-            }
-        }
-
         private void ShowSelected(TileGrid grid)
         {
             TitleEntry title = grid.SelectedItem as TitleEntry;
@@ -178,14 +158,15 @@ namespace Silverdash360.Modules
             }
             var library = Context.Library;
             recent.EmptyText = library.IsLoaded ? "Nothing played yet. Your games and apps are in the next sections." : "Looking for content...";
-            // The disc in the drive first.
+            // The disc in the drive first, in place of its title.
             List<object> items = new List<object>();
             TitleEntry disc = Context.Discs.AsTitle(library);
             if (disc != null)
             {
                 items.Add(disc);
             }
-            items.AddRange(library.Recent.Take(RecentCount).Cast<object>());
+            items.AddRange(library.Recent.Where(t => disc == null || disc.TitleId == 0 || t.TitleId != disc.TitleId)
+                                  .Take(RecentCount).Cast<object>());
             recent.Items = items;
             apps.Items = library.Apps.Where(a => a.IsInstalled).Cast<object>().ToList();
             summary.Text = library.IsLoaded

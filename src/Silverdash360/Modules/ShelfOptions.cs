@@ -81,6 +81,13 @@ namespace Silverdash360.Modules
             set { Settings.Set(shelf + ".sort", value); }
         }
 
+        /// <summary>A plays the title and Start shows its page; the other way round when off.</summary>
+        public bool APlays
+        {
+            get { return Settings.GetBool(shelf + ".aplays", false); }
+            set { Settings.SetBool(shelf + ".aplays", value); }
+        }
+
         public bool ListView
         {
             get { return Settings.GetBool(shelf + ".list", false); }

@@ -39,9 +39,9 @@ The screenshots are from xenia-edge with a test set of app packages.
 | Button | |
 |---|---|
 | D-pad, left stick | Move |
-| A | Open, select |
+| A | Play on home (the details of a title that isn't installed); open, select elsewhere. On the games and apps shelves the shelf's options (BACK) choose whether A plays or shows the details |
 | B | Back |
-| Start | Play the title selected in the hub |
+| Start | The other of A: a title's details on home, play on the shelves unless A plays there |
 | X | Search; friends on the profile; delete on the keyboard |
 | Y | Open or close the disc tray on home; cover or list view; sign in on the profile; space on the keyboard |
 | LB, RB | Switch sections (and tabs and filters on other pages) |

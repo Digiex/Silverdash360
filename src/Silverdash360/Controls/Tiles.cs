@@ -108,11 +108,51 @@ namespace Silverdash360.Controls
             caption.Children.Add(text);
             tile.Children.Add(caption);
 
+            if (title.IsDisc)
+            {
+                tile.Children.Add(DiscBadge());
+            }
             if (!title.IsInstalled)
             {
                 tile.Opacity = 0.75;
             }
             return Finish(tile);
+        }
+
+        // A small disc in the cover's lower right corner, for the disc in
+        // the drive: silver, with the hole in the middle.
+        private static FrameworkElement DiscBadge()
+        {
+            Grid badge = new Grid
+            {
+                Width = 30,
+                Height = 30,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(0, 0, 8, 8),
+            };
+            badge.Children.Add(new Ellipse
+            {
+                Fill = new RadialGradientBrush
+                {
+                    GradientStops =
+                    {
+                        new GradientStop { Color = Color.FromArgb(0xFF, 0xF4, 0xF6, 0xF8), Offset = 0.3 },
+                        new GradientStop { Color = Color.FromArgb(0xFF, 0xA8, 0xB4, 0xC0), Offset = 1 },
+                    },
+                },
+                Stroke = new SolidColorBrush(Color.FromArgb(0xC0, 0x20, 0x28, 0x30)),
+                StrokeThickness = 1.5,
+            });
+            badge.Children.Add(new Ellipse
+            {
+                Width = 9,
+                Height = 9,
+                Fill = new SolidColorBrush(Color.FromArgb(0xFF, 0x20, 0x28, 0x30)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            return badge;
         }
 
         internal static string Subtitle(TitleEntry title)

@@ -94,6 +94,17 @@ namespace Silverdash360.Pages
                     Get = () => options.ListView ? "list" : "covers",
                     Set = v => options.ListView = v == "list",
                 },
+                new Setting
+                {
+                    Title = "A button",
+                    Choices = () => new List<ShelfOptions.Choice>
+                    {
+                        new ShelfOptions.Choice { Key = "details", Name = "Show details (START plays)" },
+                        new ShelfOptions.Choice { Key = "play", Name = "Play (START shows details)" },
+                    },
+                    Get = () => options.APlays ? "play" : "details",
+                    Set = v => options.APlays = v == "play",
+                },
             };
             Show(0);
             FocusHelper.Focus(Items);

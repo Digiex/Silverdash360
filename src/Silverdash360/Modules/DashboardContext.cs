@@ -144,6 +144,47 @@ namespace Silverdash360.Modules
             }
         }
 
+        /// <summary>
+        /// What A does where it plays: starts the title, or the disc; a title
+        /// that isn't installed, with nothing to start, shows its page.
+        /// </summary>
+        public void Play(TitleEntry title)
+        {
+            if (title.IsDisc)
+            {
+                OpenDisc(title);
+            }
+            else if (title.IsInstalled)
+            {
+                Launch(title);
+            }
+            else
+            {
+                OpenTitle(title);
+            }
+        }
+
+        /// <summary>
+        /// A title's page; for the disc, the page of the title the library
+        /// has for it, else the disc opens.
+        /// </summary>
+        public void ShowDetails(TitleEntry title)
+        {
+            TitleEntry known = title.IsDisc && title.TitleId != 0 ? Library.Find(title.TitleId) : null;
+            if (!title.IsDisc)
+            {
+                OpenTitle(title);
+            }
+            else if (known != null)
+            {
+                OpenTitle(known);
+            }
+            else
+            {
+                OpenDisc(title);
+            }
+        }
+
         /// <summary>Starts an installed title, or says why it can't.</summary>
         public void Launch(TitleEntry title)
         {

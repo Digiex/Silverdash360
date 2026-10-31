@@ -72,7 +72,18 @@ namespace Silverdash360.Modules
             grid = new TileGrid();
             ApplyView();
             ForwardEdges(grid, Edge.Left, Edge.Right);
-            grid.ItemInvoked += delegate(object sender, ItemEventArgs e) { Context.OpenTitle((TitleEntry)e.Item); };
+            grid.ItemInvoked += delegate(object sender, ItemEventArgs e)
+            {
+                TitleEntry title = (TitleEntry)e.Item;
+                if (options.APlays)
+                {
+                    Context.Play(title);
+                }
+                else
+                {
+                    Context.OpenTitle(title);
+                }
+            };
             grid.SelectionChanged += delegate
             {
                 lastSelected = grid.SelectedItem as TitleEntry;
@@ -101,7 +112,11 @@ namespace Silverdash360.Modules
                         e.Handled = true;
                         break;
                     case GamePadButton.Start:
-                        if (e.Item != null)
+                        if (e.Item != null && options.APlays)
+                        {
+                            Context.ShowDetails((TitleEntry)e.Item);
+                        }
+                        else if (e.Item != null)
                         {
                             Context.Launch((TitleEntry)e.Item);
                         }
