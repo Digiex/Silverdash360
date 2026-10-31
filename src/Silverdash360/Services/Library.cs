@@ -82,23 +82,15 @@ namespace Silverdash360.Services
         }
 
         /// <summary>
-        /// Titles whose name, publisher or title ID contains every word of the
-        /// query, best matches (name starts with it) first.
+        /// Games and apps whose name, publisher or title ID contains every
+        /// word of the query, those starting with the first word first, then
+        /// by name.
         /// </summary>
         public List<TitleEntry> Search(string query)
         {
             string[] words = (query ?? "").ToLowerInvariant()
                 .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (words.Length == 0)
-            {
-                return new List<TitleEntry>();
-            }
-            // Search text is made once per title, not per keystroke.
-            return current.Titles
-                .Where(t => t.Kind != TitleKind.Other && words.All(w => t.SearchText.Contains(w)))
-                .OrderBy(t => t.SearchText.StartsWith(words[0]) ? 0 : 1)
-                .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            return current.Search.Find(words);
         }
 
         /// <summary>Reads the library again in the background, using the cache.</summary>
@@ -139,6 +131,7 @@ namespace Silverdash360.Services
                 Content = new List<ContentItem>(),
                 ById = new Dictionary<uint, TitleEntry>(),
                 ByKey = new Dictionary<string, TitleEntry>(),
+                Search = SearchIndex.Empty,
             };
 
             public List<TitleEntry> Titles;
@@ -148,6 +141,7 @@ namespace Silverdash360.Services
             public List<ContentItem> Content;
             public Dictionary<uint, TitleEntry> ById;
             public Dictionary<string, TitleEntry> ByKey;
+            public SearchIndex Search;
             public Gamer Gamer;
         }
 
@@ -385,9 +379,10 @@ namespace Silverdash360.Services
                     result.ById[t.TitleId] = t;
                 }
                 result.ByKey[t.Key] = t;
-                // Made now, in the background, rather than on the first search.
-                string ignored = t.SearchText;
             }
+            // Made now, in the background, rather than on the first search.
+            result.Search = new SearchIndex(all.Where(t => t.Kind != TitleKind.Other)
+                                               .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase));
             return result;
         }
 

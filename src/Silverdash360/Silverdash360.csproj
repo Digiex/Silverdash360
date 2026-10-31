@@ -61,6 +61,7 @@
     <Compile Include="Services\Library.cs" />
     <Compile Include="Services\LibraryCache.cs" />
     <Compile Include="Services\ProfileService.cs" />
+    <Compile Include="Services\SearchIndex.cs" />
     <Compile Include="Services\SystemService.cs" />
     <Compile Include="Services\TitleClassifier.cs" />
     <Compile Include="Services\Files\XboxFileSystem.cs" />

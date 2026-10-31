@@ -31,7 +31,7 @@ def library_loads(t):
 
 @test('functional')
 def library_lists_agree(t):
-    status = t.call('library')
+    status = t.library()
     t.check(status['games'] + status['apps'] <= status['titles'], 'more games and apps than titles')
     t.check(status['recent'] <= status['titles'], 'more recent titles than titles')
     titles = t.call('library.titles', 'all', 0, 100000)
@@ -49,6 +49,7 @@ def library_lists_agree(t):
 
 @test('functional')
 def title_lookup(t):
+    t.library()
     titles = t.call('library.titles', 'all', 0, 10)['titles']
     if not titles:
         t.skip('no titles')
@@ -64,6 +65,7 @@ def title_lookup(t):
 
 @test('functional')
 def search_finds_titles(t):
+    t.library()
     titles = [x for x in t.call('library.titles', 'all', 0, 200)['titles'] if x['kind'] != 'Other' and x['name']]
     if not titles:
         t.skip('no titles to search for')
@@ -84,12 +86,43 @@ def search_finds_titles(t):
     t.equal(t.call('library.search')['total'], 0, 'results for nothing')
 
 
+def reference_search(titles, query):
+    """What search should find: as Library.Search is documented, in Python."""
+    words = query.lower().split()
+    if not words:
+        return []
+    found = [x for x in titles if x['kind'] != 'Other']
+    found.sort(key=lambda x: (x['name'] or '').upper())
+    texts = {x['key']: ('%s %s %s' % (x['name'] or '', x['publisher'] or '', x['titleId'])).lower() for x in found}
+    found = [x for x in found if all(w in texts[x['key']] for w in words)]
+    return ([x for x in found if texts[x['key']].startswith(words[0])] +
+            [x for x in found if not texts[x['key']].startswith(words[0])])
+
+
+@test('functional')
+def search_matches_reference(t):
+    t.library()
+    titles = t.call('library.titles', 'all', 0, 100000)['titles']
+    named = [x for x in titles if x['kind'] != 'Other' and x['name']]
+    if not named:
+        t.skip('no titles to search for')
+    queries = ['a', 'the', 'e s', 'zzqqxx', named[0]['name'][:3], named[-1]['name'].split()[0],
+               named[len(named) // 2]['titleId'][:4], ' '.join(named[len(named) // 3]['name'].split()[:2])]
+    if any(x['publisher'] for x in named):
+        queries.append(next(x['publisher'] for x in named if x['publisher']).split()[0])
+    for query in queries:
+        expected = reference_search(titles, query)
+        result = t.call('library.search', query)
+        t.equal(result['total'], len(expected), 'results for %r' % query)
+        t.equal([x['key'] for x in result['titles']], [x['key'] for x in expected[:50]], 'order for %r' % query)
+
+
 @test('functional')
 def refresh_keeps_the_library(t):
-    before = t.library()
+    before = t.library(settled=True)
     started = t.call('library.refresh')
     t.check(started['started'], 'a refresh was already running')
-    after = t.library()
+    after = t.library(settled=True)
     t.note('refresh took %d ms' % after['waitedMs'])
     for key in ('titles', 'games', 'apps', 'content'):
         t.equal(after[key], before[key], key + ' after a refresh')
@@ -97,7 +130,7 @@ def refresh_keeps_the_library(t):
 
 @test('functional')
 def cache_matches_library(t):
-    status = t.library()
+    status = t.library(settled=True)
     cache = t.call('cache.load')
     if cache['content'] == 0:
         t.skip('nothing cached yet')

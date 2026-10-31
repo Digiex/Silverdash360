@@ -19,7 +19,7 @@ BENCHMARKS = (
 
 @test('performance')
 def benchmarks(t):
-    t.call('library.wait', 300000)
+    t.library()
     available = {b['name']: b for b in t.call('bench.list')}
     for name in BENCHMARKS:
         if name not in available:
@@ -33,7 +33,7 @@ def benchmarks(t):
 
 @test('performance')
 def library_operations(t):
-    status = t.call('library.wait', 300000)
+    status = t.library()
     t.metric('library.titles', status['titles'], unit='titles', compare=False)
     t.metric('library.content', status['content'], unit='packages', compare=False)
     searches = [t.call('library.search', q)['searchMs'] for q in ('a', 'the', 'game', 'xyz')]
@@ -50,9 +50,9 @@ def library_operations(t):
 def library_refresh(t):
     if t.quick:
         t.skip('quick run')
-    t.call('library.wait', 300000)
+    t.library(settled=True)
     t.call('library.refresh')
-    t.metric('library.refresh.ms', t.call('library.wait', 300000)['waitedMs'], noise=50)
+    t.metric('library.refresh.ms', t.library(settled=True)['waitedMs'], noise=50)
 
 
 @test('performance')

@@ -28,7 +28,8 @@ namespace Silverdash360.Debugging
             commands.Add("library.content", "[offset] [count]", "Packages, with their header metadata.", Content);
             commands.Add("library.search", "<query>", "What search finds, best first.", Search);
             commands.Add("library.refresh", "[full]", "Starts a refresh; full reads every header again.", Refresh);
-            commands.Add("library.wait", "[timeoutMs]", "Waits for a refresh to end.", Wait);
+            commands.Add("library.wait", "[timeoutMs] [loaded]",
+                         "Waits for a refresh to end, or with loaded only until a library is shown.", Wait);
             commands.Add("cache.load", "", "Reads the library cache from storage, as at a start.", r => CacheLoad());
         }
 
@@ -132,8 +133,9 @@ namespace Silverdash360.Debugging
         private object Wait(DebugRequest request)
         {
             int timeout = request.Int(0, 120000);
+            bool loadedOnly = request.Arg(1, "") == "loaded";
             int start = Environment.TickCount;
-            while (Library.IsLoading)
+            while (loadedOnly ? !Library.IsLoaded : Library.IsLoading)
             {
                 if (Environment.TickCount - start > timeout)
                 {
@@ -183,6 +185,7 @@ namespace Silverdash360.Debugging
                 { "key", t.Key },
                 { "titleId", t.TitleIdText },
                 { "name", t.Name },
+                { "publisher", t.Publisher },
                 { "kind", t.Kind.ToString() },
                 { "installed", t.IsInstalled },
                 { "source", t.Source },

@@ -92,6 +92,6 @@ A line is a command and its arguments, separated by spaces; an argument with spa
 
 - **A command**: add it to one of the `IDebugCommands` classes in `src\Silverdash360\Debugging\`, or make a class of your own and list it in `DebugServer.StartDefault`. A command gets a `DebugRequest` and returns its result: a `JsonObject`, a list, a string or a number. Throw a `DebugException` for a failure the client should see. Work that touches the UI goes through `UiThread.Invoke`.
 - **A benchmark**: `Add` it in `BenchCommands`' constructor, with a function that prepares what it needs and returns one iteration.
-- **A test**: a function in one of `tests/suites/*.py` marked with `@test('suite')`. It gets a context: `t.call(command, args...)`, `t.check(condition, message)`, `t.equal(actual, expected, what)`, `t.skip(reason)`, `t.note(text)`, `t.metric(name, value)`, and `t.library()`, which waits for the library to load. See `tests/harness.py`.
+- **A test**: a function in one of `tests/suites/*.py` marked with `@test('suite')`. It gets a context: `t.call(command, args...)`, `t.check(condition, message)`, `t.equal(actual, expected, what)`, `t.skip(reason)`, `t.note(text)`, `t.metric(name, value)`, and `t.library()`, which waits until a library is shown (`settled=True` also waits for a refresh to end). See `tests/harness.py`.
 
 Keep in mind that the dashboard's code is interpreted on the console (see the Silverlight360 performance guide): a command that loops over thousands of items takes far longer there than in xenia.

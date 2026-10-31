@@ -95,9 +95,12 @@ class Context:
         self.metrics[name] = {'value': value, 'unit': unit, 'lower_is_better': lower_is_better,
                               'noise': noise, 'compare': compare}
 
-    def library(self, timeout=300000):
-        """The library's status once it has loaded, waiting for a refresh to end."""
-        status = self.call('library.wait', timeout)
+    def library(self, settled=False, timeout=300000):
+        """
+        The library's status once one is shown, which can be the cached one
+        while a refresh goes on; settled waits for the refresh to end too.
+        """
+        status = self.call('library.wait', timeout) if settled else self.call('library.wait', timeout, 'loaded')
         self.check(status['loaded'], 'the library never loaded')
         return status
 
