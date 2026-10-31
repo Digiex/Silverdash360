@@ -19,8 +19,7 @@
       <Grid Grid.Row="2" Height="34">
         <TextBlock x:Name="StatusText" FontSize="18" Foreground="{StaticResource SubText}" VerticalAlignment="Center"
                    Margin="0,0,280,0" />
-        <TextBlock FontSize="18" Foreground="{StaticResource SubText}" VerticalAlignment="Center" HorizontalAlignment="Right"
-                   Text="A open   B back" />
+        <local:ButtonLegend VerticalAlignment="Center" HorizontalAlignment="Right" Text="A open   B back" />
       </Grid>
     </Grid>
   </Grid>

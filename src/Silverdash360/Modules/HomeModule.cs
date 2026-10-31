@@ -26,7 +26,10 @@ namespace Silverdash360.Modules
 
         public override string Header { get { return "home"; } }
         public override int Order { get { return 10; } }
-        public override string Legend { get { return "A details   START play   X search"; } }
+        public override string Legend
+        {
+            get { return "A play   START details   X search   Y " + (Context.Discs.IsTrayOpen ? "close tray" : "open tray"); }
+        }
 
         protected override FrameworkElement CreateView()
         {
@@ -132,7 +135,11 @@ namespace Silverdash360.Modules
                     e.Handled = true;
                 }
             };
-            Context.Discs.Changed += delegate { Refresh(); };
+            Context.Discs.Changed += delegate
+            {
+                Refresh();
+                Context.RefreshLegend();
+            };
             return view;
         }
 

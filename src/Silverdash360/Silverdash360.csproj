@@ -93,6 +93,7 @@
     <Compile Include="Services\Ftp\FtpServer.cs" />
     <Compile Include="Services\Ftp\FtpSession.cs" />
     <Compile Include="Services\Ftp\NativeSocket.cs" />
+    <Compile Include="Controls\ButtonLegend.cs" />
     <Compile Include="Controls\Covers.cs" />
     <Compile Include="Controls\FocusHelper.cs" />
     <Compile Include="Controls\Motion.cs" />

@@ -192,6 +192,12 @@ namespace Silverdash360.Pages
             StatsText.Text = string.Join("  ·  ", stats.ToArray());
 
             List<ActionEntry> actions = new List<ActionEntry>();
+            // The title's disc in the drive, whether it's installed or not.
+            TitleEntry inDrive = Context.Discs.AsTitle(Context.Library);
+            if (inDrive != null && inDrive.TitleId != 0 && inDrive.TitleId == title.TitleId)
+            {
+                actions.Add(new ActionEntry { Text = "Play from disc", Run = () => Context.OpenDisc(inDrive) });
+            }
             if (title.IsInstalled)
             {
                 actions.Add(new ActionEntry { Text = "Play", Run = () => Context.Launch(title) });

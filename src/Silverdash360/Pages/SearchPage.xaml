@@ -35,8 +35,7 @@
 
       <Grid Grid.Row="2" Grid.ColumnSpan="2" Height="34">
         <TextBlock x:Name="CountText" FontSize="18" Foreground="{StaticResource SubText}" VerticalAlignment="Center" />
-        <TextBlock FontSize="18" Foreground="{StaticResource SubText}" VerticalAlignment="Center" HorizontalAlignment="Right"
-                   Text="A type   X delete   Y space   right results   B back" />
+        <local:ButtonLegend VerticalAlignment="Center" HorizontalAlignment="Right" Text="A type   X delete   Y space   right results   B back" />
       </Grid>
     </Grid>
   </Grid>

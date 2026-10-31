@@ -42,7 +42,7 @@ namespace Silverdash360.Services
 
         public bool IsTrayOpen { get { return tray == TrayOpen; } }
 
-        /// <summary>What's in the drive changed; on the UI thread.</summary>
+        /// <summary>The tray moved, or what's in the drive changed; on the UI thread.</summary>
         public event EventHandler Changed;
 
         public void Start()
@@ -159,10 +159,10 @@ namespace Silverdash360.Services
                 if (changed)
                 {
                     Log.Write("Disc: {0}{1}", kind, titleId != 0 ? " " + titleId.ToString("X8") : "");
-                    if (Changed != null)
-                    {
-                        Changed(this, EventArgs.Empty);
-                    }
+                }
+                if (Changed != null)
+                {
+                    Changed(this, EventArgs.Empty);
                 }
             });
         }

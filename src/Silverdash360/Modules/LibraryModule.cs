@@ -64,7 +64,11 @@ namespace Silverdash360.Modules
 
         public override string Legend
         {
-            get { return "A details   START play   X search   Y " + (listView ? "covers" : "list") + "   BACK filter"; }
+            get
+            {
+                return (options.APlays ? "A play   START details" : "A details   START play") + "   X search   Y " +
+                       (listView ? "covers" : "list") + "   BACK options";
+            }
         }
 
         protected override FrameworkElement CreateView()
@@ -105,6 +109,7 @@ namespace Silverdash360.Modules
                         ApplyView();
                         Refresh();
                         Focus(grid);
+                        Context.RefreshLegend();
                         e.Handled = true;
                         break;
                     case GamePadButton.Back:

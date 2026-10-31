@@ -30,6 +30,17 @@ namespace Silverdash360.Modules
         public MediaService Media { get; private set; }
         public ThemeService Themes { get; private set; }
 
+        /// <summary>A section's legend changed; the hub shows it again.</summary>
+        public event EventHandler LegendChanged;
+
+        public void RefreshLegend()
+        {
+            if (LegendChanged != null)
+            {
+                LegendChanged(this, EventArgs.Empty);
+            }
+        }
+
         /// <summary>The disc drive; set by the app once the media service exists.</summary>
         public DiscService Discs { get; set; }
 

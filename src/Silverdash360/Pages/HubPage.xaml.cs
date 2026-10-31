@@ -69,6 +69,7 @@ namespace Silverdash360.Pages
             Context.Library.Changed += OnLibraryChanged;
             Context.Library.Progress += OnLibraryProgress;
             Context.Themes.Changed += OnThemeChanged;
+            Context.LegendChanged += OnLegendChanged;
             if (themeVersion != Context.Themes.Version)
             {
                 MarkAllStale();
@@ -92,6 +93,7 @@ namespace Silverdash360.Pages
             Context.Library.Changed -= OnLibraryChanged;
             Context.Library.Progress -= OnLibraryProgress;
             Context.Themes.Changed -= OnThemeChanged;
+            Context.LegendChanged -= OnLegendChanged;
             sliding.Stop();
             wallpaperDelay.Stop();
             SectionHost.Content = null;
@@ -243,6 +245,16 @@ namespace Silverdash360.Pages
             Show(index, Math.Sign(index - current));
         }
 
+        private void OnLegendChanged(object sender, EventArgs e)
+        {
+            ShowLegend();
+        }
+
+        private void ShowLegend()
+        {
+            LegendText.Text = Modules[current].Legend + "   LB RB sections";
+        }
+
         // Slides the section in from the side it comes from.
         private void Show(int index, int direction)
         {
@@ -261,7 +273,7 @@ namespace Silverdash360.Pages
                 oldHost.Content = null;
             }
             SectionHost.Content = view;
-            LegendText.Text = module.Legend + "   LB RB sections";
+            ShowLegend();
             StatusText.Text = Context.Library.IsLoading ? "Reading the console's content..." : "";
             if (direction != 0)
             {
