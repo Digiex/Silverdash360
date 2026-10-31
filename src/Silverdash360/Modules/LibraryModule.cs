@@ -14,7 +14,9 @@ namespace Silverdash360.Modules
     /// A shelf of titles (games or apps) with a cover view and a list view.
     /// A opens a title's details, X searches, Y switches the view, Back
     /// opens the shelf's filters and order, and Start starts the selected
-    /// title straight away. The view and filters are remembered.
+    /// title straight away. The view and filters are remembered. Sorted by
+    /// name, each letter heads its titles; A on a letter shows the letters
+    /// alone, to jump through a long shelf, and A on one again shows all.
     /// </summary>
     public sealed class LibraryModule : DashboardModule
     {
@@ -26,6 +28,16 @@ namespace Silverdash360.Modules
         private TileGrid grid;
         private bool listView;
         private TitleEntry lastSelected;
+        private string lastLetter;
+        private bool lettersOnly;
+
+        // A letter heading the titles that start with it; "#" for digits and
+        // symbols.
+        private sealed class LetterGroup
+        {
+            public string Letter;
+            public int Count;
+        }
 
         public LibraryModule(DashboardContext context, string header, int order,
                              Func<Library, IEnumerable<TitleEntry>> select, string emptyText)
@@ -66,8 +78,10 @@ namespace Silverdash360.Modules
         {
             get
             {
-                return (options.APlays ? "A play   START details" : "A details   START play") + "   X search   Y " +
-                       (listView ? "covers" : "list") + "   BACK options";
+                string a = grid != null && grid.SelectedItem is LetterGroup
+                    ? (lettersOnly ? "A show " + header : "A letters only")
+                    : options.APlays ? "A play   START details" : "A details   START play";
+                return a + "   X search   Y " + (listView ? "covers" : "list") + "   BACK options";
             }
         }
 
@@ -78,6 +92,12 @@ namespace Silverdash360.Modules
             ForwardEdges(grid, Edge.Left, Edge.Right);
             grid.ItemInvoked += delegate(object sender, ItemEventArgs e)
             {
+                LetterGroup group = e.Item as LetterGroup;
+                if (group != null)
+                {
+                    ToggleLetters(group);
+                    return;
+                }
                 TitleEntry title = (TitleEntry)e.Item;
                 if (options.APlays)
                 {
@@ -90,10 +110,21 @@ namespace Silverdash360.Modules
             };
             grid.SelectionChanged += delegate
             {
+                bool wasLetter = lastLetter != null;
+                LetterGroup group = grid.SelectedItem as LetterGroup;
                 lastSelected = grid.SelectedItem as TitleEntry;
+                lastLetter = group != null ? group.Letter : null;
                 if (lastSelected != null)
                 {
                     Context.ShowStatus(Describe(lastSelected));
+                }
+                else if (group != null)
+                {
+                    Context.ShowStatus(group.Letter + "  ·  " + CountText(group.Count));
+                }
+                if (wasLetter != (group != null))
+                {
+                    Context.RefreshLegend();
                 }
             };
             grid.ItemButton += delegate(object sender, ItemEventArgs e)
@@ -117,13 +148,14 @@ namespace Silverdash360.Modules
                         e.Handled = true;
                         break;
                     case GamePadButton.Start:
-                        if (e.Item != null && options.APlays)
+                        TitleEntry title = e.Item as TitleEntry;
+                        if (title != null && options.APlays)
                         {
-                            Context.ShowDetails((TitleEntry)e.Item);
+                            Context.ShowDetails(title);
                         }
-                        else if (e.Item != null)
+                        else if (title != null)
                         {
-                            Context.Launch((TitleEntry)e.Item);
+                            Context.Launch(title);
                         }
                         e.Handled = true;
                         break;
@@ -145,7 +177,7 @@ namespace Silverdash360.Modules
                 grid.LeadTiles = 1;
                 grid.PadOutside = 6;
                 grid.Margin = new Thickness(0);
-                grid.TileTemplate = new RowTemplate(o => Row((TitleEntry)o));
+                grid.TileTemplate = new RowTemplate(o => o is LetterGroup ? LetterRow((LetterGroup)o) : Row((TitleEntry)o));
             }
             else
             {
@@ -157,7 +189,10 @@ namespace Silverdash360.Modules
                 grid.LeadTiles = 1;
                 grid.PadOutside = 24;
                 grid.Margin = Theme.GrowRoom;
-                grid.TileTemplate = new CoverTileTemplate(Context.Images, () => Context.UserIndex);
+                CoverTileTemplate covers = new CoverTileTemplate(Context.Images, () => Context.UserIndex);
+                LetterTileTemplate letters = new LetterTileTemplate(o => ((LetterGroup)o).Letter,
+                                                                    o => CountText(((LetterGroup)o).Count));
+                grid.TileTemplate = new MixedTileTemplate(o => o is LetterGroup ? (ITileTemplate)letters : covers);
             }
         }
 
@@ -173,6 +208,58 @@ namespace Silverdash360.Modules
                 Art = done => Context.Images.TitleArt(title, Context.UserIndex, done),
                 Dimmed = !title.IsInstalled,
             };
+        }
+
+        private RowData LetterRow(LetterGroup group)
+        {
+            return new RowData { Title = group.Letter, Subtitle = CountText(group.Count) };
+        }
+
+        // "12 games", "1 app".
+        private string CountText(int count)
+        {
+            return count + " " + (count == 1 ? header.TrimEnd('s') : header);
+        }
+
+        // The letter a title goes under.
+        private static string LetterOf(string name)
+        {
+            char first = string.IsNullOrEmpty(name) ? ' ' : name[0];
+            return char.IsLetter(first) ? char.ToUpperInvariant(first).ToString() : "#";
+        }
+
+        // The titles as shown: sorted by name, each letter before its titles,
+        // or the letters alone.
+        private List<object> Arrange(List<TitleEntry> titles)
+        {
+            if (options.Sort != "name")
+            {
+                return titles.Cast<object>().ToList();
+            }
+            List<object> items = new List<object>();
+            foreach (IGrouping<string, TitleEntry> letter in titles.GroupBy(t => LetterOf(t.Name))
+                         .OrderBy(g => g.Key == "#" ? "" : g.Key, StringComparer.Ordinal))
+            {
+                items.Add(new LetterGroup { Letter = letter.Key, Count = letter.Count() });
+                if (!lettersOnly)
+                {
+                    items.AddRange(letter.Cast<object>());
+                }
+            }
+            return items;
+        }
+
+        // Shows the letters alone, or everything again, with the letter where
+        // it was on screen.
+        private void ToggleLetters(LetterGroup group)
+        {
+            double place = grid.PlaceOf(grid.SelectedIndex);
+            lettersOnly = !lettersOnly;
+            List<object> items = Arrange(options.Apply(select(Context.Library)));
+            int at = items.IndexOf(items.OfType<LetterGroup>().FirstOrDefault(g => g.Letter == group.Letter));
+            grid.ShowItems(items, Math.Max(0, at), place);
+            lastLetter = group.Letter;
+            Context.RefreshLegend();
         }
 
         private static string Subtitle(TitleEntry title)
@@ -205,11 +292,20 @@ namespace Silverdash360.Modules
             }
             grid.EmptyText = !Context.Library.IsLoaded ? "Looking for content..."
                 : options.IsFiltered ? "Nothing here matches the filter. BACK changes it." : emptyText;
-            List<object> titles = options.Apply(select(Context.Library)).Cast<object>().ToList();
-            grid.Items = titles;
+            string letter = lastLetter;
+            List<object> items = Arrange(options.Apply(select(Context.Library)));
+            grid.Items = items;
             if (lastSelected != null)
             {
-                TitleEntry same = titles.Cast<TitleEntry>().FirstOrDefault(t => t.TitleId == lastSelected.TitleId);
+                TitleEntry same = items.OfType<TitleEntry>().FirstOrDefault(t => t.TitleId == lastSelected.TitleId);
+                if (same != null)
+                {
+                    grid.SelectItem(same);
+                }
+            }
+            else if (letter != null)
+            {
+                LetterGroup same = items.OfType<LetterGroup>().FirstOrDefault(g => g.Letter == letter);
                 if (same != null)
                 {
                     grid.SelectItem(same);

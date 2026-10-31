@@ -169,6 +169,64 @@ namespace Silverdash360.Controls
         }
     }
 
+    /// <summary>
+    /// A letter heading the titles under it, in a shelf sorted by name: the
+    /// letter large, with how many titles it has.
+    /// </summary>
+    public sealed class LetterTileTemplate : TileTemplateBase
+    {
+        private readonly Func<object, string> letter;
+        private readonly Func<object, string> detail;
+
+        public LetterTileTemplate(Func<object, string> letter, Func<object, string> detail)
+        {
+            this.letter = letter;
+            this.detail = detail;
+        }
+
+        public override FrameworkElement Create(object item)
+        {
+            Grid tile = NewTile(Theme.Panel);
+            tile.Children.Add(new Border { Height = 6, VerticalAlignment = VerticalAlignment.Top, Background = Theme.Accent });
+            TextBlock big = Theme.TextBlock(letter(item), 120, Theme.Text);
+            big.FontWeight = FontWeights.Bold;
+            big.HorizontalAlignment = HorizontalAlignment.Center;
+            big.VerticalAlignment = VerticalAlignment.Center;
+            big.Margin = new Thickness(0, 0, 0, 24);
+            tile.Children.Add(big);
+            TextBlock count = Theme.TextBlock(detail(item), 15, Theme.SubText);
+            count.HorizontalAlignment = HorizontalAlignment.Center;
+            count.VerticalAlignment = VerticalAlignment.Bottom;
+            count.Margin = new Thickness(0, 0, 0, 16);
+            tile.Children.Add(count);
+            return Finish(tile);
+        }
+    }
+
+    /// <summary>Tiles of more than one kind in a grid, each made by the template picked for its item.</summary>
+    public sealed class MixedTileTemplate : ITileTemplate
+    {
+        private readonly Func<object, ITileTemplate> pick;
+
+        public MixedTileTemplate(Func<object, ITileTemplate> pick)
+        {
+            this.pick = pick;
+        }
+
+        public FrameworkElement Create(object item)
+        {
+            ITileTemplate template = pick(item);
+            FrameworkElement tile = template.Create(item);
+            tile.Tag = template;
+            return tile;
+        }
+
+        public void SetSelected(FrameworkElement tile, bool selected, bool focused)
+        {
+            ((ITileTemplate)tile.Tag).SetSelected(tile, selected, focused);
+        }
+    }
+
     /// <summary>What a list row shows.</summary>
     public sealed class RowData
     {

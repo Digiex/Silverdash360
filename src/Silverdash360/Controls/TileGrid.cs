@@ -308,6 +308,44 @@ namespace Silverdash360.Controls
             }
         }
 
+        /// <summary>How far the item's line is from the start of the view, along the scroll.</summary>
+        public double PlaceOf(int index)
+        {
+            return (index / Lines) * Step - offset;
+        }
+
+        /// <summary>
+        /// Shows other items with one selected, scrolled so its line is the
+        /// given distance from the start of the view (<see cref="PlaceOf"/>)
+        /// as far as the ends allow, such as a heading that stays put while
+        /// what's under it opens or closes.
+        /// </summary>
+        public void ShowItems(IList<object> value, int select, double place)
+        {
+            items = value ?? new List<object>();
+            DropTiles();
+            emptyText.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            selectedIndex = -1;
+            scrollAnimation.Stop();
+            bool horizontal = Direction == ScrollDirection.Horizontal;
+            double view = horizontal ? ActualWidth : ActualHeight;
+            double total = LineCount * Step - Spacing;
+            select = Math.Max(0, Math.Min(items.Count - 1, select));
+            offset = Math.Max(0, Math.Min((select / Lines) * Step - place, Math.Max(0, total - view)));
+            scroll.X = horizontal ? -offset : 0;
+            scroll.Y = horizontal ? 0 : -offset;
+            if (items.Count > 0)
+            {
+                Select(select, false);
+            }
+            Realize();
+        }
+
+        private double Step
+        {
+            get { return Direction == ScrollDirection.Horizontal ? StepX : StepY; }
+        }
+
         private double StepX { get { return Width0 + Spacing; } }
         private double StepY { get { return TileHeight + Spacing; } }
 
