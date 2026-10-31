@@ -33,7 +33,8 @@ sys.path.insert(0, os.path.join(ROOT, 'tests'))
 
 from debugclient import DEFAULT_PORT, CommandError, DebugClient, parse_address  # noqa: E402
 
-PACKAGE = os.path.join(ROOT, 'src', 'Silverdash360', 'bin', 'Release', 'xbox')
+# The Debug build, which has the debug server deploying needs.
+PACKAGE = os.path.join(ROOT, 'src', 'Silverdash360', 'bin', 'Debug', 'xbox')
 FALLBACK_TARGET = '/Hdd1/Apps/Silverdash360'
 STAGING = '_update'
 MANIFEST = '.deploy-manifest.json'
@@ -157,7 +158,7 @@ def main():
         argv = argv[:argv.index('--')]
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('address', help='The console: host, or host:port of the debug server (%d).' % DEFAULT_PORT)
-    parser.add_argument('--package', default=PACKAGE, help='The built package (default: the Release build).')
+    parser.add_argument('--package', default=PACKAGE, help='The built package (default: the Debug build, .\\tools\\Build.ps1 -Debug).')
     parser.add_argument('--target', help='Where the dashboard goes, such as /Hdd1/Apps/Silverdash360. By default '
                         'where it runs from, else ' + FALLBACK_TARGET + '.')
     parser.add_argument('--mode', choices=('auto', 'direct', 'staging'), default='auto',

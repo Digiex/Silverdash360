@@ -32,9 +32,9 @@ $testScript = Join-Path $Sdk 'tools\Test-XboxApp.ps1'
 if (-not (Test-Path -LiteralPath $testScript)) {
     throw "Silverlight360 not found at $Sdk. Pass -Sdk or set SILVERLIGHT360."
 }
-$xex = Join-Path $root 'src\Silverdash360\bin\Release\xbox\default.xex'
+$xex = Join-Path $root 'src\Silverdash360\bin\Debug\xbox\default.xex'
 if (-not (Test-Path -LiteralPath $xex)) {
-    throw "Build the dashboard first: .\tools\Build.ps1"
+    throw "Build the dashboard first: .\tools\Build.ps1 -Debug"
 }
 
 $extra = @($ExtraArgs)

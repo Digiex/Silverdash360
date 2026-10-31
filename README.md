@@ -53,14 +53,28 @@ Moving past the left or right end of a section switches to the next one too.
 You need what the Silverlight360 SDK needs (see its [getting started guide](https://github.com/Digiex/Silverlight360/blob/master/docs/getting-started.md)), including a runtime profile. Then:
 
 ```powershell
-.\tools\Build.ps1 -Sdk path\to\Silverlight360
+.\tools\Build.ps1 -Debug -Sdk path\to\Silverlight360
 ```
 
-`-Sdk` can be left out when the `SILVERLIGHT360` environment variable points to the SDK, or when it's cloned next to this repository as `Silverlight360`. The package lands in `src\Silverdash360\bin\Release\xbox\`.
+Every build is one of two:
+
+- `-Debug` has the debug server (see below) and lands in `src\Silverdash360\bin\Debug\xbox\`. `tools\deploy.py`, `tools\Run.ps1` and the tests use it.
+- `-Release` leaves the debug server out and lands in `src\Silverdash360\bin\Release\xbox\`. Builds for others are these.
+
+`-Sdk` can be left out when the `SILVERLIGHT360` environment variable points to the SDK, or when it's cloned next to this repository as `Silverlight360`.
 
 The package runs as the title the SDK's runtime profile came from (Plex by default), so it's started like that app.
 
-The debug server is built in unless you add `-NoDebugServer`. It listens on port 4601 without a password, so leave it out of builds for others.
+The debug server listens on port 4601 without a password, which is why it's only in Debug builds.
+
+## Releases
+
+```powershell
+.\tools\Release.ps1 -DryRun
+.\tools\Release.ps1
+```
+
+`Release.ps1` makes a Release build of the dashboard's own files (the SDK's `XboxAppOnly`), zips them with an `INSTALL.txt`, and publishes the zip on GitHub Releases with the commits since the last release as its notes. The zip has no `default.xex`, runtime or framework assemblies: those are Microsoft's and the donor app's, so whoever installs it lays it over a runtime profile of their own. Each release is tagged `build-<number>`, the build number settings shows. The commit has to be committed and pushed; the script pushes nothing, and needs the GitHub CLI (`gh`) signed in. `-DryRun` builds the zip and shows the notes without publishing.
 
 ## Running in xenia-edge
 

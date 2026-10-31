@@ -2,7 +2,7 @@
 
 The dashboard has a debug server: a TCP port that takes commands while it runs, for testing and debugging on a console that has no development kit. The tests here drive it from a PC.
 
-The server is built in by default for now. `.\tools\Build.ps1 -NoDebugServer` leaves it out (it sets the `DebugServer` build property, which defines `DEBUG_SERVER` and compiles `src\Silverdash360\Debugging\`).
+The server is in Debug builds (`.\tools\Build.ps1 -Debug`) and not in Release ones (the `DebugServer` build property, which defines `DEBUG_SERVER` and compiles `src\Silverdash360\Debugging\`).
 
 **It takes no password.** Anyone on the network can read what the dashboard knows, read files on its drives and drive its UI. Use it on a network you trust, and leave it out of builds for others.
 
@@ -11,7 +11,7 @@ The server is built in by default for now. `.\tools\Build.ps1 -NoDebugServer` le
 `tools/deploy.py` updates the dashboard on the console and starts the new build, so a change can go from the PC to the console and through the tests with one command:
 
 ```bash
-.\tools\Build.ps1
+.\tools\Build.ps1 -Debug
 python tools/deploy.py 192.168.1.20
 python tools/deploy.py 192.168.1.20 -- --suite functional
 ```
