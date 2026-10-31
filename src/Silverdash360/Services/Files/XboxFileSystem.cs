@@ -146,6 +146,32 @@ namespace Silverdash360.Services.Files
             }
         }
 
+        /// <summary>
+        /// The tree's path for a kernel path, such as /Hdd1/Apps for
+        /// \Device\Harddisk0\Partition1\Apps, or null when no drive has it.
+        /// </summary>
+        public string PathOf(string devicePath)
+        {
+            foreach (Drive drive in Drives)
+            {
+                string prefix = drive.DevicePath;
+                if (devicePath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+                    (devicePath.Length == prefix.Length || devicePath[prefix.Length] == '\\'))
+                {
+                    return Combine("/" + drive.Name, devicePath.Substring(prefix.Length).Replace('\\', '/').TrimStart('/'));
+                }
+            }
+            return null;
+        }
+
+        /// <summary>Whether a path is on a drive that can't be written, such as the disc.</summary>
+        public bool IsReadOnly(string path)
+        {
+            Drive drive;
+            Resolve(path, out drive);
+            return drive.ReadOnly;
+        }
+
         /// <summary>The kernel's path for a path in the tree, such as \Device\Harddisk0\Partition1\Games.</summary>
         public string DevicePath(string path)
         {

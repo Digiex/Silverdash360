@@ -54,7 +54,7 @@ namespace Silverdash360.Debugging
             foreach (IDebugCommands group in new IDebugCommands[]
             {
                 new SystemCommands(server), new LibraryCommands(context), new ApiCommands(context),
-                new UiCommands(context), new BenchCommands(context),
+                new UiCommands(context), new BenchCommands(context), new AppCommands(context),
             })
             {
                 group.Register(server.Commands);

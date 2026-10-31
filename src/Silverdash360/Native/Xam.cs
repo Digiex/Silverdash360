@@ -147,5 +147,14 @@ namespace Silverdash360.Native
         //   pages first), then the highest physical page.
         [DllImport("xboxkrnl.exe", EntryPoint = "#198")]
         public static extern int MmQueryStatistics(uint stats);
+
+        // 0xE0: NTSTATUS NtOpenSymbolicLinkObject(PHANDLE, POBJECT_ATTRIBUTES)
+        [DllImport("xboxkrnl.exe", EntryPoint = "#224")]
+        public static extern int NtOpenSymbolicLinkObject(out uint handle, uint objectAttributes);
+
+        // 0xEC: NTSTATUS NtQuerySymbolicLinkObject(HANDLE, PANSI_STRING target,
+        //   PULONG returnedLength): the link's target, not NUL-terminated.
+        [DllImport("xboxkrnl.exe", EntryPoint = "#236")]
+        public static extern int NtQuerySymbolicLinkObject(uint handle, uint target, uint returnedLength);
     }
 }

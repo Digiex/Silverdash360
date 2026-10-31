@@ -83,6 +83,7 @@ namespace Silverdash360.Modules
                 new Entry { Title = "Language", Detail = Safe(() => system.Language) },
                 new Entry { Title = "Console time", Detail = Safe(() => system.ConsoleTime.ToString("g")) },
                 new Entry { Title = "Running as title", Detail = Safe(() => system.CurrentTitleId) },
+                new Entry { Title = "Running from", Detail = Safe(() => AppFolder.Path(Context.Ftp.Files) ?? AppFolder.DevicePath() ?? "unknown") },
                 new Entry { Title = "About Silverdash360", Detail = "github.com/Digiex/Silverdash360" },
                 new Entry { Title = "Built with Silverlight360", Detail = "github.com/Digiex/Silverlight360" },
                 new Entry { Title = "Return to the Xbox Dashboard", Detail = "Exit Silverdash", Run = system.ExitToDashboard },

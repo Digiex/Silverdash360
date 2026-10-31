@@ -6,6 +6,31 @@ The server is built in by default for now. `.\tools\Build.ps1 -NoDebugServer` le
 
 **It takes no password.** Anyone on the network can read what the dashboard knows, read files on its drives and drive its UI. Use it on a network you trust, and leave it out of builds for others.
 
+## Deploying a build
+
+`tools/deploy.py` updates the dashboard on the console and starts the new build, so a change can go from the PC to the console and through the tests with one command:
+
+```bash
+.\tools\Build.ps1
+python tools/deploy.py 192.168.1.20
+python tools/deploy.py 192.168.1.20 -- --suite functional
+```
+
+With the dashboard running, it:
+
+1. asks the dashboard where it runs from (`app.location`: the folder its D: drive links to). That's the target, unless it's on no drive the dashboard knows or one that can't be written, such as the disc; then the target is `/Hdd1/Apps/Silverdash360`. `--target` picks another.
+2. starts the dashboard's FTP server (`ftp.start`) and uploads the files that changed since the last deploy. A `.deploy-manifest.json` in the folder keeps each file's hash, so after the first time it's usually only `Silverdash360.dll`.
+3. starts the new build (`app.launch`), waits for its debug server and checks it's the build uploaded (`.deploy-id`).
+4. runs `tests/run_tests.py` with what comes after `--`, if anything does.
+
+A running dashboard's files aren't overwritten. When the target is where it runs from, the build goes to `<target>/_update` instead, with a `deploy-install.txt` naming the target and the changed files. The dashboard started from there copies those files into the target and starts it. If that fails, it starts the dashboard from `_update`, and deploy.py prints the error and the log. The first time, `_update` gets the whole package (about 107 MB); after that, only what changed. `--mode direct` uploads into the target anyway, and `--mode staging` stages even when the target isn't the running folder.
+
+When the dashboard isn't running, give another FTP server with `--ftp host:port --user ... --password ...` (Aurora's, for one); the files go straight into the target, and you start it yourself. `--no-launch` uploads without starting anything, and `--full` uploads every file.
+
+Staging needs a build with the debug server, since that build does the install.
+
+In xenia, run with `--systemlink_transport=off` and `--ftp-port 2121`, since xenia moves ports below 1024, and with a `--target` under `/Hdd1/Content`, the only folder of its hard drive xenia has. xenia mounts a launched title's folder read-only and as `\Device\Package_0`, so `app.location` can't name it. Relaunching needs xenia-edge's `pr-socket-accept-relaunch` fix: before it, a title that relaunched while a thread waited in `accept` crashed the emulator at its next socket.
+
 ## Running the tests
 
 You need Python 3, with nothing else installed. Start the dashboard, find the console's address under Settings > Debug server, and then:
@@ -71,6 +96,7 @@ python tests/debugclient.py 192.168.1.20
 | `ui.state`, `ui.section`, `ui.navigate`, `ui.back`, `ui.press` | What's on screen, and driving it. |
 | `ui.fps`, `ui.scroll` | Frame rate when idle, and while moving a grid's selection a step per frame. |
 | `bench.list`, `bench <name> [iterations]` | Timed runs of the dashboard's work. |
+| `app.location`, `app.launch [path]`, `ftp.start [port]`, `ftp.stop` | Where the dashboard runs from, starting a build, and the FTP server, for deploy.py. |
 
 A controller's button events can't be made from code, so `ui.press` does what the button does instead: it calls the focused grid's `TileGrid.Press`, then the hub's `HubPage.Press`, then the frame's back for B. Pages with their own button handling, such as the search page's keyboard, aren't reached that way.
 

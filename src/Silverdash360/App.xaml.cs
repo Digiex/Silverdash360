@@ -1,8 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using Microsoft.Xbox.Controls;
+using Silverdash360.Controls;
 using Silverdash360.Core;
 #if DEBUG_SERVER
 using Silverdash360.Debugging;
@@ -33,6 +37,18 @@ namespace Silverdash360
         private void Application_Startup(object sender, StartupEventArgs e)
         {
             Log.Write("Starting");
+#if DEBUG_SERVER
+            if (StartPendingInstall())
+            {
+                return;
+            }
+#endif
+            StartDashboard(null);
+        }
+
+        // In host when given, else as the root visual.
+        private void StartDashboard(Panel host)
+        {
             ProfileService profiles = new ProfileService();
             XamContentSource content = new XamContentSource();
             XboxFileSystem files = new XboxFileSystem();
@@ -56,7 +72,15 @@ namespace Silverdash360
                     args.Handled = true;
                 }
             };
-            RootVisual = frame;
+            if (host != null)
+            {
+                host.Children.Clear();
+                host.Children.Add(frame);
+            }
+            else
+            {
+                RootVisual = frame;
+            }
             Context.Library.Refresh();
 #if DEBUG_SERVER
             // On by default for now; see the DebugServer build property.
@@ -64,6 +88,47 @@ namespace Silverdash360
 #endif
         }
 
+#if DEBUG_SERVER
+        // A build tools/deploy.py staged: copies it into the app's folder and
+        // starts it from there. On a failure the dashboard starts here, so
+        // the debug server can tell what went wrong.
+        private bool StartPendingInstall()
+        {
+            SelfInstall.Plan plan;
+            try
+            {
+                plan = SelfInstall.Pending();
+            }
+            catch (Exception e)
+            {
+                Log.Write("Install marker unreadable: {0}", e.Message);
+                return false;
+            }
+            if (plan == null)
+            {
+                return false;
+            }
+            // The root visual can be set only once: a panel the dashboard can
+            // go into if the install fails.
+            Grid root = new Grid { Background = new SolidColorBrush(Colors.Black) };
+            TextBlock status = Theme.TextBlock("Installing an update...", 28, Theme.Text);
+            status.HorizontalAlignment = HorizontalAlignment.Center;
+            status.VerticalAlignment = VerticalAlignment.Center;
+            root.Children.Add(status);
+            RootVisual = root;
+            new Thread(delegate()
+            {
+                string error = SelfInstall.Run(plan, text => Background.OnUi(() => status.Text = text));
+                Background.OnUi(delegate
+                {
+                    StartDashboard(root);
+                    Context.ShowStatus("Update failed: " + error);
+                });
+            }) { IsBackground = true, Name = "Install" }.Start();
+            return true;
+        }
+
+#endif
         private void Application_UnhandledException(object sender, ApplicationUnhandledExceptionEventArgs e)
         {
             // A dashboard keeps running: log it and show it in the footer.

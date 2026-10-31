@@ -26,8 +26,8 @@ The screenshots are from xenia-edge with a test set of app packages.
 - **Profile**: gamertag, gamer picture, gamerscore, motto and zone, and the titles played with their achievement progress.
 - **Storage**: everything stored, largest first, filtered by games, apps, add-ons, title updates, saves and media.
 - **FTP server**: the console's drives over FTP while the dashboard runs, turned on in settings.
-- **Settings**: system version, language, console time, sign-in, refreshing the library and returning to the Xbox Dashboard.
-- **Debug server and tests**: a TCP port that takes commands, for testing and debugging on a console without a development kit, and API, functional and performance tests that run over it from a PC. Built in by default for now.
+- **Settings**: system version, language, console time, where the dashboard runs from, sign-in, refreshing the library and returning to the Xbox Dashboard.
+- **Debug server, tests and deploying**: a TCP port that takes commands, for testing and debugging on a console without a development kit; API, functional and performance tests that run over it from a PC; and a script that puts a new build on the console and starts it. Built in by default for now.
 - **Launching**: Play on a title's page, or Start on a title in the hub.
 
 ## Controls
@@ -96,6 +96,14 @@ python tests/debugclient.py 192.168.1.20
 ```
 
 The first runs the API, functional and performance tests against the console and can compare performance with an earlier run; the second is a shell for typing commands. See [tests/README.md](tests/README.md) for the commands, the protocol and adding tests.
+
+To put a new build on the console and start it, over the dashboard's own FTP server and the debug server:
+
+```bash
+python tools/deploy.py 192.168.1.20 -- --suite functional
+```
+
+It finds where the dashboard runs from (else `/Hdd1/Apps/Silverdash360`), uploads only the files that changed, starts the new build through a staging folder so no running file is overwritten, checks it came up, and runs the tests given after `--`. See [Deploying a build](tests/README.md#deploying-a-build).
 
 ## How it works
 
