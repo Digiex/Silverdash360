@@ -83,6 +83,7 @@
     <Compile Include="Services\Settings.cs" />
     <Compile Include="Services\ThemeService.cs" />
     <Compile Include="Services\AppStorage.cs" />
+    <Compile Include="Services\DiscService.cs" />
     <Compile Include="Services\Files\PackageHeader.cs" />
     <Compile Include="Services\MarketplaceArt.cs" />
     <Compile Include="Services\MarketplaceArtCache.cs" />

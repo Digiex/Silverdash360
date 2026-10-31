@@ -145,6 +145,15 @@ namespace Silverdash360.Native
         public static extern uint XamShowFriendsUI(uint userIndex);
 
         // 0x282: DWORD XamGetSystemVersion()
+        // 0x1AA: DWORD XamLoaderGetDvdTrayState(): the disc tray's state.
+        [DllImport("xam.xex", EntryPoint = "#426")]
+        public static extern uint XamLoaderGetDvdTrayState();
+
+        // 0x1A3: VOID XamLoaderGetMediaInfo(DWORD* mediaType, DWORD* titleId):
+        //   what's in the disc drive, and a game disc's title ID.
+        [DllImport("xam.xex", EntryPoint = "#419")]
+        public static extern void XamLoaderGetMediaInfo(out uint mediaType, out uint titleId);
+
         [DllImport("xam.xex", EntryPoint = "#642")]
         public static extern uint XamGetSystemVersion();
 
@@ -193,6 +202,11 @@ namespace Silverdash360.Native
                 return copy.Slice(0, length);
             }
         }
+
+        // 0x24: VOID HalOpenCloseODDTray(BOOL open): opens the disc tray, or
+        //   closes it.
+        [DllImport("xboxkrnl.exe", EntryPoint = "#36")]
+        public static extern void HalOpenCloseODDTray(uint open);
 
         // 0xCF: NTSTATUS NtClose(HANDLE)
         [DllImport("xboxkrnl.exe", EntryPoint = "#207")]

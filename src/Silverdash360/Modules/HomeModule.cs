@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -83,7 +84,7 @@ namespace Silverdash360.Modules
                 ForwardEdges(grid, Edge.Left, Edge.Right);
                 // One selection on the page: the row in use's.
                 grid.ShowsSelectionUnfocused = false;
-                grid.ItemInvoked += delegate(object sender, ItemEventArgs e) { Context.OpenTitle((TitleEntry)e.Item); };
+                grid.ItemInvoked += delegate(object sender, ItemEventArgs e) { Open((TitleEntry)e.Item); };
                 // The footer names what's selected in the row in use; the
                 // other row's selection changes when the library does.
                 grid.SelectionChanged += delegate(object sender, System.EventArgs e)
@@ -101,9 +102,23 @@ namespace Silverdash360.Modules
                         Context.OpenSearch();
                         e.Handled = true;
                     }
+                    else if (e.Button == GamePadButton.Y)
+                    {
+                        Context.ShowStatus(Context.Discs.IsTrayOpen ? "Closing the disc tray" : "Opening the disc tray");
+                        Context.Discs.ToggleTray();
+                        e.Handled = true;
+                    }
                     else if (e.Button == GamePadButton.Start && e.Item != null)
                     {
-                        Context.Launch((TitleEntry)e.Item);
+                        TitleEntry title = (TitleEntry)e.Item;
+                        if (title.IsDisc)
+                        {
+                            Context.OpenDisc(title);
+                        }
+                        else
+                        {
+                            Context.Launch(title);
+                        }
                         e.Handled = true;
                     }
                 };
@@ -124,7 +139,21 @@ namespace Silverdash360.Modules
                     e.Handled = true;
                 }
             };
+            Context.Discs.Changed += delegate { Refresh(); };
             return view;
+        }
+
+        // A disc opens as it is (a game starts); a title shows its page.
+        private void Open(TitleEntry title)
+        {
+            if (title.IsDisc)
+            {
+                Context.OpenDisc(title);
+            }
+            else
+            {
+                Context.OpenTitle(title);
+            }
         }
 
         private void ShowSelected(TileGrid grid)
@@ -149,7 +178,15 @@ namespace Silverdash360.Modules
             }
             var library = Context.Library;
             recent.EmptyText = library.IsLoaded ? "Nothing played yet. Your games and apps are in the next sections." : "Looking for content...";
-            recent.Items = library.Recent.Take(RecentCount).Cast<object>().ToList();
+            // The disc in the drive first.
+            List<object> items = new List<object>();
+            TitleEntry disc = Context.Discs.AsTitle(library);
+            if (disc != null)
+            {
+                items.Add(disc);
+            }
+            items.AddRange(library.Recent.Take(RecentCount).Cast<object>());
+            recent.Items = items;
             apps.Items = library.Apps.Where(a => a.IsInstalled).Cast<object>().ToList();
             summary.Text = library.IsLoaded
                 ? string.Format("{0} games  ·  {1} apps", library.Games.Count(), library.Apps.Count())

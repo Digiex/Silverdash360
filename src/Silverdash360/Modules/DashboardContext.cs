@@ -30,6 +30,9 @@ namespace Silverdash360.Modules
         public MediaService Media { get; private set; }
         public ThemeService Themes { get; private set; }
 
+        /// <summary>The disc drive; set by the app once the media service exists.</summary>
+        public DiscService Discs { get; set; }
+
         /// <summary>Goes to a page by its URI; set by the app.</summary>
         public Action<Uri> Navigate { get; set; }
 
@@ -99,6 +102,46 @@ namespace Silverdash360.Modules
         public void OpenShelfOptions(string shelf)
         {
             Navigate(new Uri("/Pages/ShelfOptionsPage.xaml?shelf=" + Uri.EscapeDataString(shelf), UriKind.Relative));
+        }
+
+        /// <summary>
+        /// Opens the disc in the drive: a game disc starts, an original Xbox
+        /// game, a DVD movie or an audio CD plays in the console's own player,
+        /// and a disc of files opens in the media browser.
+        /// </summary>
+        public void OpenDisc(TitleEntry disc)
+        {
+            // Started while the tray moves, a disc can't be read, and the
+            // console then ends Silverdash with "disc unreadable".
+            if (!Discs.IsReady)
+            {
+                ShowStatus("Wait for the disc tray to close and the disc to be read.");
+                return;
+            }
+            switch (Discs.Kind)
+            {
+                case DiscKind.Game:
+                    Launch(disc);
+                    break;
+                case DiscKind.Data:
+                    IMediaSource source = Media.Find("drive:Dvd");
+                    if (source != null)
+                    {
+                        OpenMedia(source, null);
+                    }
+                    else
+                    {
+                        ShowStatus("The disc's files can't be read.");
+                    }
+                    break;
+                case DiscKind.None:
+                    ShowStatus("There's no disc in the drive.");
+                    break;
+                default:
+                    ShowStatus("Starting the disc...");
+                    ShowStatus(Media.PlayDisc());
+                    break;
+            }
         }
 
         /// <summary>Starts an installed title, or says why it can't.</summary>

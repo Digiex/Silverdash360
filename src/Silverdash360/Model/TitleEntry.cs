@@ -88,6 +88,10 @@ namespace Silverdash360.Model
         {
             get
             {
+                if (IsDisc)
+                {
+                    return "Disc";
+                }
                 ContentItem launch = LaunchItem;
                 if (launch != null)
                 {
@@ -98,6 +102,9 @@ namespace Silverdash360.Model
                 return executable != null ? executable.Location : "Not installed";
             }
         }
+
+        /// <summary>The disc in the drive, which the home page shows first.</summary>
+        public bool IsDisc { get; set; }
 
         /// <summary>From the profile's played titles, when it has been played.</summary>
         public PlayedTitle Played { get; set; }

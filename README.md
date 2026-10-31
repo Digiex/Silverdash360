@@ -21,6 +21,7 @@ The screenshots are from xenia-edge with a test set of app packages.
 - **Executables in Apps and Games folders**: a `default.xex` in each folder of a drive's `Apps` and `Games` folders (`Hdd1`, `Usb0` to `Usb2`), and `.xex` files directly in `Apps`. The title ID in each XEX header joins it with the title's saves, played stats and art; the folder's name is its name unless a package or the profile has one. `ExecutableScanner.Collections` and `ExtraFolders` set where it looks.
 - **Fast starts**: what was read from package headers is kept in the app's Data folder, so the library shows at once and only new packages are read. The first scan, with nothing to show yet, runs flat out; later ones run behind the library on screen and pause between steps so the UI keeps the console. A bar in the footer shows how far a refresh has got; "Refresh library" in settings reads every package again.
 - **Box art, backdrops and store details** from the Xbox Marketplace, where the console's own dashboard gets them: images from `download.xbox.com` by title ID, and the description, developer, genre and release date from the catalog. Every image the catalog lists for a title (box art, tile, banner, backdrop and screenshots) is kept in `Data\Art\<title ID>` in the background after each refresh, so it's there offline; covers show the box front, and a title's page its backdrop and the store's description.
+- **The disc** in the drive comes first in jump back in: a game disc starts, a disc of files opens in the media browser, and a DVD movie, audio CD or original Xbox disc plays in the console's own player. Y on home opens and closes the tray.
 - **Cover and list views** (Y switches). The views only make tiles for what's on screen, so large libraries stay fast.
 - **Shelf options** (BACK on the games or apps shelf): show installed titles, the default, everything including titles only saves or add-ons are left of, or one kind; pick a storage device; sort by name, size or last played. Each shelf keeps its own, with its view, across starts.
 - **Title details**: what's stored for the title (the game, title updates, add-ons, saves) with sizes, and the profile's achievements for it.
@@ -42,7 +43,7 @@ The screenshots are from xenia-edge with a test set of app packages.
 | B | Back |
 | Start | Play the title selected in the hub |
 | X | Search; friends on the profile; delete on the keyboard |
-| Y | Cover or list view; sign in on the profile; space on the keyboard |
+| Y | Open or close the disc tray on home; cover or list view; sign in on the profile; space on the keyboard |
 | LB, RB | Switch sections (and tabs and filters on other pages) |
 
 Moving past the left or right end of a section switches to the next one too.

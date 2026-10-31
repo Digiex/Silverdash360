@@ -25,6 +25,10 @@ namespace Silverdash360.Controls
         // on the console's runtime.
         private static Style StyleOf(TitleEntry title)
         {
+            if (title.IsDisc)
+            {
+                return new Style { Label = "DISC", Top = Rgb(0xD8, 0xDE, 0xE4), Bottom = Rgb(0x7C, 0x88, 0x94) };
+            }
             if (title.Kind == TitleKind.App)
             {
                 return new Style { Label = "APP", Top = Rgb(0x5C, 0xB8, 0xF7), Bottom = Rgb(0x1E, 0x78, 0xC2) };

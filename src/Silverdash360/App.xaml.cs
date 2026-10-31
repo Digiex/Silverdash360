@@ -63,6 +63,8 @@ namespace Silverdash360
             Context = new DashboardContext(library, profiles, new ImageService(content), new SystemService(),
                                            new FtpServer(files), media, new ThemeService(library));
             Context.Ftp.Message += text => Background.OnUi(() => Context.ShowStatus(text));
+            Context.Discs = new DiscService(files, media);
+            Context.Discs.Start();
             Modules = ModuleRegistry.CreateAll(Context);
 
             // XboxApplicationFrame also starts GamerServices and plays the

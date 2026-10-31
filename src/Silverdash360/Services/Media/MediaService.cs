@@ -150,9 +150,24 @@ namespace Silverdash360.Services.Media
             }
         }
 
-        /// <summary>What's in the disc drive, from the files on it.</summary>
+        /// <summary>
+        /// XamLoaderGetDvdTrayState when the tray is closed and the disc read
+        /// (as a console reports it; xenia has other values).
+        /// </summary>
+        public const uint TrayReady = 0;
+
+        /// <summary>
+        /// What's in the disc drive, from the files on it; None unless the
+        /// tray is closed on a disc that's been read. A read while the tray
+        /// moves fails, and the console then says the disc is unreadable and
+        /// ends the title.
+        /// </summary>
         public DiscKind Disc()
         {
+            if (Xam.XamLoaderGetDvdTrayState() != TrayReady)
+            {
+                return DiscKind.None;
+            }
             try
             {
                 if (files.Stat("/Dvd/video_ts") != null)

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Windows.Controls;
 using Silverdash360.Modules;
+using Silverdash360.Native;
 using Silverdash360.Pages;
 using Silverdash360.Services.Media;
 
@@ -24,6 +25,23 @@ namespace Silverdash360.Debugging
         public void Register(DebugCommandSet commands)
         {
             commands.Add("media.sources", "", "The drives with media, the disc and the media servers found.", r => Sources());
+            commands.Add("disc.tray", "<open|close>", "HalOpenCloseODDTray.", r =>
+            {
+                Kernel.HalOpenCloseODDTray(r.Arg(0, "open|close", true) == "open" ? 1u : 0u);
+                return null;
+            });
+            commands.Add("disc.state", "", "XamLoaderGetDvdTrayState and XamLoaderGetMediaInfo, raw, and what the disc holds.", r =>
+            {
+                uint mediaType, titleId;
+                Xam.XamLoaderGetMediaInfo(out mediaType, out titleId);
+                return new JsonObject
+                {
+                    { "tray", Xam.XamLoaderGetDvdTrayState() },
+                    { "mediaType", mediaType },
+                    { "titleId", titleId.ToString("X8") },
+                    { "files", Media.Disc().ToString() },
+                };
+            });
             commands.Add("media.search", "[timeoutMs]", "Looks for media servers and waits for the search to end.", Search);
             commands.Add("media.add", "<descriptionUrl>", "Adds a media server by the URL of its description.", r =>
             {
