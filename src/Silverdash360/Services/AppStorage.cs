@@ -21,9 +21,13 @@ namespace Silverdash360.Services
     {
         public const string FolderName = "Data";
         private const int BlockSize = 0x10000;
-        // Written beside the file, then put in its place, so an interrupted
-        // save leaves the old file.
+        // A save is written beside the file as .new, renamed to .saved once
+        // it's all there, and only then put in the old file's place. Starting
+        // a game ends the dashboard wherever it is, so a save can stop at any
+        // step: a .new may be half written and is dropped, and a .saved is
+        // whole and newer than the file (Recover).
         private const string NewSuffix = ".new";
+        private const string SavedSuffix = ".saved";
 
         public static readonly object Lock = new object();
 
@@ -81,6 +85,7 @@ namespace Silverdash360.Services
                 {
                     Init();
                     string path = folder + "/" + fileName;
+                    Recover(path);
                     FileEntry entry = files.Stat(path);
                     if (entry == null || entry.IsDirectory)
                     {
@@ -137,11 +142,17 @@ namespace Silverdash360.Services
                             }
                         }
                     }
+                    string saved = path + SavedSuffix;
+                    if (files.Stat(saved) != null)
+                    {
+                        files.Delete(saved, false);
+                    }
+                    files.Rename(written, saved);
                     if (files.Stat(path) != null)
                     {
                         files.Delete(path, false);
                     }
-                    files.Rename(written, path);
+                    files.Rename(saved, path);
                     return true;
                 }
             }
@@ -198,6 +209,28 @@ namespace Silverdash360.Services
             catch (Exception e)
             {
                 Log.Write("App storage: {0} not deleted: {1}", fileName, e.Message);
+            }
+        }
+
+        // Finishes a save that was cut short: a whole .saved goes in the
+        // file's place, and a .new, which may not be whole, goes.
+        private static void Recover(string path)
+        {
+            string saved = path + SavedSuffix;
+            if (files.Stat(saved) != null)
+            {
+                if (files.Stat(path) != null)
+                {
+                    files.Delete(path, false);
+                }
+                files.Rename(saved, path);
+                Log.Write("App storage: finished saving {0}", path);
+            }
+            string written = path + NewSuffix;
+            if (files.Stat(written) != null)
+            {
+                files.Delete(written, false);
+                Log.Write("App storage: dropped an unfinished save of {0}", path);
             }
         }
 
