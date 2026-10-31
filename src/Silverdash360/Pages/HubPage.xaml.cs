@@ -42,6 +42,13 @@ namespace Silverdash360.Pages
         private bool preparing;
         private bool refreshing;
 
+        // Shown in place of a section that hasn't been built yet, until the
+        // user stops on it, so passing it on the way to another builds and
+        // draws nothing. It takes focus so LB and RB still reach the hub.
+        private readonly ContentControl waitingView = new ContentControl { IsTabStop = true };
+        private const int BuildQuietMs = 300;
+        private bool buildWaiting;
+
         private readonly DispatcherTimer clock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
         private int shownWallpaper = -1;
         private bool wallpaperWaiting;
@@ -114,7 +121,11 @@ namespace Silverdash360.Pages
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
-            if (SectionHost.Content != null)
+            if (SectionHost.Content == waitingView)
+            {
+                FocusHelper.Focus(waitingView);
+            }
+            else if (SectionHost.Content != null)
             {
                 Modules[current].Activate();
             }
@@ -196,7 +207,7 @@ namespace Silverdash360.Pages
         {
             refreshing = false;
             IDashboardModule shown = Modules[current];
-            if (SectionHost.Content != null && IsStale(shown))
+            if (SectionHost.Content != null && SectionHost.Content != waitingView && IsStale(shown))
             {
                 RefreshIfStale(shown);
                 shown.Activate();
@@ -346,22 +357,62 @@ namespace Silverdash360.Pages
                 headers[i].Foreground = i == current ? Theme.Text : Theme.SubText;
                 headers[i].FontWeight = i == current ? FontWeights.Bold : FontWeights.Normal;
             }
-            FrameworkElement view = Build(module);
-            RefreshIfStale(module);
-            ContentControl oldHost = view.Parent as ContentControl;
-            if (oldHost != null && oldHost != SectionHost)
-            {
-                oldHost.Content = null;
-            }
-            SectionHost.Content = view;
+            bool ready = built.Contains(module);
+            Host(ready ? module.View : waitingView);
             ShowLegend();
             StatusText.Text = Context.Library.IsLoading ? "Reading the console's content..." : "";
             if (direction != 0)
             {
                 Slide(direction);
             }
-            module.Activate();
+            if (ready)
+            {
+                module.Activate();
+                // A section the library changed under is shown as it was and
+                // refreshed when the user stops.
+                if (IsStale(module))
+                {
+                    Prepare();
+                }
+            }
+            else
+            {
+                FocusHelper.Focus(waitingView);
+                WaitToBuild();
+            }
             ShowWallpaper(direction == 0);
+        }
+
+        private void Host(FrameworkElement view)
+        {
+            ContentControl oldHost = view.Parent as ContentControl;
+            if (oldHost != null && oldHost != SectionHost)
+            {
+                oldHost.Content = null;
+            }
+            SectionHost.Content = view;
+        }
+
+        // Builds the section on screen once the user stops on it.
+        private void WaitToBuild()
+        {
+            if (buildWaiting)
+            {
+                return;
+            }
+            buildWaiting = true;
+            UiIdle.Run(() =>
+            {
+                buildWaiting = false;
+                if (SectionHost.Content == waitingView)
+                {
+                    IDashboardModule module = Modules[current];
+                    Host(Build(module));
+                    RefreshIfStale(module);
+                    module.Activate();
+                }
+                return false;
+            }, BuildQuietMs);
         }
 
         // Each section has a wallpaper of its own, as each blade had one in
