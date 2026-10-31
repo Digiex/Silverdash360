@@ -108,3 +108,26 @@ def page_open(t):
         time.sleep(0.3)
     # Includes the network and the 400 ms the command waits for the page to settle.
     t.metric('ui.titlePage.open.ms', sum(times) / len(times), noise=50)
+
+
+@test('performance')
+def press_timing(t):
+    """From a button press to the frames that follow: the press's own work, the first frame, a page's arrival."""
+    t.library()
+    t.call('ui.navigate', 'hub')
+    state = t.call('ui.section', 'apps')
+    if not state.get('grid') or state['grid']['items'] < 3:
+        state = t.call('ui.section', 'games')
+    if not state.get('grid') or state['grid']['items'] < 3:
+        t.skip('no section with three or more titles')
+    t.note('motion: %s' % t.call('ui.motion'))
+    for name, button, window in (('move', 'right', 400), ('moveBack', 'left', 400), ('section', 'rb', 500),
+                                 ('sectionBack', 'lb', 500), ('openTitle', 'a', 1000), ('back', 'b', 1000)):
+        r = t.call('ui.timeline', button, window)
+        t.check(r['handled'], '%s was not handled' % button)
+        t.metric('press.%s.handlerMs' % name, r['handlerMs'], noise=5)
+        t.metric('press.%s.firstFrameMs' % name, r['firstFrameMs'], noise=10)
+        t.metric('press.%s.frameMsMax' % name, r['frameMsMax'], noise=10)
+        if r['readyMs'] >= 0:
+            t.metric('press.%s.readyMs' % name, r['readyMs'], noise=30)
+        time.sleep(0.3)

@@ -31,10 +31,12 @@ namespace Silverdash360.Pages
         private readonly DispatcherTimer clock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
         private readonly List<TextBlock> headers = new List<TextBlock>();
         private readonly Storyboard sliding = new Storyboard();
+        private readonly Storyboard sectionSlide = new Storyboard();
 
         public HubPage()
         {
             InitializeComponent();
+            Motion.UsePageTransitions(this);
             clock.Tick += delegate { ShowClock(); };
             GamePadButtonDown += OnButtonDown;
             Loaded += OnLoaded;
@@ -233,24 +235,30 @@ namespace Silverdash360.Pages
             module.Activate();
         }
 
+        // A slide alone by default: fading the whole section redraws all of
+        // it on every frame, which the console feels.
         private void Slide(int direction)
         {
-            Storyboard story = new Storyboard();
+            sectionSlide.Stop();
+            sectionSlide.Children.Clear();
             DoubleAnimation slide = new DoubleAnimation
             {
-                From = 60 * direction,
+                From = Motion.SectionDistance * direction,
                 To = 0,
-                Duration = TimeSpan.FromMilliseconds(220),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                Duration = TimeSpan.FromMilliseconds(Motion.SectionMs),
+                EasingFunction = Motion.EaseOut(),
             };
             Storyboard.SetTarget(slide, SectionSlide);
             Storyboard.SetTargetProperty(slide, new PropertyPath("X"));
-            DoubleAnimation fade = new DoubleAnimation { From = 0.2, To = 1, Duration = TimeSpan.FromMilliseconds(220) };
-            Storyboard.SetTarget(fade, SectionHost);
-            Storyboard.SetTargetProperty(fade, new PropertyPath("Opacity"));
-            story.Children.Add(slide);
-            story.Children.Add(fade);
-            story.Begin();
+            sectionSlide.Children.Add(slide);
+            if (Motion.SectionFade)
+            {
+                DoubleAnimation fade = new DoubleAnimation { From = 0.2, To = 1, Duration = slide.Duration };
+                Storyboard.SetTarget(fade, SectionHost);
+                Storyboard.SetTargetProperty(fade, new PropertyPath("Opacity"));
+                sectionSlide.Children.Add(fade);
+            }
+            sectionSlide.Begin();
         }
 
         private void ShowGamer()

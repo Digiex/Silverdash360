@@ -52,7 +52,6 @@ namespace Silverdash360.Controls
     public class TileGrid : UserControl
     {
         private const double StickThreshold = 0.55;
-        private static readonly Duration ScrollTime = new Duration(TimeSpan.FromMilliseconds(180));
 
         private readonly Canvas viewport = new Canvas();
         private readonly Canvas surface = new Canvas();
@@ -83,7 +82,10 @@ namespace Silverdash360.Controls
 
             viewport.Clip = new RectangleGeometry();
             surface.RenderTransform = scroll;
-            surface.CacheMode = new BitmapCache();
+            if (Motion.CacheGrids)
+            {
+                surface.CacheMode = new BitmapCache();
+            }
             viewport.Children.Add(surface);
             emptyText.FontSize = 24;
             emptyText.Opacity = 0.7;
@@ -92,8 +94,7 @@ namespace Silverdash360.Controls
             viewport.Children.Add(emptyText);
             Content = viewport;
 
-            scrollStep.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
-            scrollStep.Duration = ScrollTime;
+            scrollStep.EasingFunction = Motion.EaseOut();
             Storyboard.SetTarget(scrollStep, scroll);
             scrollAnimation.Children.Add(scrollStep);
 
@@ -319,6 +320,7 @@ namespace Silverdash360.Controls
             }
             scrollStep.From = -from;
             scrollStep.To = -target;
+            scrollStep.Duration = TimeSpan.FromMilliseconds(Motion.ScrollMs);
             scrollAnimation.Begin();
         }
 

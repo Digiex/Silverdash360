@@ -53,6 +53,122 @@ namespace Silverdash360.Debugging
             commands.Add("ui.fps", "[ms]", "Frames drawn over a time (2000 ms by default).", Fps);
             commands.Add("ui.scroll", "<steps> [up|down|left|right]",
                          "Moves the focused grid's selection a step a frame and times the frames.", Scroll);
+            commands.Add("ui.timeline", "<button> [ms]",
+                         "Presses a button and times what follows: the press's own work, the first frame, a page's arrival and the frames.", Timeline);
+            commands.Add("ui.motion", "[name value]...", "The animation settings (Controls/Motion.cs), changing any given.", MotionSettings);
+        }
+
+        private object MotionSettings(DebugRequest request)
+        {
+            if (request.Args.Count % 2 != 0)
+            {
+                throw new DebugException("Give a value for each name.");
+            }
+            UiThread.Invoke(() =>
+            {
+                for (int i = 0; i < request.Args.Count; i += 2)
+                {
+                    string value = request.Args[i + 1];
+                    switch (request.Args[i])
+                    {
+                        case "scrollMs": Motion.ScrollMs = int.Parse(value); break;
+                        case "sectionMs": Motion.SectionMs = int.Parse(value); break;
+                        case "sectionDistance": Motion.SectionDistance = double.Parse(value); break;
+                        case "sectionFade": Motion.SectionFade = bool.Parse(value); break;
+                        case "pageInMs": Motion.PageInMs = int.Parse(value); break;
+                        case "pageOutMs": Motion.PageOutMs = int.Parse(value); break;
+                        case "pageDistance": Motion.PageDistance = double.Parse(value); break;
+                        case "cacheGrids": Motion.CacheGrids = bool.Parse(value); break;
+                        case "platformPages": Motion.PlatformPages = bool.Parse(value); break;
+                        default: throw new DebugException("No setting " + request.Args[i] + ".");
+                    }
+                }
+            });
+            return new JsonObject
+            {
+                { "scrollMs", Motion.ScrollMs },
+                { "sectionMs", Motion.SectionMs },
+                { "sectionDistance", Motion.SectionDistance },
+                { "sectionFade", Motion.SectionFade },
+                { "pageInMs", Motion.PageInMs },
+                { "pageOutMs", Motion.PageOutMs },
+                { "pageDistance", Motion.PageDistance },
+                { "cacheGrids", Motion.CacheGrids },
+                { "platformPages", Motion.PlatformPages },
+            };
+        }
+
+        /// <summary>What happened after one press, in milliseconds from it, on the UI thread.</summary>
+        private sealed class PressTimeline
+        {
+            public int Start;
+            public int HandlerMs;
+            public int NavigatedMs = -1;
+            public int ReadyMs = -1;
+            public readonly List<int> Frames = new List<int>();
+
+            public void OnRendering(object sender, EventArgs e)
+            {
+                Frames.Add(Environment.TickCount - Start);
+            }
+
+            public void OnNavigated(object sender, System.Windows.Navigation.NavigationEventArgs e)
+            {
+                NavigatedMs = Environment.TickCount - Start;
+            }
+
+            public void OnReady(object sender, Microsoft.Xbox.Transitions.TransitionEventArgs e)
+            {
+                ReadyMs = Environment.TickCount - Start;
+            }
+        }
+
+        private object Timeline(DebugRequest request)
+        {
+            string name = request.Arg(0, "button", true).ToLowerInvariant();
+            GamePadButton button;
+            if (!Buttons.TryGetValue(name, out button))
+            {
+                throw new DebugException("No button " + name + ".");
+            }
+            int window = Math.Max(100, request.Int(1, 1000));
+            PressTimeline timeline = new PressTimeline();
+            bool handled = UiThread.Invoke(() =>
+            {
+                CompositionTarget.Rendering += timeline.OnRendering;
+                Frame.Navigated += timeline.OnNavigated;
+                Microsoft.Xbox.Transitions.TransitionService.TransitionInCompleted += timeline.OnReady;
+                timeline.Start = Environment.TickCount;
+                bool took = PressOnce(button);
+                timeline.HandlerMs = Environment.TickCount - timeline.Start;
+                return took;
+            });
+            Thread.Sleep(window);
+            UiThread.Invoke(() =>
+            {
+                CompositionTarget.Rendering -= timeline.OnRendering;
+                Frame.Navigated -= timeline.OnNavigated;
+                Microsoft.Xbox.Transitions.TransitionService.TransitionInCompleted -= timeline.OnReady;
+            });
+            List<int> frames = timeline.Frames;
+            List<int> gaps = new List<int>();
+            for (int i = 1; i < frames.Count; i++)
+            {
+                gaps.Add(frames[i] - frames[i - 1]);
+            }
+            JsonObject result = Settled();
+            result.Add("button", name);
+            result.Add("handled", handled);
+            result.Add("handlerMs", timeline.HandlerMs);
+            result.Add("firstFrameMs", frames.Count > 0 ? frames[0] : -1);
+            result.Add("navigatedMs", timeline.NavigatedMs);
+            result.Add("readyMs", timeline.ReadyMs);
+            result.Add("frames", frames.Count);
+            result.Add("frameMsMax", gaps.Count > 0 ? gaps.Max() : 0);
+            result.Add("frameMsAverage", gaps.Count > 0 ? gaps.Average() : 0);
+            result.Add("framesOver50ms", gaps.Count(g => g > 50));
+            result.Add("frameTimes", frames.Take(60).ToList());
+            return result;
         }
 
         private JsonObject State()

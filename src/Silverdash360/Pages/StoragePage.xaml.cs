@@ -43,6 +43,7 @@ namespace Silverdash360.Pages
         public StoragePage()
         {
             InitializeComponent();
+            Motion.UsePageTransitions(this);
             Items.Direction = ScrollDirection.Vertical;
             Items.Lines = 1;
             Items.TileWidth = 0;

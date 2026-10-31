@@ -96,9 +96,25 @@ python tests/debugclient.py 192.168.1.20
 | `ui.state`, `ui.section`, `ui.navigate`, `ui.back`, `ui.press` | What's on screen, and driving it. |
 | `ui.fps`, `ui.scroll` | Frame rate when idle, and while moving a grid's selection a step per frame. |
 | `bench.list`, `bench <name> [iterations]` | Timed runs of the dashboard's work. |
+| `ui.timeline <button> [ms]`, `ui.motion [name value]...` | What a press costs: its own work, the first frame after it, a page's arrival and readiness, the frame gaps; and the animation settings, changed live. |
 | `app.location`, `app.launch [path]`, `ftp.start [port]`, `ftp.stop` | Where the dashboard runs from, starting a build, and the FTP server, for deploy.py. |
 
 A controller's button events can't be made from code, so `ui.press` does what the button does instead: it calls the focused grid's `TileGrid.Press`, then the hub's `HubPage.Press`, then the frame's back for B. Pages with their own button handling, such as the search page's keyboard, aren't reached that way.
+
+## Tuning the animations on a console
+
+`src/Silverdash360/Controls/Motion.cs` holds every animation's length and what it animates: the grids' scroll, a hub section sliding in, page transitions, and whether a grid draws its tiles into one cached bitmap. `ui.motion` shows them and changes any while the dashboard runs, so they can be tried on the console without a build:
+
+```
+> ui.motion
+> ui.motion scrollMs 120 sectionMs 140
+> ui.timeline right
+> ui.timeline a 1000
+> ui.motion cacheGrids false        (taken by grids made from now: change section)
+> ui.motion platformPages true      (pages made from now keep the platform's transitions)
+```
+
+`ui.timeline` presses a button and reports, in milliseconds from the press: `handlerMs`, the press's own work; `firstFrameMs`, the first frame drawn after it; `navigatedMs` and `readyMs`, when a new page arrived and when its transition ended and it took input; and the frame gaps (`frameMsMax`, `framesOver50ms`). The performance suite's `press_timing` records the same for a move, a section switch, opening a title and coming back, to compare with `--baseline`. Write the values that feel best into Motion.cs.
 
 ## The protocol
 

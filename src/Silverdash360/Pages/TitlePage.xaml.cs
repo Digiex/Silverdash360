@@ -46,6 +46,7 @@ namespace Silverdash360.Pages
         public TitlePage()
         {
             InitializeComponent();
+            Motion.UsePageTransitions(this);
             Actions.Direction = ScrollDirection.Vertical;
             Actions.Lines = 1;
             Actions.TileWidth = 300;

@@ -70,6 +70,7 @@
     <Compile Include="Services\Ftp\FtpSession.cs" />
     <Compile Include="Services\Ftp\NativeSocket.cs" />
     <Compile Include="Controls\FocusHelper.cs" />
+    <Compile Include="Controls\Motion.cs" />
     <Compile Include="Controls\OnScreenKeyboard.cs" />
     <Compile Include="Controls\Theme.cs" />
     <Compile Include="Controls\TileGrid.cs" />

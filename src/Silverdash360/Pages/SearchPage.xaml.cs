@@ -20,6 +20,7 @@ namespace Silverdash360.Pages
         public SearchPage()
         {
             InitializeComponent();
+            Motion.UsePageTransitions(this);
             Results.Direction = ScrollDirection.Vertical;
             Results.Lines = 1;
             Results.TileWidth = 0;
