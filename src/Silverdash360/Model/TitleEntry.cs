@@ -86,9 +86,21 @@ namespace Silverdash360.Model
             {
                 if (!launchItemFound)
                 {
-                    launchItem = Content.Where(c => ContentType.IsLaunchable(c.Type) && !c.IsCorrupt)
-                                        .OrderBy(c => LaunchPriority(c.Type))
-                                        .FirstOrDefault();
+                    // The first of the most preferred kind; a plain loop, as a
+                    // title can have hundreds of packages.
+                    int best = int.MaxValue;
+                    foreach (ContentItem item in Content)
+                    {
+                        if (ContentType.IsLaunchable(item.Type) && !item.IsCorrupt)
+                        {
+                            int priority = LaunchPriority(item.Type);
+                            if (priority < best)
+                            {
+                                best = priority;
+                                launchItem = item;
+                            }
+                        }
+                    }
                     launchItemFound = true;
                 }
                 return launchItem;

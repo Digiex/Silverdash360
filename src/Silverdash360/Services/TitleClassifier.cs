@@ -24,13 +24,25 @@ namespace Silverdash360.Services
     {
         public TitleKind? Classify(TitleEntry title)
         {
-            if (title.LaunchItem != null || title.Executable != null || title.Played != null ||
-                !title.Content.Any(c => ContentType.IsVideo(c.Type)) ||
-                title.Content.Any(c => !ContentType.IsVideo(c.Type) && c.Type != ContentType.SavedGame))
+            if (title.LaunchItem != null || title.Executable != null || title.Played != null)
             {
                 return null;
             }
-            return TitleKind.Other;
+            // A plain loop: classifying runs over every package of every title.
+            bool video = false;
+            foreach (ContentItem item in title.Content)
+            {
+                uint type = item.Type;
+                if (ContentType.IsVideo(type))
+                {
+                    video = true;
+                }
+                else if (type != ContentType.SavedGame)
+                {
+                    return null;
+                }
+            }
+            return video ? TitleKind.Other : (TitleKind?)null;
         }
     }
 
@@ -84,9 +96,12 @@ namespace Silverdash360.Services
             {
                 return TitleKind.Game;
             }
-            if (title.Content.Any(c => c.Type == ContentType.InstalledGame || c.Type == ContentType.XboxOriginalGame))
+            foreach (ContentItem item in title.Content)
             {
-                return TitleKind.Game;
+                if (item.Type == ContentType.InstalledGame || item.Type == ContentType.XboxOriginalGame)
+                {
+                    return TitleKind.Game;
+                }
             }
             return TitleKind.Other;
         }

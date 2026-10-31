@@ -90,12 +90,13 @@ namespace Silverdash360.Debugging
             {
                 IList<ContentItem> content = context.Library.AllContent;
                 List<ExecutableItem> executables = Executables();
-                return () => LibraryCache.Serialize(content, executables);
+                IList<IList<ContentItem>> sections = new List<IList<ContentItem>> { content };
+                return () => LibraryCache.Serialize(sections, executables);
             });
             Add("cache.deserialize", "The cache file's bytes back into the library.", 3, () =>
             {
-                byte[] bytes = LibraryCache.Serialize(context.Library.AllContent, Executables());
-                return () => LibraryCache.Deserialize(new MemoryStream(bytes));
+                byte[] bytes = LibraryCache.Serialize(new List<IList<ContentItem>> { context.Library.AllContent }, Executables());
+                return () => LibraryCache.Deserialize(new MemoryStream(bytes), null);
             });
             Add("library.search", "Searching the library for \"the\".", 20, () => () => context.Library.Search("the"));
             Add("sort.orderby", "Sorting the library's names with OrderBy and a key.", 10, () =>

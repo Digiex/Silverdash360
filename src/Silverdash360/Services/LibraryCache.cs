@@ -16,13 +16,25 @@ namespace Silverdash360.Services
     /// thumbnails aren't kept, so with thousands of packages it stays around
     /// half a kilobyte a package. Call it from a background thread: storage
     /// blocks.
+    ///
+    /// The packages are kept in sections, read in order and handed over one
+    /// at a time, so a start can show the first screens before it has read
+    /// the rest: the console takes seconds to read thousands of packages.
     /// </summary>
     public sealed class LibraryCache
     {
         private const string FileName = "library.bin";
         private const uint Magic = 0x53443343; // "SD3C"
-        private const int FormatVersion = 5;
+        private const int FormatVersion = 6;
+        // Packages, then executables, in one section; still read, so a new
+        // build doesn't read every header again.
+        private const int UnsectionedVersion = 5;
         private const int BlockSize = 0x10000;
+        // After each package, what's known of its header. Older files wrote a
+        // bool, so 0 and 1 mean what they did there.
+        private const byte HeaderNotRead = 0;
+        private const byte HeaderMetadata = 1;
+        private const byte HeaderWithoutMetadata = 2;
 
         /// <summary>A package's identity: where it's stored and its file name.</summary>
         public static string KeyOf(ContentItem item)
@@ -36,10 +48,18 @@ namespace Silverdash360.Services
         {
             public List<ContentItem> Content = new List<ContentItem>();
             public List<ExecutableItem> Executables = new List<ExecutableItem>();
+            /// <summary>Whether every section has been read.</summary>
+            public bool Complete;
+            /// <summary>Read from an older format, which a save brings up to date.</summary>
+            public bool Outdated;
         }
 
-        /// <summary>The cached packages with their metadata, and the executables found.</summary>
-        public Contents Load()
+        /// <summary>
+        /// The cached packages with their metadata, and the executables found.
+        /// section, when given, is called after each section with what has
+        /// been read so far, the last time with <see cref="Contents.Complete"/>.
+        /// </summary>
+        public Contents Load(Action<Contents> section)
         {
             Contents contents = new Contents();
             try
@@ -65,7 +85,7 @@ namespace Silverdash360.Services
                     }
                 }
                 bytes.Position = 0;
-                contents = Deserialize(bytes);
+                contents = Deserialize(bytes, section);
                 Log.Write("Library cache: {0} packages, {1} executables", contents.Content.Count,
                           contents.Executables.Count);
             }
@@ -79,24 +99,64 @@ namespace Silverdash360.Services
         }
 
         /// <summary>Reads what <see cref="Serialize"/> wrote; empty for another format version.</summary>
-        public static Contents Deserialize(Stream bytes)
+        public static Contents Deserialize(Stream bytes, Action<Contents> section)
         {
             Contents contents = new Contents();
             BinaryReader reader = new BinaryReader(bytes);
-            if (reader.ReadUInt32() != Magic || reader.ReadInt32() != FormatVersion)
+            if (reader.ReadUInt32() != Magic)
             {
                 return contents;
             }
+            int version = reader.ReadInt32();
+            if (version == UnsectionedVersion)
+            {
+                contents.Outdated = true;
+                ReadPackages(reader, contents);
+                ReadExecutables(reader, contents);
+                contents.Complete = true;
+                if (section != null)
+                {
+                    section(contents);
+                }
+                return contents;
+            }
+            if (version != FormatVersion)
+            {
+                return contents;
+            }
+            ReadExecutables(reader, contents);
+            int sections = reader.ReadInt32();
+            for (int s = 0; s < sections; s++)
+            {
+                ReadPackages(reader, contents);
+                contents.Complete = s == sections - 1;
+                if (section != null)
+                {
+                    section(contents);
+                }
+            }
+            contents.Complete = true;
+            return contents;
+        }
+
+        private static void ReadPackages(BinaryReader reader, Contents contents)
+        {
             int count = reader.ReadInt32();
             for (int i = 0; i < count; i++)
             {
                 ContentItem item = ContentItem.ReadRecord(reader);
-                if (reader.ReadBoolean())
+                byte header = reader.ReadByte();
+                if (header == HeaderMetadata)
                 {
                     item.Metadata = ContentMetadata.Read(reader);
                 }
+                item.HeaderRead = header != HeaderNotRead;
                 contents.Content.Add(item);
             }
+        }
+
+        private static void ReadExecutables(BinaryReader reader, Contents contents)
+        {
             int executables = reader.ReadInt32();
             for (int i = 0; i < executables; i++)
             {
@@ -113,18 +173,18 @@ namespace Silverdash360.Services
                     Modified = new DateTime(reader.ReadInt64()),
                 });
             }
-            return contents;
         }
 
         /// <summary>
-        /// Saves the library. pace, when given, is called between blocks so a
-        /// background save leaves the console to the UI.
+        /// Saves the library, its packages in the sections given. pace, when
+        /// given, is called between blocks so a background save leaves the
+        /// console to the UI.
         /// </summary>
-        public void Save(IList<ContentItem> items, IList<ExecutableItem> executables, Action pace)
+        public void Save(IList<IList<ContentItem>> sections, IList<ExecutableItem> executables, Action pace)
         {
             try
             {
-                byte[] bytes = Serialize(items, executables);
+                byte[] bytes = Serialize(sections, executables);
                 lock (TitleStorage.Lock)
                 using (StorageContainer container = TitleStorage.Open())
                 {
@@ -144,8 +204,13 @@ namespace Silverdash360.Services
                         }
                     }
                 }
-                Log.Write("Library cache saved: {0} packages, {1} executables, {2} bytes", items.Count,
-                          executables.Count, bytes.Length);
+                int packages = 0;
+                foreach (IList<ContentItem> section in sections)
+                {
+                    packages += section.Count;
+                }
+                Log.Write("Library cache saved: {0} packages in {1} sections, {2} executables, {3} bytes", packages,
+                          sections.Count, executables.Count, bytes.Length);
             }
             catch (Exception e)
             {
@@ -154,22 +219,12 @@ namespace Silverdash360.Services
         }
 
         /// <summary>The cache file's bytes for the library.</summary>
-        public static byte[] Serialize(IList<ContentItem> items, IList<ExecutableItem> executables)
+        public static byte[] Serialize(IList<IList<ContentItem>> sections, IList<ExecutableItem> executables)
         {
             MemoryStream buffer = new MemoryStream();
             BinaryWriter writer = new BinaryWriter(buffer);
             writer.Write(Magic);
             writer.Write(FormatVersion);
-            writer.Write(items.Count);
-            foreach (ContentItem item in items)
-            {
-                item.WriteRecord(writer);
-                writer.Write(item.Metadata != null);
-                if (item.Metadata != null)
-                {
-                    item.Metadata.Write(writer);
-                }
-            }
             writer.Write(executables.Count);
             foreach (ExecutableItem item in executables)
             {
@@ -182,6 +237,21 @@ namespace Silverdash360.Services
                 writer.Write(item.TitleId);
                 writer.Write(item.Size);
                 writer.Write(item.Modified.Ticks);
+            }
+            writer.Write(sections.Count);
+            foreach (IList<ContentItem> section in sections)
+            {
+                writer.Write(section.Count);
+                foreach (ContentItem item in section)
+                {
+                    item.WriteRecord(writer);
+                    writer.Write(item.Metadata != null ? HeaderMetadata
+                                 : item.HeaderRead ? HeaderWithoutMetadata : HeaderNotRead);
+                    if (item.Metadata != null)
+                    {
+                        item.Metadata.Write(writer);
+                    }
+                }
             }
             writer.Flush();
             return buffer.ToArray();

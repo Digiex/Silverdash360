@@ -176,6 +176,9 @@ namespace Silverdash360.Services
                 Done();
                 return;
             }
+            // While a start shows the saved library a section at a time, a
+            // theme package can be missing only for now.
+            bool partial = !library.IsComplete;
             if (loading)
             {
                 loadAgain |= force;
@@ -195,7 +198,7 @@ namespace Silverdash360.Services
             Background.Run(() => Read(gamer, installed, current), delegate(LoadResult result, Exception error)
             {
                 loading = false;
-                loaded = true;
+                loaded = !partial || (result != null && result.Theme != null);
                 loadedForXuid = xuid;
                 if (result != null && !result.Unchanged)
                 {

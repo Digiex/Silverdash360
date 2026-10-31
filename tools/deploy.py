@@ -193,6 +193,9 @@ def main():
 
     target = args.target or (location['path'] if location and location['writable'] else FALLBACK_TARGET)
     target = '/' + target.strip('/')
+    # A build left running from a staging folder belongs in the folder above.
+    while target.endswith('/' + STAGING):
+        target = target[:-len('/' + STAGING)] or FALLBACK_TARGET
     running_here = bool(location and location['path'] and location['path'].lower() == target.lower())
     mode = args.mode if args.mode != 'auto' else ('staging' if running_here else 'direct')
     if mode == 'staging' and not client:

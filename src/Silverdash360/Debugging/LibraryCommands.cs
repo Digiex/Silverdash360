@@ -151,7 +151,7 @@ namespace Silverdash360.Debugging
         private static object CacheLoad()
         {
             int start = Environment.TickCount;
-            LibraryCache.Contents contents = new LibraryCache().Load();
+            LibraryCache.Contents contents = new LibraryCache().Load(null);
             return new JsonObject
             {
                 { "loadMs", Environment.TickCount - start },

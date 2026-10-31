@@ -59,6 +59,12 @@ namespace Silverdash360.Services
         public bool IsLoading { get; private set; }
         public bool IsLoaded { get; private set; }
 
+        /// <summary>
+        /// Every package is in: false while a start shows the saved library
+        /// a section at a time.
+        /// </summary>
+        public bool IsComplete { get; private set; }
+
         /// <summary>The profile the played titles came from, or null.</summary>
         public Gamer Gamer { get; private set; }
 
@@ -148,6 +154,7 @@ namespace Silverdash360.Services
             public Dictionary<string, TitleEntry> ByKey;
             public SearchIndex Search;
             public Gamer Gamer;
+            public bool Complete = true;
         }
 
         // A null result is a refresh that found what's shown already.
@@ -160,6 +167,7 @@ namespace Silverdash360.Services
             current = result;
             Gamer = result.Gamer;
             IsLoaded = true;
+            IsComplete = result.Complete;
             if (Changed != null)
             {
                 Changed(this, EventArgs.Empty);
@@ -192,6 +200,7 @@ namespace Silverdash360.Services
             Dictionary<string, ContentMetadata> known = new Dictionary<string, ContentMetadata>();
             Dictionary<string, ExecutableItem> knownExecutables = new Dictionary<string, ExecutableItem>();
             int cachedCount = 0;
+            bool outdated = false;
             bool shown = IsLoaded;
             if (full)
             {
@@ -200,10 +209,27 @@ namespace Silverdash360.Services
             else
             {
                 Report("Opening the saved library...", null);
-                LibraryCache.Contents cached = cache.Load();
+                // On a start, each section goes up as soon as it's read: the
+                // first screens' titles, then every title, then the rest.
+                bool showSections = !IsLoaded;
+                LibraryCache.Contents cached = cache.Load(section =>
+                {
+                    if (!showSections || (section.Content.Count == 0 && section.Executables.Count == 0))
+                    {
+                        return;
+                    }
+                    int building = Environment.TickCount;
+                    LoadResult partial = Build(section.Content, section.Executables, gamer, played);
+                    partial.Complete = section.Complete;
+                    Log.Write("Library: showing {0} saved packages{1}, built in {2} ms", section.Content.Count,
+                              section.Complete ? "" : " so far", Environment.TickCount - building);
+                    Background.OnUi(() => Publish(partial));
+                });
                 foreach (ContentItem item in cached.Content)
                 {
-                    if (item.Metadata != null)
+                    // A header read before without metadata, such as an avatar
+                    // item's, isn't read again on every start.
+                    if (item.Metadata != null || item.HeaderRead)
                     {
                         known[LibraryCache.KeyOf(item)] = item.Metadata;
                     }
@@ -213,13 +239,9 @@ namespace Silverdash360.Services
                     knownExecutables[item.Path] = item;
                 }
                 cachedCount = cached.Content.Count;
+                outdated = cached.Outdated;
                 if (cached.Content.Count > 0 || cached.Executables.Count > 0)
                 {
-                    if (!IsLoaded)
-                    {
-                        LoadResult quick = Build(cached.Content, cached.Executables, gamer, played);
-                        Background.OnUi(() => Publish(quick));
-                    }
                     shown = true;
                 }
             }
@@ -276,6 +298,7 @@ namespace Silverdash360.Services
                 if (known.TryGetValue(LibraryCache.KeyOf(item), out metadata))
                 {
                     item.Metadata = metadata;
+                    item.HeaderRead = true;
                 }
                 else
                 {
@@ -292,6 +315,7 @@ namespace Silverdash360.Services
                     Report(string.Format("Reading {0} of {1} packages...", i + 1, unread.Count), (double)i / unread.Count);
                 }
                 unread[i].Metadata = source.ReadMetadata(unread[i], false);
+                unread[i].HeaderRead = true;
                 if (paceHeader != null)
                 {
                     paceHeader();
@@ -302,18 +326,19 @@ namespace Silverdash360.Services
             bool executablesChanged = found.Count != knownExecutables.Count ||
                                       found.Any(e => !knownExecutables.ContainsKey(e.Path) ||
                                                      knownExecutables[e.Path].TitleId != e.TitleId);
-            bool changed = unread.Count > 0 || content.Count != cachedCount ||
-                           known.Count != content.Count(c => c.Metadata != null) || executablesChanged;
+            bool changed = outdated || unread.Count > 0 || content.Count != cachedCount ||
+                           known.Count != content.Count(c => c.HeaderRead) || executablesChanged;
+            // What's on screen came from the same packages: nothing to redo.
+            LoadResult built = changed || !shown ? Build(content, found, gamer, played) : null;
             if (changed)
             {
                 Report("Saving the library...", 1);
-                cache.Save(content, found, paceSave);
+                cache.Save(CacheSections(built), found, paceSave);
             }
             Log.Write("Library: {0} packages, {1} headers read, {2} executables, {3}, in {4} ms", content.Count,
                       unread.Count, found.Count, changed ? "changed" : "unchanged",
                       (int)(DateTime.UtcNow - started).TotalMilliseconds);
-            // What's on screen came from the same packages: nothing to redo.
-            return changed || !shown ? Build(content, found, gamer, played) : null;
+            return built;
         }
 
         // The profile's played titles, with the packages that start the most
@@ -337,34 +362,122 @@ namespace Silverdash360.Services
             }
             Log.Write("Showing {0} played titles, {1} packages to start them, before the rest", played.Count,
                       content.Count);
-            return Build(content, new List<ExecutableItem>(), gamer, played);
+            LoadResult recent = Build(content, new List<ExecutableItem>(), gamer, played);
+            recent.Complete = false;
+            return recent;
+        }
+
+        // The titles of each list a start shows first.
+        private const int FirstScreenTitles = 24;
+
+        // The packages in the order a start wants them: what makes the titles
+        // on the first screens, then what makes every other title, then the
+        // rest (saves, avatar items, add-ons and the like), which only the
+        // storage and media pages and a title's details need.
+        private static IList<IList<ContentItem>> CacheSections(LoadResult library)
+        {
+            Dictionary<ContentItem, bool> placed = new Dictionary<ContentItem, bool>();
+            List<ContentItem> first = new List<ContentItem>();
+            // The themes, few and small, so the dashboard's theme is there at once.
+            foreach (ContentItem item in library.Content)
+            {
+                if (item.Type == ContentType.Theme)
+                {
+                    placed[item] = true;
+                    first.Add(item);
+                }
+            }
+            foreach (IList<TitleEntry> list in new[] { library.Recent, library.Games, library.Apps })
+            {
+                for (int i = 0; i < list.Count && i < FirstScreenTitles; i++)
+                {
+                    AddTitleMakers(list[i], first, placed);
+                }
+            }
+            List<ContentItem> titles = new List<ContentItem>();
+            foreach (TitleEntry title in library.Titles)
+            {
+                AddTitleMakers(title, titles, placed);
+            }
+            List<ContentItem> rest = new List<ContentItem>();
+            foreach (ContentItem item in library.Content)
+            {
+                if (!placed.ContainsKey(item))
+                {
+                    rest.Add(item);
+                }
+            }
+            return new List<IList<ContentItem>> { first, titles, rest };
+        }
+
+        // What a title is made of for the lists: the packages that start or
+        // install it, else the one it takes its name from.
+        private static void AddTitleMakers(TitleEntry title, List<ContentItem> section,
+                                           Dictionary<ContentItem, bool> placed)
+        {
+            ContentItem named = null;
+            bool any = false;
+            foreach (ContentItem item in title.Content)
+            {
+                uint type = item.Type;
+                if (ContentType.IsLaunchable(type) || type == ContentType.XboxOriginalGame ||
+                    type == ContentType.InstalledGame)
+                {
+                    any = true;
+                    if (!placed.ContainsKey(item))
+                    {
+                        placed[item] = true;
+                        section.Add(item);
+                    }
+                }
+                else if (named == null && item.Metadata != null && item.Metadata.TitleName.Length > 0)
+                {
+                    named = item;
+                }
+            }
+            if (!any)
+            {
+                ContentItem maker = named ?? (title.Content.Count > 0 ? title.Content[0] : null);
+                if (maker != null && !placed.ContainsKey(maker))
+                {
+                    placed[maker] = true;
+                    section.Add(maker);
+                }
+            }
+        }
+
+        // The title with an ID, made when it's first asked for.
+        private static TitleEntry TitleFor(Dictionary<uint, TitleEntry> byId, uint id)
+        {
+            TitleEntry title;
+            if (!byId.TryGetValue(id, out title))
+            {
+                title = new TitleEntry(id);
+                byId.Add(id, title);
+            }
+            return title;
         }
 
         // Titles from packages, executables and the profile's played titles.
+        // Plain loops: the console interprets app code, where each call of a
+        // lambda costs, and this runs over thousands of packages.
         private LoadResult Build(IEnumerable<ContentItem> content, IEnumerable<ExecutableItem> found, Gamer gamer,
                                  List<PlayedTitle> played)
         {
             Dictionary<uint, TitleEntry> byId = new Dictionary<uint, TitleEntry>();
-            Func<uint, TitleEntry> entry = id =>
-            {
-                TitleEntry t;
-                if (!byId.TryGetValue(id, out t))
-                {
-                    t = new TitleEntry(id);
-                    byId.Add(id, t);
-                }
-                return t;
-            };
+            List<ContentItem> allContent = new List<ContentItem>();
             foreach (ContentItem item in content)
             {
-                if (item.TitleId != 0)
+                uint id = item.TitleId;
+                if (id != 0)
                 {
-                    entry(item.TitleId).Content.Add(item);
+                    TitleFor(byId, id).Content.Add(item);
+                    allContent.Add(item);
                 }
             }
             foreach (PlayedTitle p in played)
             {
-                entry(p.TitleId).Played = p;
+                TitleFor(byId, p.TitleId).Played = p;
             }
 
             // An executable joins the title with its ID, which brings its
@@ -379,7 +492,7 @@ namespace Silverdash360.Services
                 if (item.TitleId != 0 && !fromExecutables.ContainsKey(item.TitleId))
                 {
                     bool existed = byId.ContainsKey(item.TitleId);
-                    t = entry(item.TitleId);
+                    t = TitleFor(byId, item.TitleId);
                     if (!existed)
                     {
                         all.Add(t);
@@ -394,21 +507,34 @@ namespace Silverdash360.Services
                 t.Executables.Add(item);
             }
 
+            List<TitleEntry> games = new List<TitleEntry>();
+            List<TitleEntry> apps = new List<TitleEntry>();
+            List<TitleEntry> recent = new List<TitleEntry>();
+            List<TitleEntry> listed = new List<TitleEntry>();
             foreach (TitleEntry t in all)
             {
                 t.Name = NameOf(t);
                 t.Kind = Classify(t);
+                if (t.Kind == TitleKind.Other)
+                {
+                    continue;
+                }
+                listed.Add(t);
+                (t.Kind == TitleKind.Game ? games : apps).Add(t);
+                if (t.LastPlayed != null || t.IsInstalled)
+                {
+                    recent.Add(t);
+                }
             }
             LoadResult result = new LoadResult
             {
                 Titles = all,
-                Games = Sorted(all.Where(t => t.Kind == TitleKind.Game)),
-                Apps = Sorted(all.Where(t => t.Kind == TitleKind.App)),
-                Recent = all.Where(t => t.Kind != TitleKind.Other && (t.LastPlayed != null || t.IsInstalled))
-                            .OrderByDescending(t => t.LastPlayed ?? DateTime.MinValue)
-                            .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
-                            .ToList(),
-                Content = all.SelectMany(t => t.Content).ToList(),
+                Games = Sorted(games),
+                Apps = Sorted(apps),
+                Recent = recent.OrderByDescending(t => t.LastPlayed.HasValue ? t.LastPlayed.Value.Ticks : 0)
+                               .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+                               .ToList(),
+                Content = allContent,
                 ById = new Dictionary<uint, TitleEntry>(),
                 ByKey = new Dictionary<string, TitleEntry>(),
                 Gamer = gamer,
@@ -422,8 +548,7 @@ namespace Silverdash360.Services
                 result.ByKey[t.Key] = t;
             }
             // Made now, in the background, rather than on the first search.
-            result.Search = new SearchIndex(all.Where(t => t.Kind != TitleKind.Other)
-                                               .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase));
+            result.Search = new SearchIndex(listed.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase));
             return result;
         }
 

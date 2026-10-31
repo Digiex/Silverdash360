@@ -18,28 +18,61 @@ namespace Silverdash360.Model
             Record = record;
             DeviceId = BigEndian.U32(record, 0x00);
             Type = BigEndian.U32(record, 0x04);
-            DisplayName = BigEndian.Utf16(record, 0x08, 0x80);
-            FileName = BigEndian.Ansi(record, 0x108, 42);
-            Xuid = BigEndian.U64(record, 0x138);
             TitleId = BigEndian.U32(record, 0x140);
-            Size = (long)BigEndian.U64(record, 0x148);
-            ulong created = BigEndian.U64(record, 0x150);
-            Created = Core.FileTimes.Utc(created);
-            TitleName = BigEndian.Utf16(record, 0x158, 0x40);
-            Flags = BigEndian.U32(record, 0x1FC);
         }
+
+        // The rest is decoded when first asked for: a library has thousands of
+        // packages, most only ever counted, and the console interprets app
+        // code, where every call costs.
+        private string displayName;
+        private string fileName;
+        private string titleName;
+        private bool numbersRead;
+        private ulong xuid;
+        private long size;
+        private DateTime? created;
+        private uint flags;
 
         public byte[] Record { get; private set; }
         public uint DeviceId { get; private set; }
         public uint Type { get; private set; }
-        public string DisplayName { get; private set; }
-        public string FileName { get; private set; }
-        public ulong Xuid { get; private set; }
         public uint TitleId { get; private set; }
-        public long Size { get; private set; }
-        public DateTime? Created { get; private set; }
-        public string TitleName { get; private set; }
-        public uint Flags { get; private set; }
+
+        public string DisplayName
+        {
+            get { return displayName ?? (displayName = BigEndian.Utf16(Record, 0x08, 0x80)); }
+        }
+
+        public string FileName
+        {
+            get { return fileName ?? (fileName = BigEndian.Ansi(Record, 0x108, 42)); }
+        }
+
+        public string TitleName
+        {
+            get { return titleName ?? (titleName = BigEndian.Utf16(Record, 0x158, 0x40)); }
+        }
+
+        public ulong Xuid { get { ReadNumbers(); return xuid; } }
+        public long Size { get { ReadNumbers(); return size; } }
+        public DateTime? Created { get { ReadNumbers(); return created; } }
+        public uint Flags { get { ReadNumbers(); return flags; } }
+
+        private void ReadNumbers()
+        {
+            if (numbersRead)
+            {
+                return;
+            }
+            xuid = BigEndian.U64(Record, 0x138);
+            size = (long)BigEndian.U64(Record, 0x148);
+            created = Core.FileTimes.Utc(BigEndian.U64(Record, 0x150));
+            flags = BigEndian.U32(Record, 0x1FC);
+            numbersRead = true;
+        }
+
+        /// <summary>The package header was read, whether or not it had metadata.</summary>
+        public bool HeaderRead { get; set; }
 
         /// <summary>Filled in from the package header when it has been read.</summary>
         public ContentMetadata Metadata { get; set; }

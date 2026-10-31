@@ -284,6 +284,11 @@ namespace Silverdash360.Services.Files
             {
                 device.Append('\\').Append(parts[i]);
             }
+            // The root of a mount such as \??\name: opens as name:\ only.
+            if (device[device.Length - 1] == ':')
+            {
+                device.Append('\\');
+            }
             return device.ToString();
         }
 
