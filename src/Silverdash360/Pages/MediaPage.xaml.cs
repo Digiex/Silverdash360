@@ -106,10 +106,33 @@ namespace Silverdash360.Pages
             FolderText.Text = folder != null ? folder.Name : source.Name;
             filter = lastFilter;
             Load(key + "|" + id);
+            App.Context.Library.Changed += LibraryChanged;
+        }
+
+        protected override void OnNavigatedFrom(NavigationEventArgs e)
+        {
+            base.OnNavigatedFrom(e);
+            App.Context.Library.Changed -= LibraryChanged;
+        }
+
+        // The downloaded videos come from the library, which may still be
+        // reading the drives when the page opens.
+        private void LibraryChanged(object sender, EventArgs e)
+        {
+            if (source is DownloadedVideoSource)
+            {
+                Load(null);
+            }
         }
 
         private void Load(string cacheKey)
         {
+            // Only a media server's folders are kept: the console's own are
+            // quick to list again, and change as the library does.
+            if (!(source is DlnaMediaSource))
+            {
+                cacheKey = null;
+            }
             List<MediaEntry> cached = cache.Where(c => c.Key == cacheKey).Select(c => c.Value).FirstOrDefault();
             if (cached != null)
             {
@@ -132,10 +155,13 @@ namespace Silverdash360.Pages
                     return;
                 }
                 entries = result;
-                cache.Add(new KeyValuePair<string, List<MediaEntry>>(cacheKey, result));
-                if (cache.Count > CachedFolders)
+                if (cacheKey != null)
                 {
-                    cache.RemoveAt(0);
+                    cache.Add(new KeyValuePair<string, List<MediaEntry>>(cacheKey, result));
+                    if (cache.Count > CachedFolders)
+                    {
+                        cache.RemoveAt(0);
+                    }
                 }
                 ShowFilter(filter);
             });
