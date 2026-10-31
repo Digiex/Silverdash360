@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
+using System.Windows.Media;
 using Silverdash360.Controls;
 using Silverdash360.Core;
 using Silverdash360.Services.Media;
@@ -16,6 +17,12 @@ namespace Silverdash360.Modules
     {
         private TileGrid list;
         private bool searched;
+        private bool waiting;
+
+        // How long the user stays on the section before its drives are read
+        // and media servers looked for, so passing it on the way to another
+        // section costs nothing.
+        private const int StopMs = 500;
         private List<IMediaSource> drives = new List<IMediaSource>();
         private DiscKind disc;
 
@@ -64,13 +71,27 @@ namespace Silverdash360.Modules
         public override void Activate()
         {
             Focus(list);
-            // A disc or a USB drive may have come or gone since.
-            Refresh();
-            if (!searched)
+            if (waiting)
             {
-                searched = true;
-                Context.Media.Search();
+                return;
             }
+            waiting = true;
+            UiIdle.Run(() =>
+            {
+                waiting = false;
+                // Still on screen: the hub lets go of a section it moved on from.
+                if (list != null && VisualTreeHelper.GetParent(list) != null)
+                {
+                    // A disc or a USB drive may have come or gone since.
+                    Refresh();
+                    if (!searched)
+                    {
+                        searched = true;
+                        Context.Media.Search();
+                    }
+                }
+                return false;
+            }, StopMs);
         }
 
         /// <summary>Reads the drives and the disc again, off the UI thread: a disc can take a while to spin up.</summary>

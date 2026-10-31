@@ -9,6 +9,7 @@ using System.Windows.Navigation;
 using System.Windows.Threading;
 using Microsoft.Xbox.Controls;
 using Silverdash360.Controls;
+using Silverdash360.Core;
 using Silverdash360.Modules;
 using Silverdash360.Services;
 
@@ -31,12 +32,23 @@ namespace Silverdash360.Pages
         // The theme the sections were last drawn with.
         private static int themeVersion;
 
+        // Sections whose view has been made.
+        private static readonly List<IDashboardModule> built = new List<IDashboardModule>();
+
+        // Sections are built and refreshed ahead of being shown once the user
+        // has left the controller alone this long: building one takes the UI
+        // thread for a while, and it's better spent when nobody is waiting.
+        private const int PrepareQuietMs = 1500;
+        private bool preparing;
+        private bool refreshing;
+
         private readonly DispatcherTimer clock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
-        private readonly DispatcherTimer wallpaperDelay = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(Motion.SectionMs + 30),
-        };
         private int shownWallpaper = -1;
+        private bool wallpaperWaiting;
+
+        // A wallpaper's decode waits this long after the last move, past the
+        // slide and a quick run of LB and RB.
+        private const int WallpaperQuietMs = 400;
         private readonly List<TextBlock> headers = new List<TextBlock>();
         private readonly Storyboard sliding = new Storyboard();
         private readonly Storyboard sectionSlide = new Storyboard();
@@ -46,7 +58,6 @@ namespace Silverdash360.Pages
             InitializeComponent();
             Motion.UsePageTransitions(this);
             clock.Tick += delegate { ShowClock(); };
-            wallpaperDelay.Tick += delegate { ShowWallpaper(true); };
             GamePadButtonDown += OnButtonDown;
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
@@ -79,6 +90,7 @@ namespace Silverdash360.Pages
             ShowClock();
             clock.Start();
             Show(current, 0);
+            Prepare();
         }
 
         // The sections outlive the page, so let go of them for the next one.
@@ -95,7 +107,6 @@ namespace Silverdash360.Pages
             Context.Themes.Changed -= OnThemeChanged;
             Context.LegendChanged -= OnLegendChanged;
             sliding.Stop();
-            wallpaperDelay.Stop();
             SectionHost.Content = null;
             Wallpaper.Source = null;
         }
@@ -155,17 +166,85 @@ namespace Silverdash360.Pages
             }
         }
 
-        // Only the section on screen is refreshed now; the others when they're
-        // shown, so a change doesn't build tiles nobody sees.
+        // The sections are refreshed when the user is quiet, the one on
+        // screen first.
         private void OnLibraryChanged(object sender, EventArgs e)
         {
             foreach (IDashboardModule module in Modules)
             {
                 stale[module] = true;
             }
-            RefreshIfStale(Modules[current]);
             ShowGamer();
-            Modules[current].Activate();
+            Prepare();
+        }
+
+        private void Prepare()
+        {
+            if (!refreshing)
+            {
+                refreshing = true;
+                UiIdle.Run(RefreshShown, UiIdle.QuietMs);
+            }
+            if (!preparing)
+            {
+                preparing = true;
+                UiIdle.Run(PrepareNext, PrepareQuietMs);
+            }
+        }
+
+        private bool RefreshShown()
+        {
+            refreshing = false;
+            IDashboardModule shown = Modules[current];
+            if (SectionHost.Content != null && IsStale(shown))
+            {
+                RefreshIfStale(shown);
+                shown.Activate();
+            }
+            return false;
+        }
+
+        // Builds or refreshes one section a step; false when all are ready.
+        // Not while the library is loading: the start is when memory is
+        // tightest, and the sections would be refreshed again when it's done.
+        private bool PrepareNext()
+        {
+            if (SectionHost.Content != null && !Context.Library.IsLoading)
+            {
+                foreach (IDashboardModule module in Modules)
+                {
+                    if (!built.Contains(module))
+                    {
+                        Build(module);
+                        return true;
+                    }
+                    if (IsStale(module) && module != Modules[current])
+                    {
+                        RefreshIfStale(module);
+                        return true;
+                    }
+                }
+            }
+            preparing = false;
+            return false;
+        }
+
+        // The section's view, made with what's there now if it's new.
+        private static FrameworkElement Build(IDashboardModule module)
+        {
+            FrameworkElement view = module.View;
+            if (!built.Contains(module))
+            {
+                built.Add(module);
+                stale[module] = false;
+            }
+            return view;
+        }
+
+        private static bool IsStale(IDashboardModule module)
+        {
+            bool isStale;
+            return stale.TryGetValue(module, out isStale) && isStale;
         }
 
         // The sections show the theme, settings by name, so they're redrawn.
@@ -175,6 +254,7 @@ namespace Silverdash360.Pages
             RefreshIfStale(Modules[current]);
             shownWallpaper = -1;
             ShowWallpaper(true);
+            Prepare();
         }
 
         private static void MarkAllStale()
@@ -258,6 +338,7 @@ namespace Silverdash360.Pages
         // Slides the section in from the side it comes from.
         private void Show(int index, int direction)
         {
+            UiIdle.Input();
             current = Math.Max(0, Math.Min(Modules.Count - 1, index));
             IDashboardModule module = Modules[current];
             for (int i = 0; i < headers.Count; i++)
@@ -265,7 +346,7 @@ namespace Silverdash360.Pages
                 headers[i].Foreground = i == current ? Theme.Text : Theme.SubText;
                 headers[i].FontWeight = i == current ? FontWeights.Bold : FontWeights.Normal;
             }
-            FrameworkElement view = module.View;
+            FrameworkElement view = Build(module);
             RefreshIfStale(module);
             ContentControl oldHost = view.Parent as ContentControl;
             if (oldHost != null && oldHost != SectionHost)
@@ -285,10 +366,10 @@ namespace Silverdash360.Pages
 
         // Each section has a wallpaper of its own, as each blade had one in
         // the console's first dashboard. One that isn't decoded is decoded
-        // once the section has slid in, so the decode doesn't stall the slide.
+        // once the user stops moving, so the decode doesn't hold up the slide
+        // or the next press.
         private void ShowWallpaper(bool now)
         {
-            wallpaperDelay.Stop();
             ThemeService themes = Context.Themes;
             if (themes.Current == null || themes.Current.Wallpapers.Count == 0)
             {
@@ -304,7 +385,19 @@ namespace Silverdash360.Pages
             }
             if (!now && !themes.IsDecoded(index))
             {
-                wallpaperDelay.Start();
+                if (!wallpaperWaiting)
+                {
+                    wallpaperWaiting = true;
+                    UiIdle.Run(() =>
+                    {
+                        wallpaperWaiting = false;
+                        if (SectionHost.Content != null)
+                        {
+                            ShowWallpaper(true);
+                        }
+                        return false;
+                    }, WallpaperQuietMs);
+                }
                 return;
             }
             Wallpaper.Source = themes.Wallpaper(index);

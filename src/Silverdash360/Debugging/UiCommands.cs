@@ -126,8 +126,10 @@ namespace Silverdash360.Debugging
         private object Timeline(DebugRequest request)
         {
             string name = request.Arg(0, "button", true).ToLowerInvariant();
-            GamePadButton button;
-            if (!Buttons.TryGetValue(name, out button))
+            // LT and RT page the focused grid, as a pull does.
+            int trigger = name == "lt" ? -1 : name == "rt" ? 1 : 0;
+            GamePadButton button = default(GamePadButton);
+            if (trigger == 0 && !Buttons.TryGetValue(name, out button))
             {
                 throw new DebugException("No button " + name + ".");
             }
@@ -139,7 +141,8 @@ namespace Silverdash360.Debugging
                 Frame.Navigated += timeline.OnNavigated;
                 Microsoft.Xbox.Transitions.TransitionService.TransitionInCompleted += timeline.OnReady;
                 timeline.Start = Environment.TickCount;
-                bool took = PressOnce(button);
+                TileGrid grid = trigger != 0 ? FocusedGrid() : null;
+                bool took = trigger != 0 ? grid != null && grid.Page(trigger) : PressOnce(button);
                 timeline.HandlerMs = Environment.TickCount - timeline.Start;
                 return took;
             });

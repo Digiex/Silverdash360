@@ -18,7 +18,8 @@ namespace Silverdash360.Services
     /// headers, the game tiles a profile keeps for the titles it played, and
     /// gamer pictures. Art is read when a tile asks for it, which with the
     /// grids' virtualizing is the tiles on screen. Images are read in the
-    /// background, decoded on the UI thread, and the most recently used are
+    /// background and decoded on the UI thread when the user is quiet
+    /// (<see cref="UiIdle"/>), newest first, and the most recently used are
     /// kept, up to <see cref="MaxImages"/> of them and <see cref="MaxPixels"/>
     /// pixels in all.
     /// </summary>
@@ -64,6 +65,18 @@ namespace Silverdash360.Services
         private int keptPixels;
         private readonly LinkedList<string> recent = new LinkedList<string>();
         private readonly Dictionary<string, List<Action<ImageSource>>> pending = new Dictionary<string, List<Action<ImageSource>>>();
+
+        // Images read and waiting to be decoded, on the UI thread.
+        private readonly LinkedList<KeyValuePair<string, byte[]>> decodes = new LinkedList<KeyValuePair<string, byte[]>>();
+        private bool decoding;
+        private int firstWaiting;
+        private volatile bool reading;
+
+        // Images are shown a batch at a time: a frame that changes the screen
+        // costs far more to draw than the decode, so while the reader has more
+        // coming, read images wait for this many more, or this long.
+        private const int BatchSize = 12;
+        private const int BatchWaitMs = 300;
 
         public ImageService(IContentSource source)
         {
@@ -195,7 +208,67 @@ namespace Silverdash360.Services
             Enqueue(new Request { Key = key, Read = read });
         }
 
-        // On the UI thread, when the worker has read a PNG.
+        // On the UI thread, when the worker has read a PNG: it's decoded when
+        // the user is quiet. Past MaxQueued the oldest are dropped, as reads
+        // are, to be asked for again if their tiles come back.
+        private void Arrived(string key, byte[] png)
+        {
+            if (!pending.ContainsKey(key))
+            {
+                return;
+            }
+            if (decodes.Count == 0)
+            {
+                firstWaiting = Environment.TickCount;
+            }
+            decodes.AddLast(new KeyValuePair<string, byte[]>(key, png));
+            while (decodes.Count > MaxQueued)
+            {
+                pending.Remove(decodes.First.Value.Key);
+                decodes.RemoveFirst();
+            }
+            if (!decoding)
+            {
+                decoding = true;
+                UiIdle.Run(DecodeNext, UiIdle.QuietMs);
+            }
+        }
+
+        // A batch of the images read, newest first, as they're likely on
+        // screen.
+        private bool DecodeNext()
+        {
+            if (decodes.Count == 0)
+            {
+                decoding = false;
+                return false;
+            }
+            if (ReaderBusy && decodes.Count < BatchSize && Environment.TickCount - firstWaiting < BatchWaitMs)
+            {
+                return true;
+            }
+            while (decodes.Count > 0 && UiIdle.HasTime)
+            {
+                KeyValuePair<string, byte[]> next = decodes.Last.Value;
+                decodes.RemoveLast();
+                Finish(next.Key, next.Value);
+            }
+            firstWaiting = Environment.TickCount;
+            decoding = decodes.Count > 0;
+            return decoding;
+        }
+
+        private bool ReaderBusy
+        {
+            get
+            {
+                lock (queueLock)
+                {
+                    return reading || queue.Count > 0;
+                }
+            }
+        }
+
         private void Finish(string key, byte[] png)
         {
             List<Action<ImageSource>> callbacks;
@@ -253,6 +326,7 @@ namespace Silverdash360.Services
                         request = queue.Last.Value;
                         queue.RemoveLast();
                     }
+                    reading = request != null;
                 }
                 if (request == null)
                 {
@@ -271,7 +345,7 @@ namespace Silverdash360.Services
                     Log.Write("Couldn't read art for {0}: {1}", request.Key, e.Message);
                 }
                 Activity.Images = request.Key + " (done)";
-                Background.OnUi(() => Finish(request.Key, png));
+                Background.OnUi(() => Arrived(request.Key, png));
             }
         }
 
@@ -303,11 +377,16 @@ namespace Silverdash360.Services
             }
         }
 
-        // No pixel that isn't fully transparent.
+        // Pixels looked at by the blank check: one in this many. An icon with
+        // something to show has more of it than a few pixels, and the check
+        // is interpreted, on the UI thread.
+        private const int BlankStride = 7;
+
+        // No pixel looked at that isn't fully transparent.
         private static bool IsBlank(BitmapSource bitmap)
         {
             int[] pixels = new WriteableBitmap(bitmap).Pixels;
-            for (int i = 0; i < pixels.Length; i++)
+            for (int i = 0; i < pixels.Length; i += BlankStride)
             {
                 if ((pixels[i] & unchecked((int)0xFF000000)) != 0)
                 {

@@ -66,6 +66,7 @@
     <Compile Include="Core\Background.cs" />
     <Compile Include="Core\FileTimes.cs" />
     <Compile Include="Core\Log.cs" />
+    <Compile Include="Core\UiIdle.cs" />
     <Compile Include="Model\ContentItem.cs" />
     <Compile Include="Model\ContentType.cs" />
     <Compile Include="Model\ExecutableItem.cs" />

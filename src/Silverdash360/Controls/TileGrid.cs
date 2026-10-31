@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using Silverdash360.Core;
 
 namespace Silverdash360.Controls
 {
@@ -71,6 +72,7 @@ namespace Silverdash360.Controls
         private int selectedIndex = -1;
         private double offset;
         private bool focused;
+        private bool marginWaiting;
         private double padOutside;
         private int stickDirection;
         private DateTime stickLast;
@@ -178,6 +180,7 @@ namespace Silverdash360.Controls
         /// </summary>
         public bool Page(int direction)
         {
+            UiIdle.Input();
             if (items.Count == 0 || direction == 0)
             {
                 return false;
@@ -389,7 +392,7 @@ namespace Silverdash360.Controls
             }
             double from = offset;
             offset = target;
-            Realize(Math.Min(from, target), Math.Max(from, target));
+            Realize(Math.Min(from, target), Math.Max(from, target), false);
             scrollAnimation.Stop();
             if (horizontal)
             {
@@ -414,12 +417,14 @@ namespace Silverdash360.Controls
 
         private void Realize()
         {
-            Realize(offset, offset);
+            Realize(offset, offset, true);
         }
 
-        // Makes the tiles between the two scroll offsets and a screen around
-        // them, and drops the rest.
-        private void Realize(double fromOffset, double toOffset)
+        // Makes the tiles between the two scroll offsets and a line around
+        // them, and drops the rest. A scroll makes only the tiles it shows:
+        // the lines around them wait until the user stops, or are made when
+        // the next move shows them.
+        private void Realize(double fromOffset, double toOffset, bool withMargin)
         {
             if (TileTemplate == null || items.Count == 0)
             {
@@ -436,6 +441,23 @@ namespace Silverdash360.Controls
             int lastLine = Math.Min(LineCount - 1, (int)Math.Ceiling((toOffset + view + step) / step));
             int first = firstLine * Lines;
             int last = Math.Min(items.Count - 1, (lastLine + 1) * Lines - 1);
+            int makeFirst = first;
+            int makeLast = last;
+            if (!withMargin)
+            {
+                makeFirst = Math.Max(0, (int)Math.Floor(fromOffset / step)) * Lines;
+                makeLast = Math.Min(items.Count - 1, ((int)Math.Floor((toOffset + view) / step) + 1) * Lines - 1);
+                if ((makeFirst > first || makeLast < last) && !marginWaiting)
+                {
+                    marginWaiting = true;
+                    UiIdle.Run(() =>
+                    {
+                        marginWaiting = false;
+                        Realize();
+                        return false;
+                    }, UiIdle.QuietMs);
+                }
+            }
 
             List<int> drop = new List<int>();
             foreach (int index in realized.Keys)
@@ -450,7 +472,7 @@ namespace Silverdash360.Controls
                 surface.Children.Remove(realized[index]);
                 realized.Remove(index);
             }
-            for (int index = first; index <= last; index++)
+            for (int index = makeFirst; index <= makeLast; index++)
             {
                 if (realized.ContainsKey(index))
                 {
@@ -552,6 +574,7 @@ namespace Silverdash360.Controls
         /// <summary>Moves the selection by tiles on screen; false at an edge nobody took.</summary>
         public bool Move(int dx, int dy)
         {
+            UiIdle.Input();
             if (items.Count == 0)
             {
                 return RaiseEdge(dx < 0 ? Edge.Left : dx > 0 ? Edge.Right : dy < 0 ? Edge.Top : Edge.Bottom);
