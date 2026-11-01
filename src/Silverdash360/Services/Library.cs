@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Windows.Threading;
 using Silverdash360.Core;
 using Silverdash360.Model;
 
@@ -124,13 +125,129 @@ namespace Silverdash360.Services
                 return;
             }
             IsLoading = true;
-            Background.Run(() => Load(full), delegate(LoadResult result, Exception error)
+            Background.Run(() => Load(full), Loaded);
+        }
+
+        // Shows what a load read. It read the profile signed in when it
+        // started: a change since is read now, and a load the change broke
+        // is read again whole.
+        private void Loaded(LoadResult result, Exception error)
+        {
+            IsLoading = false;
+            Activity.Library = "idle";
+            Publish(result);
+            OnProgress(null);
+            if (profileChangedWhileLoading)
             {
-                IsLoading = false;
-                Activity.Library = "idle";
-                Publish(result);
-                OnProgress(null);
-            });
+                profileChangedWhileLoading = false;
+                if (error != null)
+                {
+                    Refresh(false);
+                }
+                else
+                {
+                    LoadProfile();
+                }
+            }
+        }
+
+        // A sign-out and a sign-in, as switching profiles is, come this far
+        // apart or less; the profile is read once they're both in.
+        private const int ProfileSettleMs = 1000;
+        private DispatcherTimer profileTimer;
+        private bool profileChangedWhileLoading;
+
+        /// <summary>
+        /// A profile signed in or out, as from the Guide; on the UI thread.
+        /// The profile now signed in is shown with its played titles and its
+        /// own packages (saves, its themes), with the console's packages as
+        /// they were read: not every package again. A refresh under way read
+        /// the profile from before, so it's done after that.
+        /// </summary>
+        public void ProfileChanged()
+        {
+            if (profileTimer == null)
+            {
+                profileTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ProfileSettleMs) };
+                profileTimer.Tick += delegate
+                {
+                    profileTimer.Stop();
+                    LoadProfile();
+                };
+            }
+            profileTimer.Stop();
+            profileTimer.Start();
+        }
+
+        private void LoadProfile()
+        {
+            if (IsLoading)
+            {
+                profileChangedWhileLoading = true;
+                return;
+            }
+            if (!IsLoaded)
+            {
+                // The first load reads the profile signed in.
+                return;
+            }
+            IsLoading = true;
+            LoadResult before = current;
+            Background.Run(() => ReadProfile(before), Loaded);
+        }
+
+        // The library as it was with the profile signed in now; null when
+        // it's the same one.
+        private LoadResult ReadProfile(LoadResult before)
+        {
+            DateTime started = DateTime.UtcNow;
+            Gamer gamer = profiles.SignedIn().FirstOrDefault();
+            ulong xuid = gamer != null ? gamer.Xuid : 0;
+            ulong was = before.Gamer != null ? before.Gamer.Xuid : 0;
+            if (xuid == was)
+            {
+                return null;
+            }
+            Report("Reading the profile...", null);
+            List<PlayedTitle> played = gamer != null ? profiles.PlayedTitles(gamer) : new List<PlayedTitle>();
+            // The console's packages are under XUID 0, a profile's under its
+            // offline XUID.
+            List<ContentItem> content = before.Content.Where(c => c.Xuid == 0).ToList();
+            Dictionary<string, ContentItem> known = new Dictionary<string, ContentItem>();
+            foreach (ContentItem item in before.Content)
+            {
+                known[LibraryCache.KeyOf(item)] = item;
+            }
+            Dictionary<string, bool> seen = content.ToDictionary(c => LibraryCache.KeyOf(c), c => true);
+            if (gamer != null)
+            {
+                // The profile's enumeration has the console's packages too.
+                foreach (ContentItem item in source.Enumerate(gamer.OfflineXuid, null, Pace(0)))
+                {
+                    string key = LibraryCache.KeyOf(item);
+                    if (item.TitleId == 0 || seen.ContainsKey(key))
+                    {
+                        continue;
+                    }
+                    seen[key] = true;
+                    ContentItem read;
+                    if (known.TryGetValue(key, out read) && read.HeaderRead)
+                    {
+                        item.Metadata = read.Metadata;
+                    }
+                    else if (item.Type != ContentType.SavedGame)
+                    {
+                        item.Metadata = source.ReadMetadata(item, false);
+                    }
+                    item.HeaderRead = true;
+                    content.Add(item);
+                }
+            }
+            LoadResult built = Build(content, before.Executables, gamer, played);
+            Log.Write("Library: now for {0}, {1} packages of its own, in {2} ms",
+                      gamer != null ? gamer.Gamertag : "nobody signed in", content.Count(c => c.Xuid != 0),
+                      (int)(DateTime.UtcNow - started).TotalMilliseconds);
+            return built;
         }
 
         private sealed class LoadResult
@@ -157,6 +274,8 @@ namespace Silverdash360.Services
             public SearchIndex Search;
             public Gamer Gamer;
             public bool Complete = true;
+            /// <summary>The executables found in the Apps and Games folders.</summary>
+            public List<ExecutableItem> Executables = new List<ExecutableItem>();
         }
 
         // A null result is a refresh that found what's shown already.
@@ -795,6 +914,7 @@ namespace Silverdash360.Services
                 ById = new Dictionary<uint, TitleEntry>(),
                 ByKey = new Dictionary<string, TitleEntry>(),
                 Gamer = gamer,
+                Executables = found.ToList(),
             };
             foreach (TitleEntry t in all)
             {

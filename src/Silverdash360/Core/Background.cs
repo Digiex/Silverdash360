@@ -24,7 +24,7 @@ namespace Silverdash360.Core
                 catch (Exception e)
                 {
                     error = e;
-                    Log.Write("Background work failed: {0}", e);
+                    Log.Write("Background work failed: {0}\n{1}", e, e.StackTrace);
                 }
                 OnUi(() => done(result, error));
             });

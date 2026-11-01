@@ -67,6 +67,12 @@ namespace Silverdash360
             Context.Discs.Start();
             Context.Updates = new UpdateService(files);
             Context.Updates.CleanUp();
+            // A profile signing in or out, as from the Guide, is shown. The
+            // frame keeps GamerServices going, which raises these.
+            Microsoft.Xna.Framework.GamerServices.SignedInGamer.SignedIn +=
+                delegate { Background.OnUi(Context.Library.ProfileChanged); };
+            Microsoft.Xna.Framework.GamerServices.SignedInGamer.SignedOut +=
+                delegate { Background.OnUi(Context.Library.ProfileChanged); };
             Modules = ModuleRegistry.CreateAll(Context);
 
             // XboxApplicationFrame also starts GamerServices and plays the
