@@ -134,6 +134,10 @@ namespace Silverdash360.Services
         private void Loaded(LoadResult result, Exception error)
         {
             IsLoading = false;
+            if (!profileReading)
+            {
+                profileFirst = false;
+            }
             Activity.Library = "idle";
             Publish(result);
             OnProgress(null);
@@ -167,6 +171,11 @@ namespace Silverdash360.Services
         public void ProfileChanged()
         {
             Log.Write("Library: a profile signed in or out{0}", IsLoading ? ", during a refresh" : "");
+            // The refresh stands aside until the profile is shown.
+            if (IsLoading)
+            {
+                profileFirst = true;
+            }
             if (profileTimer == null)
             {
                 profileTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ProfileSettleMs) };
@@ -191,10 +200,12 @@ namespace Silverdash360.Services
                 if (IsLoaded && !profileReading)
                 {
                     profileReading = true;
+                    profileFirst = true;
                     LoadResult shown = current;
                     Background.Run(() => ReadProfile(shown), delegate(LoadResult result, Exception error)
                     {
                         profileReading = false;
+                        profileFirst = false;
                         // A refresh that ended meanwhile has the newer library.
                         if (IsLoading)
                         {
@@ -202,8 +213,14 @@ namespace Silverdash360.Services
                         }
                     });
                 }
+                else if (!IsLoaded)
+                {
+                    // The first load takes it up itself.
+                    profileFirst = false;
+                }
                 return;
             }
+            profileFirst = false;
             if (!IsLoaded)
             {
                 // The first load reads the profile signed in.
@@ -216,10 +233,29 @@ namespace Silverdash360.Services
 
         private bool profileReading;
 
+        // A profile signed in or out during a refresh: the refresh pauses
+        // at its next step until the profile is shown, so reading it isn't
+        // slowed by reading thousands of packages at the same time. The
+        // thread reading the profile doesn't wait on itself.
+        private static volatile bool profileFirst;
+        private static volatile int profileThread;
+        private const int ProfileFirstMaxMs = 30000;
+
+        private static void WaitForProfile()
+        {
+            int started = Environment.TickCount;
+            while (profileFirst && Thread.CurrentThread.ManagedThreadId != profileThread &&
+                   Environment.TickCount - started < ProfileFirstMaxMs)
+            {
+                Thread.Sleep(50);
+            }
+        }
+
         // The library as it was with the profile signed in now; null when
         // it's the same one.
         private LoadResult ReadProfile(LoadResult before)
         {
+            profileThread = Thread.CurrentThread.ManagedThreadId;
             DateTime started = DateTime.UtcNow;
             Gamer gamer = profiles.SignedIn().FirstOrDefault();
             ulong xuid = gamer != null ? gamer.Xuid : 0;
@@ -563,7 +599,7 @@ namespace Silverdash360.Services
             }
             if (Differs(own, saved, read))
             {
-                profileCache.Save(new List<IList<ContentItem>> { own }, new List<ExecutableItem>(), Pace(PaceSave));
+                profileCache.Save(new List<IList<ContentItem>> { own }, new List<ExecutableItem>(), pace);
             }
             return own;
         }
@@ -599,10 +635,12 @@ namespace Silverdash360.Services
             if (step % BreatheEvery == 0)
             {
                 UiIdle.WaitWhileMoving(UiIdle.BackgroundQuietMs);
+                WaitForProfile();
             }
         }
 
-        // A pause between steps of the refresh, and a wait while the user moves.
+        // A pause between steps of the refresh, and a wait while the user
+        // moves or a profile is read.
         private static Action Pace(int ms)
         {
             return delegate
@@ -612,6 +650,7 @@ namespace Silverdash360.Services
                     Thread.Sleep(ms);
                 }
                 UiIdle.WaitWhileMoving(UiIdle.BackgroundQuietMs);
+                WaitForProfile();
             };
         }
 
