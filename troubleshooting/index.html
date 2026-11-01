@@ -73,6 +73,8 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#a-game-or-app-is-missing">A game or app is missing</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#an-add-on-save-or-downloaded-video-is-missing">An add-on, save or downloaded video is missing</a>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#the-box-art-or-the-theme-is-missing">The box art or the theme is missing</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#a-video-doesnt-play">A video doesn't play</a>
@@ -125,10 +127,13 @@
 <li><strong>Refresh library</strong> in settings reads every package again.</li>
 <li>Homebrew is looked for in the <code>Apps</code> and <code>Games</code> folders of <code>Hdd1</code> and <code>Usb0</code> to <code>Usb2</code>, a folder each with a <code>default.xex</code> in it.</li>
 </ul>
+<h2 id="an-add-on-save-or-downloaded-video-is-missing">An add-on, save or downloaded video is missing<a class="headerlink" href="#an-add-on-save-or-downloaded-video-is-missing" title="Permanent link">&para;</a></h2>
+<p>A start looks only for new games, apps and themes. A title's add-ons, updates and saves are read again when you open its page; <strong>Refresh library</strong> in settings reads everything, downloaded videos too.</p>
 <h2 id="the-box-art-or-the-theme-is-missing">The box art or the theme is missing<a class="headerlink" href="#the-box-art-or-the-theme-is-missing" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Box art comes from the Xbox Marketplace the first time a title is shown, so the console needs the internet once. A title the Marketplace doesn't have gets a cover of its kind.</li>
-<li>Right after a start, the theme shows once the library has been read.</li>
+<li>The theme in use is kept, so it shows straight away at a start. The first time, or after picking another, it shows once its package has been found.</li>
+<li>Each profile has its own theme, and so has nobody signed in: see <a href="../settings/#themes">Themes</a>.</li>
 </ul>
 <h2 id="a-video-doesnt-play">A video doesn't play<a class="headerlink" href="#a-video-doesnt-play" title="Permanent link">&para;</a></h2>
 <p>See <a href="../media/#formats">Media</a> for the formats the console plays. MKV and AVI files are listed but can't be played.</p>
@@ -149,12 +154,28 @@
 <td>Your shelf options and other settings</td>
 </tr>
 <tr>
-<td><code>theme.txt</code></td>
-<td>The theme you picked</td>
+<td><code>library.bin</code></td>
+<td>The console's games, apps and other packages it read, the same for every profile, so it starts quickly</td>
 </tr>
 <tr>
-<td><code>library.bin</code></td>
-<td>The library it read, so it starts quickly</td>
+<td><code>Profiles</code></td>
+<td>Each profile's own packages, such as its saves and themes, a file per profile</td>
+</tr>
+<tr>
+<td><code>ThemeChoice</code></td>
+<td>The theme each profile picked, and the one for nobody signed in</td>
+</tr>
+<tr>
+<td><code>CurrentTheme</code></td>
+<td>The theme in use for each profile, so it shows straight away</td>
+</tr>
+<tr>
+<td><code>CustomTheme</code></td>
+<td>The themes made in the theme editor, each profile's and nobody signed in's</td>
+</tr>
+<tr>
+<td><code>SavedThemes</code></td>
+<td>The themes saved with <strong>Save as...</strong>, for everyone</td>
 </tr>
 <tr>
 <td><code>Art</code></td>
