@@ -24,7 +24,7 @@ The welcome screen opens at the first start with the basic settings: whether the
 
 ## Themes
 
-The theme follows the console dashboard's own by default, so your wallpapers come with you. **Theme** lists the themes built into the console's dashboard and those installed on the console; A uses one. The built-in themes are read from the console's own dashboard files, so they're the ones your dashboard version has. A theme's wallpapers go to the sections, a wallpaper each, and its colours to Silverdash360's. **Silverdash** is Silverdash360's own colours and no wallpaper. If the dashboard's theme for your profile is a theme package that's no longer installed, such as one from an older dashboard, Silverdash360 shows its own colours and settings names the missing theme.
+The theme follows the console dashboard's own by default, so your wallpapers come with you. **Theme** lists the themes built into the console's dashboard and those installed on the console; A uses one. The built-in themes are read from the console's own dashboard files, so they're the ones your dashboard version has. A theme's wallpapers go to the sections, a wallpaper each, and its colours to Silverdash360's. **Silverdash** is Silverdash360's own colours and no wallpaper. **Xbox 360 blades** and **Carbon** are colours after the two styles of the first Xbox 360 dashboard, with no wallpaper. If the dashboard's theme for your profile is a theme package that's no longer installed, such as one from an older dashboard, Silverdash360 shows its own colours and settings names the missing theme.
 
 ## Storage
 

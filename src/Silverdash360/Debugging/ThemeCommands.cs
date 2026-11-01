@@ -38,6 +38,7 @@ namespace Silverdash360.Debugging
                 { "description", Themes.Describe() },
                 { "loading", Themes.IsLoading },
                 { "dashboardThemeIsBuiltIn", Themes.DashboardThemeIsBuiltIn },
+                { "scheme", Themes.CurrentScheme != null ? Themes.CurrentScheme.Name : null },
                 { "theme", theme == null ? null : new JsonObject
                     {
                         { "name", theme.Name },
@@ -75,7 +76,7 @@ namespace Silverdash360.Debugging
         {
             string choice = request.Arg(0, "theme", true);
             if (choice != ThemeService.FollowDashboard && choice != ThemeService.NoTheme && !choice.StartsWith("package:") &&
-                !choice.StartsWith("builtin:"))
+                !choice.StartsWith("builtin:") && !choice.StartsWith("scheme:"))
             {
                 ContentItem package = UiThread.Invoke(() => Themes.Installed())
                     .FirstOrDefault(t => ThemeService.SettingFor(t).EndsWith(choice, StringComparison.OrdinalIgnoreCase) ||

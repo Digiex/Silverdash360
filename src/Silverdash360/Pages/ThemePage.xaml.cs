@@ -74,6 +74,15 @@ namespace Silverdash360.Pages
                 },
                 new Choice { Setting = ThemeService.NoTheme, Title = "Silverdash", Subtitle = "No wallpaper, the usual colours" },
             };
+            foreach (ColourScheme scheme in ColourScheme.All())
+            {
+                choices.Add(new Choice
+                {
+                    Setting = ThemeService.SettingFor(scheme),
+                    Title = scheme.Name,
+                    Subtitle = "Colours of the first Xbox 360 dashboard, no wallpaper",
+                });
+            }
             foreach (int builtIn in Themes.BuiltInThemes)
             {
                 choices.Add(new Choice

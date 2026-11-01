@@ -71,6 +71,56 @@ namespace Silverdash360.Services
     }
 
     /// <summary>
+    /// Colours without a wallpaper, after the styles of the first Xbox 360
+    /// dashboard's blades: its default and Carbon. Its blades were light,
+    /// and Silverdash's text white, so the light ones are deepened.
+    /// </summary>
+    public sealed class ColourScheme
+    {
+        public string Id;
+        public string Name;
+        public Theme.Palette Palette;
+
+        public static List<ColourScheme> All()
+        {
+            return new List<ColourScheme>
+            {
+                new ColourScheme
+                {
+                    Id = "xbox360",
+                    Name = "Xbox 360 blades",
+                    Palette = new Theme.Palette
+                    {
+                        Accent = Rgb(0xD4, 0xE8, 0xFF),
+                        SubText = Rgb(0xC8, 0xC8, 0xC8),
+                        Panel = Rgb(0x32, 0x3B, 0x45),
+                        PanelHighlight = Rgb(0x43, 0x4F, 0x5C),
+                        Background = new[] { Rgb(0x3E, 0x49, 0x54), Rgb(0x16, 0x1A, 0x1F), Rgb(0x22, 0x28, 0x2E) },
+                    },
+                },
+                new ColourScheme
+                {
+                    Id = "carbon",
+                    Name = "Carbon",
+                    Palette = new Theme.Palette
+                    {
+                        Accent = Rgb(0xEB, 0xEB, 0xEB),
+                        SubText = Rgb(0x96, 0x96, 0x96),
+                        Panel = Rgb(0x32, 0x32, 0x32),
+                        PanelHighlight = Rgb(0x50, 0x50, 0x50),
+                        Background = new[] { Rgb(0x3C, 0x3C, 0x3C), Rgb(0x0F, 0x0F, 0x0F), Rgb(0x1E, 0x1E, 0x1E) },
+                    },
+                },
+            };
+        }
+
+        private static System.Windows.Media.Color Rgb(byte r, byte g, byte b)
+        {
+            return System.Windows.Media.Color.FromArgb(0xFF, r, g, b);
+        }
+    }
+
+    /// <summary>
     /// Picks and loads the dashboard's theme. By default it's the one the
     /// signed-in profile chose in the console's dashboard; settings can pick
     /// another installed theme, or none. The pick is kept in the title's
@@ -87,6 +137,7 @@ namespace Silverdash360.Services
 
         private const string PackagePrefix = "package:";
         private const string BuiltInPrefix = "builtin:";
+        private const string SchemePrefix = "scheme:";
         private const string SettingFile = "theme.txt";
 
         // Where the console's dashboard keeps the profile's theme: a file in
@@ -186,6 +237,14 @@ namespace Silverdash360.Services
             return BuiltInPrefix + builtIn;
         }
 
+        public static string SettingFor(ColourScheme scheme)
+        {
+            return SchemePrefix + scheme.Id;
+        }
+
+        /// <summary>The colour scheme in use, or null.</summary>
+        public ColourScheme CurrentScheme { get; private set; }
+
         /// <summary>A theme was loaded or let go, on the UI thread.</summary>
         public event EventHandler Changed;
 
@@ -266,8 +325,9 @@ namespace Silverdash360.Services
                 {
                     DashboardThemeIsBuiltIn = result.BuiltIn;
                     DashboardThemeMissing = result.Missing;
-                    loadedKey = result.Theme != null ? result.Theme.Key : null;
-                    Show(result.Theme);
+                    loadedKey = result.Theme != null ? result.Theme.Key
+                        : result.Scheme != null ? SettingFor(result.Scheme) : null;
+                    Show(result.Theme, result.Scheme);
                 }
                 if (loadAgain)
                 {
@@ -341,7 +401,7 @@ namespace Silverdash360.Services
         /// <summary>What the theme is, for settings.</summary>
         public string Describe()
         {
-            string name = Current != null ? Current.Name : "Silverdash";
+            string name = Current != null ? Current.Name : CurrentScheme != null ? CurrentScheme.Name : "Silverdash";
             if (Setting == FollowDashboard)
             {
                 if (Current == null && DashboardThemeIsBuiltIn)
@@ -362,6 +422,7 @@ namespace Silverdash360.Services
             public DashTheme Theme;
             public bool BuiltIn;
             public string Missing;
+            public ColourScheme Scheme;
             public bool Unchanged;
         }
 
@@ -398,7 +459,12 @@ namespace Silverdash360.Services
             {
                 int.TryParse(Setting.Substring(BuiltInPrefix.Length), out builtIn);
             }
-            string key = package != null ? SettingFor(package) : builtIn >= 0 ? SettingFor(builtIn) : null;
+            else if (Setting.StartsWith(SchemePrefix))
+            {
+                result.Scheme = ColourScheme.All().FirstOrDefault(s => SettingFor(s) == Setting);
+            }
+            string key = package != null ? SettingFor(package) : builtIn >= 0 ? SettingFor(builtIn)
+                : result.Scheme != null ? SettingFor(result.Scheme) : null;
             if (key == loadedPackage && loadedPackage != null)
             {
                 result.Unchanged = true;
@@ -623,20 +689,22 @@ namespace Silverdash360.Services
             }
         }
 
-        // On the UI thread: the theme's colours, from its first wallpaper.
-        private void Show(DashTheme theme)
+        // On the UI thread: the theme's colours, from its first wallpaper,
+        // or a colour scheme's.
+        private void Show(DashTheme theme, ColourScheme scheme)
         {
             Current = theme;
+            CurrentScheme = theme == null ? scheme : null;
             Version++;
             decoded.Clear();
-            Theme.Palette palette = null;
+            Theme.Palette palette = CurrentScheme != null ? CurrentScheme.Palette : null;
             BitmapImage first = Wallpaper(0);
             if (first != null)
             {
                 palette = Theme.PaletteFrom(first);
             }
             Theme.Apply(palette ?? Theme.DefaultPalette(), palette == null);
-            Log.Write("Showing theme {0}", theme != null ? theme.Name : "Silverdash");
+            Log.Write("Showing theme {0}", theme != null ? theme.Name : CurrentScheme != null ? CurrentScheme.Name : "Silverdash");
             if (Changed != null)
             {
                 Changed(this, EventArgs.Empty);
