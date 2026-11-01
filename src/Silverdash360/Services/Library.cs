@@ -166,6 +166,7 @@ namespace Silverdash360.Services
         /// </summary>
         public void ProfileChanged()
         {
+            Log.Write("Library: a profile signed in or out{0}", IsLoading ? ", during a refresh" : "");
             if (profileTimer == null)
             {
                 profileTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ProfileSettleMs) };
@@ -183,7 +184,24 @@ namespace Silverdash360.Services
         {
             if (IsLoading)
             {
+                // The refresh takes up the profile signed in now before it
+                // ends; a long one, as reading thousands of packages is, is
+                // overtaken meanwhile from what's on screen.
                 profileChangedWhileLoading = true;
+                if (IsLoaded && !profileReading)
+                {
+                    profileReading = true;
+                    LoadResult shown = current;
+                    Background.Run(() => ReadProfile(shown), delegate(LoadResult result, Exception error)
+                    {
+                        profileReading = false;
+                        // A refresh that ended meanwhile has the newer library.
+                        if (IsLoading)
+                        {
+                            Publish(result);
+                        }
+                    });
+                }
                 return;
             }
             if (!IsLoaded)
@@ -195,6 +213,8 @@ namespace Silverdash360.Services
             LoadResult before = current;
             Background.Run(() => ReadProfile(before), Loaded);
         }
+
+        private bool profileReading;
 
         // The library as it was with the profile signed in now; null when
         // it's the same one.
@@ -215,46 +235,7 @@ namespace Silverdash360.Services
             List<ContentItem> content = before.Content.Where(c => c.Owner == 0).ToList();
             if (gamer != null)
             {
-                // What was read of the profile's packages when it was last here.
-                LibraryCache profileCache = LibraryCache.ForProfile(gamer.OfflineXuid);
-                List<ContentItem> saved = Owned(profileCache.Load(null).Content, gamer.OfflineXuid);
-                Dictionary<string, ContentItem> known = new Dictionary<string, ContentItem>();
-                foreach (ContentItem item in saved)
-                {
-                    known[LibraryCache.KeyOf(item)] = item;
-                }
-                Dictionary<string, bool> seen = content.ToDictionary(c => LibraryCache.KeyOf(c), c => true);
-                List<ContentItem> own = new List<ContentItem>();
-                int read = 0;
-                foreach (ContentItem item in Owned(source.Enumerate(gamer.OfflineXuid, null, Pace(0)), gamer.OfflineXuid))
-                {
-                    string key = LibraryCache.KeyOf(item);
-                    if (item.TitleId == 0 || seen.ContainsKey(key))
-                    {
-                        continue;
-                    }
-                    seen[key] = true;
-                    if (item.Type != ContentType.SavedGame)
-                    {
-                        ContentItem kept;
-                        if (known.TryGetValue(key, out kept) && (kept.Metadata != null || kept.HeaderRead))
-                        {
-                            item.Metadata = kept.Metadata;
-                        }
-                        else
-                        {
-                            item.Metadata = source.ReadMetadata(item, false);
-                            read++;
-                        }
-                        item.HeaderRead = true;
-                    }
-                    own.Add(item);
-                }
-                if (Differs(own, saved, read))
-                {
-                    profileCache.Save(new List<IList<ContentItem>> { own }, new List<ExecutableItem>(), Pace(PaceSave));
-                }
-                content.AddRange(own);
+                content.AddRange(ReadOwn(gamer, Pace(0)));
             }
             LoadResult built = Build(content, before.Executables, gamer, played);
             Log.Write("Library: now for {0}, {1} packages of its own, in {2} ms",
@@ -493,6 +474,25 @@ namespace Silverdash360.Services
 
             int appsChecked = CheckForApps(content, knownApps, paceHeader) + LookInsideHomebrew(content, knownInside, paceHeader);
 
+            // A profile signed in or out while this ran: the result is for
+            // the one signed in now, its own packages and played titles in
+            // place of the other's, so it doesn't bring that one back.
+            Gamer now = profiles.SignedIn().FirstOrDefault();
+            if ((now != null ? now.Xuid : 0) != (gamer != null ? gamer.Xuid : 0))
+            {
+                Log.Write("Library: the profile changed during the refresh, to {0}",
+                          now != null ? now.Gamertag : "nobody signed in");
+                gamer = now;
+                played = now != null ? profiles.PlayedTitles(now) : new List<PlayedTitle>();
+                content = content.Where(c => c.Owner == 0).ToList();
+                if (now != null)
+                {
+                    content.AddRange(ReadOwn(now, pace));
+                }
+                // ReadOwn saved the new profile's file; the other's stays as it was.
+                profileCache = null;
+            }
+
             // Each file is saved whenever its packages changed, the console's
             // also when the executables did.
             bool executablesChanged = found.Count != knownExecutables.Count ||
@@ -521,6 +521,51 @@ namespace Silverdash360.Services
                       unread.Count, found.Count, changed ? "changed" : "unchanged",
                       (int)(DateTime.UtcNow - started).TotalMilliseconds);
             return built;
+        }
+
+        // A profile's own packages, with what was read of them when it was
+        // last here; its file is saved again when they changed.
+        private List<ContentItem> ReadOwn(Gamer gamer, Action pace)
+        {
+            LibraryCache profileCache = LibraryCache.ForProfile(gamer.OfflineXuid);
+            List<ContentItem> saved = Owned(profileCache.Load(null).Content, gamer.OfflineXuid);
+            Dictionary<string, ContentItem> known = new Dictionary<string, ContentItem>();
+            foreach (ContentItem item in saved)
+            {
+                known[LibraryCache.KeyOf(item)] = item;
+            }
+            Dictionary<string, bool> seen = new Dictionary<string, bool>();
+            List<ContentItem> own = new List<ContentItem>();
+            int read = 0;
+            foreach (ContentItem item in Owned(source.Enumerate(gamer.OfflineXuid, null, pace), gamer.OfflineXuid))
+            {
+                string key = LibraryCache.KeyOf(item);
+                if (item.TitleId == 0 || seen.ContainsKey(key))
+                {
+                    continue;
+                }
+                seen[key] = true;
+                if (item.Type != ContentType.SavedGame)
+                {
+                    ContentItem kept;
+                    if (known.TryGetValue(key, out kept) && (kept.Metadata != null || kept.HeaderRead))
+                    {
+                        item.Metadata = kept.Metadata;
+                    }
+                    else
+                    {
+                        item.Metadata = source.ReadMetadata(item, false);
+                        read++;
+                    }
+                    item.HeaderRead = true;
+                }
+                own.Add(item);
+            }
+            if (Differs(own, saved, read))
+            {
+                profileCache.Save(new List<IList<ContentItem>> { own }, new List<ExecutableItem>(), Pace(PaceSave));
+            }
+            return own;
         }
 
         // Marks packages as a profile's own.
