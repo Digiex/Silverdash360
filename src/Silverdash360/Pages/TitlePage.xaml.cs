@@ -81,7 +81,7 @@ namespace Silverdash360.Pages
             {
                 if (e.Button == GamePadButton.LeftShoulder || e.Button == GamePadButton.RightShoulder)
                 {
-                    ShowTab((tab + (e.Button == GamePadButton.RightShoulder ? 1 : tabs.Count - 1)) % tabs.Count);
+                    SwitchTab(e.Button == GamePadButton.RightShoulder ? 1 : -1);
                     e.Handled = true;
                 }
             };
@@ -143,9 +143,14 @@ namespace Silverdash360.Pages
                 if (updated != null && updated != title)
                 {
                     title = updated;
+                    contentItems = null;
                     if (tabs.Count > tab && tabs[tab].Header == "content")
                     {
                         ShowTab(tab);
+                    }
+                    else
+                    {
+                        SortContent();
                     }
                 }
             });
@@ -260,11 +265,10 @@ namespace Silverdash360.Pages
             {
                 Header = "content",
                 Empty = "Nothing is stored for this title.",
-                Items = () => title.Executables.Cast<object>()
-                                   .Concat(title.Content.OrderBy(c => c.Type).ThenBy(c => c.DisplayName).Cast<object>())
-                                   .ToList(),
+                Items = () => contentItems ?? SortContent(),
                 Row = o => o is ExecutableItem ? ExecutableRow((ExecutableItem)o) : ContentRow((ContentItem)o),
             });
+            SortContent();
             foreach (Tab t in tabs)
             {
                 TextBlock header = Theme.TextBlock(t.Header, 24, Theme.SubText);
@@ -287,12 +291,69 @@ namespace Silverdash360.Pages
             return -1;
         }
 
+        // The content tab's rows, sorted once: a game can have hundreds of
+        // add-ons, and sorting them on every visit to the tab held up the
+        // page for seconds on a console.
+        private List<object> contentItems;
+        private bool sortingContent;
+
+        // Sorts the title's packages in the background, by type and then
+        // name (ordinal: the culture's comparison is much slower), and shows
+        // them when the content tab is open; empty meanwhile.
+        private List<object> SortContent()
+        {
+            if (!sortingContent && contentItems == null)
+            {
+                sortingContent = true;
+                TitleEntry sorting = title;
+                Core.Background.Run(() =>
+                {
+                    List<object> rows = new List<object>();
+                    rows.AddRange(sorting.Executables.Cast<object>());
+                    rows.AddRange(sorting.Content.OrderBy(c => c.Type)
+                                         .ThenBy(c => c.DisplayName, StringComparer.OrdinalIgnoreCase)
+                                         .Cast<object>());
+                    return rows;
+                }, delegate(List<object> rows, Exception error)
+                {
+                    sortingContent = false;
+                    if (sorting != title)
+                    {
+                        // The title changed meanwhile: its own sort follows.
+                        SortContent();
+                        return;
+                    }
+                    contentItems = rows ?? new List<object>();
+                    if (tabs.Count > tab && tabs[tab].Header == "content")
+                    {
+                        Details.EmptyText = tabs[tab].Empty;
+                        ShowTab(tab);
+                    }
+                });
+            }
+            if (tabs.Count > tab && tabs[tab].Header == "content")
+            {
+                Details.EmptyText = "Reading...";
+            }
+            return new List<object>();
+        }
+
+        /// <summary>The next tab (1) or the one before (-1), as RB and LB show them.</summary>
+        public void SwitchTab(int direction)
+        {
+            if (tabs.Count > 0)
+            {
+                ShowTab((tab + (direction > 0 ? 1 : tabs.Count - 1)) % tabs.Count);
+            }
+        }
+
         private void ShowTab(int index)
         {
             if (index < 0)
             {
                 return;
             }
+            int started = Environment.TickCount;
             tab = lastTab = index;
             for (int i = 0; i < tabHeaders.Count; i++)
             {
@@ -303,6 +364,7 @@ namespace Silverdash360.Pages
             Details.EmptyText = t.Empty;
             Details.TileTemplate = new RowTemplate(t.Row);
             Details.Items = t.Items();
+            Log.Write("Title page: the {0} tab in {1} ms", t.Header, Environment.TickCount - started);
         }
 
         // Reads them in the background and shows them when the tab is still open.

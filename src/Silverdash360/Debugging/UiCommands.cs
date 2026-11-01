@@ -43,6 +43,20 @@ namespace Silverdash360.Debugging
             commands.Add("ui.state", "", "The page, the hub's section, and the focused control and selection.", r => UiThread.Invoke(() => State()));
             commands.Add("ui.section", "<index|header>", "Shows a hub section.", Section);
             commands.Add("ui.navigate", "<hub|search|storage|theme|files [path] [pick]|media <source>|shelf <header>|title <key>>", "Goes to a page.", Navigate);
+            commands.Add("ui.tab", "<next|previous>", "On a title's page, shows another tab, as RB and LB do.", r =>
+            {
+                UiThread.Invoke(() =>
+                {
+                    TitlePage page = Frame.Content as TitlePage;
+                    if (page == null)
+                    {
+                        throw new DebugException("A title's page isn't open.");
+                    }
+                    page.SwitchTab(r.Arg(0, "next") == "previous" ? -1 : 1);
+                    return 0;
+                });
+                return Settled();
+            });
             commands.Add("ui.back", "", "Goes back a page.", r =>
             {
                 UiThread.Invoke(() => Back());

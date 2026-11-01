@@ -870,9 +870,11 @@ namespace Silverdash360.Services
         {
             int started = Environment.TickCount;
             Gamer gamer = before.Gamer;
-            List<ContentItem> shared = source.EnumerateType(0, ContentType.Any, id);
+            // Once each: the listing can report a package twice, as the
+            // start's does.
+            List<ContentItem> shared = Unique(source.EnumerateType(0, ContentType.Any, id));
             List<ContentItem> own = gamer != null
-                ? Owned(source.EnumerateType(gamer.OfflineXuid, ContentType.Any, id), gamer.OfflineXuid)
+                ? Unique(Owned(source.EnumerateType(gamer.OfflineXuid, ContentType.Any, id), gamer.OfflineXuid))
                 : new List<ContentItem>();
             Dictionary<string, ContentItem> kept = new Dictionary<string, ContentItem>();
             foreach (TitleEntry title in before.Titles)
@@ -936,6 +938,22 @@ namespace Silverdash360.Services
             Log.Write("Library: title {0:X8} listed again, {1} packages where {2} were kept, in {3} ms", id,
                       shared.Count + own.Count, kept.Count, Environment.TickCount - started);
             return result;
+        }
+
+        private static List<ContentItem> Unique(List<ContentItem> packages)
+        {
+            Dictionary<string, bool> seen = new Dictionary<string, bool>();
+            List<ContentItem> unique = new List<ContentItem>(packages.Count);
+            foreach (ContentItem item in packages)
+            {
+                string key = LibraryCache.KeyOf(item);
+                if (item.TitleId != 0 && !seen.ContainsKey(key))
+                {
+                    seen[key] = true;
+                    unique.Add(item);
+                }
+            }
+            return unique;
         }
 
         // The library saved after a title was listed again, unless a
