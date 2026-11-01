@@ -31,8 +31,20 @@ namespace Silverdash360.Controls
 
     public class EdgeEventArgs : EventArgs
     {
-        public EdgeEventArgs(Edge edge) { Edge = edge; }
+        public EdgeEventArgs(Edge edge, int sincePreviousMove)
+        {
+            Edge = edge;
+            SincePreviousMove = sincePreviousMove;
+        }
+
         public Edge Edge { get; private set; }
+
+        /// <summary>
+        /// Milliseconds since the move before this one, in any grid: short
+        /// for a button or stick held, or pressed again and again.
+        /// </summary>
+        public int SincePreviousMove { get; private set; }
+
         public bool Handled { get; set; }
     }
 
@@ -727,10 +739,17 @@ namespace Silverdash360.Controls
             }
         }
 
+        // When the last move was, in any grid, and the time before it.
+        private static int lastMove;
+        private static int sincePreviousMove = int.MaxValue;
+
         /// <summary>Moves the selection by tiles on screen; false at an edge nobody took.</summary>
         public bool Move(int dx, int dy)
         {
             UiIdle.Input();
+            int now = Environment.TickCount;
+            sincePreviousMove = lastMove == 0 ? int.MaxValue : now - lastMove;
+            lastMove = now;
             if (items.Count == 0)
             {
                 return RaiseEdge(dx < 0 ? Edge.Left : dx > 0 ? Edge.Right : dy < 0 ? Edge.Top : Edge.Bottom);
@@ -766,7 +785,7 @@ namespace Silverdash360.Controls
             {
                 return false;
             }
-            EdgeEventArgs args = new EdgeEventArgs(edge);
+            EdgeEventArgs args = new EdgeEventArgs(edge, sincePreviousMove);
             EdgeReached(this, args);
             return args.Handled;
         }

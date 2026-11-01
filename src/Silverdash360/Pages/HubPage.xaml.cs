@@ -323,8 +323,19 @@ namespace Silverdash360.Pages
             StatusText.Text = e.Text;
         }
 
+        // A move at a section's left or right edge goes to the next section
+        // only as a press of its own, this long after the move before it:
+        // holding the D-pad or the stick, or pressing it again and again to
+        // run through a shelf, stops at its end. The bumpers switch at once.
+        private const int EdgeCooldownMs = 400;
+
         private void OnModuleEdge(object sender, EdgeEventArgs e)
         {
+            if ((e.Edge == Edge.Left || e.Edge == Edge.Right) && e.SincePreviousMove < EdgeCooldownMs)
+            {
+                e.Handled = true;
+                return;
+            }
             if (e.Edge == Edge.Left && current > 0)
             {
                 Show(current - 1, -1);

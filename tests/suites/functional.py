@@ -13,13 +13,19 @@ def go_to_section(t, header):
     return t.call('ui.section', header)
 
 
-def first_title_section(t):
-    """A section whose focused grid shows titles, or skips."""
-    for header in ('games', 'apps', 'home'):
+def first_title_section(t, home=True):
+    """A section whose focused grid shows titles, or skips. A section's grid
+    is built once the user stops on it, which takes a while on a console, so
+    each is waited for. A test that presses A passes home=False: A on home
+    starts the title."""
+    for header in ('games', 'apps', 'home') if home else ('games', 'apps'):
         state = go_to_section(t, header)
-        grid = state.get('grid')
-        if grid and grid['items'] > 1 and isinstance(grid['selectedItem'], dict):
-            return state
+        for _ in range(25):
+            grid = state.get('grid')
+            if grid and grid['items'] > 1 and isinstance(grid['selectedItem'], dict):
+                return state
+            time.sleep(0.2)
+            state = t.call('ui.state')
     t.skip('no section with two or more titles')
 
 
@@ -176,10 +182,27 @@ def dpad_moves_selection(t):
 
 
 @test('functional')
-def a_opens_title_and_b_returns(t):
+def edge_waits_for_a_press_of_its_own(t):
     state = first_title_section(t)
     section = state['section']
+    if section >= len(state['sections']) - 1:
+        t.skip('the first title section is the last')
+    # Held, as the repeats of a held D-pad come: the shelf's end stops it.
+    t.call('ui.press', 'right', str(state['grid']['items'] + 5))
+    t.equal(t.call('ui.state')['section'], section, 'section after holding right through the shelf')
+    time.sleep(0.6)
+    t.equal(t.call('ui.press', 'right')['section'], section + 1, 'section after right again, after a pause')
+    t.call('ui.section', section)
+
+
+@test('functional')
+def a_opens_title_and_b_returns(t):
+    state = first_title_section(t, home=False)
+    section = state['section']
     selected = state['grid']['selectedItem']
+    # Never on home, where A starts the title.
+    if state['sectionHeader'] not in ('games', 'apps'):
+        t.skip('not on a shelf where A opens details')
     opened = t.call('ui.press', 'a')
     time.sleep(0.5)
     opened = t.call('ui.state')

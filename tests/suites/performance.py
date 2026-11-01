@@ -123,6 +123,18 @@ def press_timing(t):
     t.note('motion: %s' % t.call('ui.motion'))
     for name, button, window in (('move', 'right', 400), ('moveBack', 'left', 400), ('section', 'rb', 500),
                                  ('sectionBack', 'lb', 500), ('openTitle', 'a', 1000), ('back', 'b', 1000)):
+        if button == 'a':
+            # A opens a title's details only on a shelf: on home it starts
+            # the title. A shelf's grid comes once it's stopped on.
+            for _ in range(25):
+                now = t.call('ui.state')
+                grid = now.get('grid')
+                if now['sectionHeader'] in ('apps', 'games') and grid and isinstance(grid.get('selectedItem'), dict):
+                    break
+                time.sleep(0.2)
+            else:
+                t.note('openTitle and back skipped: not on a shelf with titles')
+                break
         r = t.call('ui.timeline', button, window)
         t.check(r['handled'], '%s was not handled' % button)
         t.metric('press.%s.handlerMs' % name, r['handlerMs'], noise=5)
