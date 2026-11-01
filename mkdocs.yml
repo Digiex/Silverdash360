@@ -48,4 +48,5 @@ nav:
       - Settings: settings.md
   - Troubleshooting: troubleshooting.md
   - Problems and ideas: issues.md
+  - Contributing: contributing.md
   - Development: development.md

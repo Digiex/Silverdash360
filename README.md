@@ -56,6 +56,10 @@ More in the [documentation](https://digiex.github.io/Silverdash360/getting-aroun
 
 [Report a problem](https://github.com/Digiex/Silverdash360/issues/new?template=bug_report.yml) or [request a feature](https://github.com/Digiex/Silverdash360/issues/new?template=feature_request.yml) on GitHub Issues; look through the [open issues](https://github.com/Digiex/Silverdash360/issues) first. [Problems and ideas](https://digiex.github.io/Silverdash360/issues/) says what helps. For questions and chat, there's the [Silverdash360 thread on Digiex](https://digiex.net/threads/silverdash360-homebrew-xbox-360-dashboard.20103/).
 
+## Contributing
+
+Contributions and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how, and [Development](docs/development.md) for building and testing.
+
 ## Building it yourself
 
 See [Development](docs/development.md): building with Silverlight360, the debug server and tests, releases and how it works.

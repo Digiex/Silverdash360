@@ -19,3 +19,5 @@ A screenshot or a photo of the screen helps too.
 ## Asking for a feature
 
 [Request a feature](https://github.com/Digiex/Silverdash360/issues/new?template=feature_request.yml): what you'd like Silverdash360 to do, and what it would help you with. How the Xbox Dashboard or another dashboard does it is useful to know.
+
+To fix or make it yourself, see [Contributing](contributing.md): pull requests are welcome.

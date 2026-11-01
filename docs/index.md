@@ -32,4 +32,4 @@ Silverdash360 is a dashboard for the Xbox 360: it lists the games and apps on yo
 2. Find your way around: [Getting around](getting-around.md) has the controls.
 3. If something isn't right, see [Troubleshooting](troubleshooting.md), and [report it](issues.md) on GitHub if it's not there. Ideas for features go there too.
 
-Silverdash360 is made by [Digiex](https://digiex.net). Its source is on [GitHub](https://github.com/Digiex/Silverdash360); see [Development](development.md) for building it yourself.
+Silverdash360 is made by [Digiex](https://digiex.net). Its source is on [GitHub](https://github.com/Digiex/Silverdash360); see [Development](development.md) for building it yourself. Contributions and pull requests are welcome: see [Contributing](contributing.md).
