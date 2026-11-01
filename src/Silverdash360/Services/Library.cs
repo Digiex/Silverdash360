@@ -277,18 +277,104 @@ namespace Silverdash360.Services
                 return null;
             }
             Report("Reading the profile...", null);
+            string steps;
+            LoadResult built = ReadProfileSteps(before, gamer, (int)(DateTime.UtcNow - started).TotalMilliseconds, out steps);
+            Log.Write("Library: now for {0} in {1} ms: {2}", gamer != null ? gamer.Gamertag : "nobody signed in",
+                      (int)(DateTime.UtcNow - started).TotalMilliseconds, steps);
+            return built;
+        }
+
+        // The library for the profile, step by step; steps says how long
+        // each took.
+        private LoadResult ReadProfileSteps(LoadResult before, Gamer gamer, int signinMs, out string steps)
+        {
+            int at = Environment.TickCount;
             List<PlayedTitle> played = gamer != null ? profiles.PlayedTitles(gamer) : new List<PlayedTitle>();
+            int playedMs = Environment.TickCount - at;
+            at = Environment.TickCount;
             // The console's packages are under XUID 0, a profile's under its
             // offline XUID.
-            List<ContentItem> content = before.Content.Where(c => c.Owner == 0).ToList();
+            List<ContentItem> content = new List<ContentItem>(before.Shared.Count + 64);
+            content.AddRange(before.Shared);
             List<ContentItem> own = gamer != null ? ReadOwn(gamer, Pace(0)) : new List<ContentItem>();
             content.AddRange(own);
+            int ownMs = Environment.TickCount - at;
             latestProfile = new ProfileRead { Gamer = gamer, Played = played, Own = own };
-            LoadResult built = Build(content, before.Executables, gamer, played);
-            Log.Write("Library: now for {0}, {1} packages of its own, in {2} ms",
-                      gamer != null ? gamer.Gamertag : "nobody signed in", content.Count(c => c.Owner != 0),
-                      (int)(DateTime.UtcNow - started).TotalMilliseconds);
+            at = Environment.TickCount;
+            LoadResult built = Rebuild(before, content, own, gamer, played);
+            int buildMs = Environment.TickCount - at;
+            steps = string.Format("signed in {0} ms, {1} played titles {2} ms, {3} of its own packages {4} ms, " +
+                                  "{5} packages built {6} ms", signinMs, played.Count, playedMs, own.Count, ownMs,
+                                  content.Count, buildMs);
             return built;
+        }
+
+        /// <summary>
+        /// For the debug server: the read a sign-in makes, timed step by
+        /// step, without showing it. On the calling thread.
+        /// </summary>
+        public string TimeProfileRead()
+        {
+            int at = Environment.TickCount;
+            Gamer gamer = profiles.SignedIn().FirstOrDefault();
+            int signinMs = Environment.TickCount - at;
+            ProfileRead kept = latestProfile;
+            string steps;
+            LoadResult quick = ReadProfileSteps(current, gamer, signinMs, out steps);
+            string quickSteps = LastBuildSteps;
+            ProfileRead read = latestProfile;
+            latestProfile = kept;
+            // The same library built whole, to check the quick one against.
+            LoadResult whole = Build(current.Shared.Concat(read.Own).ToList(), current.Executables, read.Gamer, read.Played);
+            return steps + "; build: " + quickSteps + "; against a whole build: " + Compare(quick, whole);
+        }
+
+        private static string Compare(LoadResult a, LoadResult b)
+        {
+            List<string> differences = new List<string>();
+            CompareList("games", a.Games, b.Games, differences);
+            CompareList("apps", a.Apps, b.Apps, differences);
+            CompareList("recent", a.Recent, b.Recent, differences);
+            if (a.Titles.Count != b.Titles.Count)
+            {
+                differences.Add("titles " + a.Titles.Count + " and " + b.Titles.Count);
+            }
+            if (a.Content.Count != b.Content.Count)
+            {
+                differences.Add("packages " + a.Content.Count + " and " + b.Content.Count);
+            }
+            foreach (TitleEntry x in a.Titles)
+            {
+                TitleEntry y;
+                if (!b.ByKey.TryGetValue(x.Key, out y))
+                {
+                    differences.Add("no " + x.Key + " in the whole build");
+                    continue;
+                }
+                if (x.Content.Count != y.Content.Count || (x.Played == null) != (y.Played == null) || x.Name != y.Name ||
+                    x.Kind != y.Kind)
+                {
+                    differences.Add(x.Key + " differs");
+                }
+            }
+            return differences.Count == 0 ? "the same" : string.Join("; ", differences.Take(10).ToArray());
+        }
+
+        private static void CompareList(string name, List<TitleEntry> a, List<TitleEntry> b, List<string> differences)
+        {
+            if (a.Count != b.Count)
+            {
+                differences.Add(name + " " + a.Count + " and " + b.Count);
+                return;
+            }
+            for (int i = 0; i < a.Count; i++)
+            {
+                if (a[i].Key != b[i].Key)
+                {
+                    differences.Add(name + " at " + i + ": " + a[i].Key + " and " + b[i].Key);
+                    return;
+                }
+            }
         }
 
         private sealed class LoadResult
@@ -310,6 +396,9 @@ namespace Silverdash360.Services
             public List<TitleEntry> Apps;
             public List<TitleEntry> Recent;
             public List<ContentItem> Content;
+            /// <summary>Content split by whose it is: the console's, and the profile's own.</summary>
+            public List<ContentItem> Shared = new List<ContentItem>();
+            public List<ContentItem> Own = new List<ContentItem>();
             public Dictionary<uint, TitleEntry> ById;
             public Dictionary<string, TitleEntry> ByKey;
             public SearchIndex Search;
@@ -996,6 +1085,8 @@ namespace Silverdash360.Services
         {
             Dictionary<uint, TitleEntry> byId = new Dictionary<uint, TitleEntry>();
             List<ContentItem> allContent = new List<ContentItem>();
+            List<ContentItem> shared = new List<ContentItem>();
+            List<ContentItem> ownContent = new List<ContentItem>();
             // Original Xbox games the console filed under its compatibility
             // title rather than their own: one title each.
             List<TitleEntry> separate = new List<TitleEntry>();
@@ -1003,6 +1094,7 @@ namespace Silverdash360.Services
             // share a title ID (C0DE9999), so each is a title of its own.
             List<ContentItem> homebrew = new List<ContentItem>();
             int step = 0;
+            int at = Environment.TickCount;
             foreach (ContentItem item in content)
             {
                 Breathe(++step);
@@ -1012,6 +1104,7 @@ namespace Silverdash360.Services
                     continue;
                 }
                 allContent.Add(item);
+                (item.Owner == 0 ? shared : ownContent).Add(item);
                 if (item.IsHomebrewPackage && ContentType.IsLaunchable(item.Type))
                 {
                     homebrew.Add(item);
@@ -1060,8 +1153,12 @@ namespace Silverdash360.Services
                 }
                 t.Executables.Add(item);
             }
+            int groupMs = Environment.TickCount - at;
+            at = Environment.TickCount;
             AddHomebrewPackages(homebrew, found, all);
             SplitGames(all);
+            int splitMs = Environment.TickCount - at;
+            at = Environment.TickCount;
 
             List<TitleEntry> games = new List<TitleEntry>();
             List<TitleEntry> apps = new List<TitleEntry>();
@@ -1083,6 +1180,8 @@ namespace Silverdash360.Services
                     recent.Add(t);
                 }
             }
+            int classifyMs = Environment.TickCount - at;
+            at = Environment.TickCount;
             LoadResult result = new LoadResult
             {
                 Titles = all,
@@ -1092,6 +1191,8 @@ namespace Silverdash360.Services
                                .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
                                .ToList(),
                 Content = allContent,
+                Shared = shared,
+                Own = ownContent,
                 ById = new Dictionary<uint, TitleEntry>(),
                 ByKey = new Dictionary<string, TitleEntry>(),
                 Gamer = gamer,
@@ -1105,10 +1206,261 @@ namespace Silverdash360.Services
                 }
                 result.ByKey[t.Key] = t;
             }
+            int sortMs = Environment.TickCount - at;
+            at = Environment.TickCount;
             // Made now, in the background, rather than on the first search.
             result.Search = new SearchIndex(listed.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase));
+            LastBuildSteps = string.Format("group {0} ms, split {1} ms, name and classify {2} ms, sort {3} ms, search {4} ms",
+                                           groupMs, splitMs, classifyMs, sortMs, Environment.TickCount - at);
             return result;
         }
+
+        // The library with another profile's played titles and packages:
+        // the titles those touch, the old profile's and the new one's, are
+        // built again; every other title is kept as it was, and the lists
+        // are merged rather than sorted again. A full build of thousands of
+        // packages takes seconds on a console. Homebrew and original Xbox
+        // titles match packages across titles, so a profile touching those
+        // builds it all.
+        private LoadResult Rebuild(LoadResult before, List<ContentItem> content, List<ContentItem> own, Gamer gamer,
+                                   List<PlayedTitle> played)
+        {
+            Dictionary<uint, bool> touched = new Dictionary<uint, bool>();
+            foreach (TitleEntry title in before.Titles)
+            {
+                if (title.Played != null)
+                {
+                    touched[title.TitleId] = true;
+                }
+            }
+            foreach (ContentItem item in before.Own)
+            {
+                touched[item.TitleId] = true;
+            }
+            foreach (PlayedTitle p in played)
+            {
+                touched[p.TitleId] = true;
+            }
+            foreach (ContentItem item in own)
+            {
+                touched[item.TitleId] = true;
+            }
+            if (touched.ContainsKey(HomebrewTitleId) || touched.ContainsKey(TitleEntry.XboxCompatibilityTitleId))
+            {
+                LastBuildSteps = "all built: the profile touches homebrew or original Xbox titles";
+                return Build(content, before.Executables, gamer, played);
+            }
+            int at = Environment.TickCount;
+            // A touched title that was one title, and gains or loses no
+            // package that starts it, is the same title with the other
+            // profile's played stats and saves: a copy of it with those, its
+            // name and kind worked out again. Played games can have hundreds
+            // of add-ons, which building again would go through. One that
+            // was split into several, or with a startable package of either
+            // profile's, could come out otherwise, so it's built again.
+            Dictionary<uint, int> entries = new Dictionary<uint, int>();
+            foreach (TitleEntry title in before.Titles)
+            {
+                if (touched.ContainsKey(title.TitleId))
+                {
+                    int count;
+                    entries.TryGetValue(title.TitleId, out count);
+                    entries[title.TitleId] = count + 1;
+                }
+            }
+            Dictionary<uint, bool> rebuild = new Dictionary<uint, bool>();
+            Dictionary<uint, bool> hadOwn = new Dictionary<uint, bool>();
+            foreach (ContentItem item in before.Own)
+            {
+                hadOwn[item.TitleId] = true;
+                if (item.IsLaunchable || item.Type == ContentType.InstalledGame)
+                {
+                    rebuild[item.TitleId] = true;
+                }
+            }
+            Dictionary<uint, List<ContentItem>> newOwn = new Dictionary<uint, List<ContentItem>>();
+            foreach (ContentItem item in own)
+            {
+                List<ContentItem> list;
+                if (!newOwn.TryGetValue(item.TitleId, out list))
+                {
+                    newOwn[item.TitleId] = list = new List<ContentItem>();
+                }
+                list.Add(item);
+                if (item.IsLaunchable || item.Type == ContentType.InstalledGame)
+                {
+                    rebuild[item.TitleId] = true;
+                }
+            }
+            foreach (uint id in touched.Keys)
+            {
+                int count;
+                if (!entries.TryGetValue(id, out count) || count != 1)
+                {
+                    rebuild[id] = true;
+                }
+            }
+            Dictionary<uint, PlayedTitle> playedById = new Dictionary<uint, PlayedTitle>();
+            foreach (PlayedTitle p in played)
+            {
+                playedById[p.TitleId] = p;
+            }
+
+            List<TitleEntry> copies = new List<TitleEntry>();
+            List<ContentItem> partContent = new List<ContentItem>();
+            foreach (TitleEntry title in before.Titles)
+            {
+                uint id = title.TitleId;
+                if (!touched.ContainsKey(id))
+                {
+                    continue;
+                }
+                if (rebuild.ContainsKey(id))
+                {
+                    foreach (ContentItem item in title.Content)
+                    {
+                        if (item.Owner == 0)
+                        {
+                            partContent.Add(item);
+                        }
+                    }
+                    continue;
+                }
+                TitleEntry copy = new TitleEntry(id, title.Key);
+                if (hadOwn.ContainsKey(id))
+                {
+                    foreach (ContentItem item in title.Content)
+                    {
+                        if (item.Owner == 0)
+                        {
+                            copy.Content.Add(item);
+                        }
+                    }
+                }
+                else
+                {
+                    copy.Content.AddRange(title.Content);
+                }
+                List<ContentItem> gained;
+                if (newOwn.TryGetValue(id, out gained))
+                {
+                    copy.Content.AddRange(gained);
+                }
+                copy.Executables.AddRange(title.Executables);
+                PlayedTitle p;
+                copy.Played = playedById.TryGetValue(id, out p) ? p : null;
+                copy.Name = NameOf(copy);
+                copy.Kind = Classify(copy);
+                copies.Add(copy);
+            }
+            foreach (ContentItem item in own)
+            {
+                if (rebuild.ContainsKey(item.TitleId))
+                {
+                    partContent.Add(item);
+                }
+            }
+            LoadResult part = Build(partContent, before.Executables.Where(e => rebuild.ContainsKey(e.TitleId)).ToList(),
+                                    gamer, played.Where(p => rebuild.ContainsKey(p.TitleId)).ToList());
+            string partSteps = LastBuildSteps;
+            // The copies into the rebuilt part's lists, as Build files them.
+            List<TitleEntry> copiedGames = new List<TitleEntry>();
+            List<TitleEntry> copiedApps = new List<TitleEntry>();
+            List<TitleEntry> copiedRecent = new List<TitleEntry>();
+            foreach (TitleEntry copy in copies)
+            {
+                if (copy.Kind == TitleKind.Other)
+                {
+                    continue;
+                }
+                (copy.Kind == TitleKind.Game ? copiedGames : copiedApps).Add(copy);
+                if (copy.LastPlayed != null || copy.IsInstalled)
+                {
+                    copiedRecent.Add(copy);
+                }
+            }
+            part.Titles.AddRange(copies);
+            part.Games = Merge(part.Games, Sorted(copiedGames), ByShelf);
+            part.Apps = Merge(part.Apps, Sorted(copiedApps), ByShelf);
+            copiedRecent.Sort(ByRecent);
+            part.Recent = Merge(part.Recent, copiedRecent, ByRecent);
+            List<TitleEntry> titles = before.Titles.Where(t => !touched.ContainsKey(t.TitleId)).ToList();
+            titles.AddRange(part.Titles);
+            LoadResult result = new LoadResult
+            {
+                Titles = titles,
+                Games = Merge(before.Games.Where(t => !touched.ContainsKey(t.TitleId)).ToList(), part.Games, ByShelf),
+                Apps = Merge(before.Apps.Where(t => !touched.ContainsKey(t.TitleId)).ToList(), part.Apps, ByShelf),
+                Recent = Merge(before.Recent.Where(t => !touched.ContainsKey(t.TitleId)).ToList(), part.Recent, ByRecent),
+                Content = content,
+                Shared = before.Shared,
+                Own = own,
+                ById = new Dictionary<uint, TitleEntry>(),
+                ByKey = new Dictionary<string, TitleEntry>(),
+                Gamer = gamer,
+                Executables = before.Executables,
+            };
+            foreach (TitleEntry title in titles)
+            {
+                if (!result.ById.ContainsKey(title.TitleId))
+                {
+                    result.ById[title.TitleId] = title;
+                }
+                result.ByKey[title.Key] = title;
+            }
+            result.Search = new SearchIndex(result.Games.Concat(result.Apps).OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase));
+            LastBuildSteps = string.Format("{0} titles copied, {1} with {2} packages built again ({3}), {4} ms in all",
+                                           copies.Count, rebuild.Count, partContent.Count, partSteps, Environment.TickCount - at);
+            return result;
+        }
+
+        // QuickBoot shortcuts and packaged homebrew apps share this title ID.
+        private const uint HomebrewTitleId = 0xC0DE9999;
+
+        // The order the shelves keep: installed first, then by name.
+        private static int ByShelf(TitleEntry a, TitleEntry b)
+        {
+            if (a.IsInstalled != b.IsInstalled)
+            {
+                return a.IsInstalled ? -1 : 1;
+            }
+            return StringComparer.OrdinalIgnoreCase.Compare(a.Name, b.Name);
+        }
+
+        // Recent: most recently played first, then by name.
+        private static int ByRecent(TitleEntry a, TitleEntry b)
+        {
+            long x = a.LastPlayed.HasValue ? a.LastPlayed.Value.Ticks : 0;
+            long y = b.LastPlayed.HasValue ? b.LastPlayed.Value.Ticks : 0;
+            if (x != y)
+            {
+                return x > y ? -1 : 1;
+            }
+            return StringComparer.OrdinalIgnoreCase.Compare(a.Name, b.Name);
+        }
+
+        // Two lists in the same order made one, kept in it.
+        private static List<TitleEntry> Merge(List<TitleEntry> a, List<TitleEntry> b, Comparison<TitleEntry> order)
+        {
+            List<TitleEntry> merged = new List<TitleEntry>(a.Count + b.Count);
+            int i = 0, j = 0;
+            while (i < a.Count && j < b.Count)
+            {
+                merged.Add(order(a[i], b[j]) <= 0 ? a[i++] : b[j++]);
+            }
+            while (i < a.Count)
+            {
+                merged.Add(a[i++]);
+            }
+            while (j < b.Count)
+            {
+                merged.Add(b[j++]);
+            }
+            return merged;
+        }
+
+        /// <summary>How long the last build's steps took, for the debug server.</summary>
+        public string LastBuildSteps { get; private set; }
 
         private TitleKind Classify(TitleEntry title)
         {
