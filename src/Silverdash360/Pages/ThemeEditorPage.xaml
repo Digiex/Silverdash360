@@ -27,7 +27,7 @@
         <TextBlock x:Name="SwatchTitle" FontSize="22" Foreground="White" Margin="0,0,0,12" />
         <local:TileGrid x:Name="Swatches" Height="420" Visibility="Collapsed" />
         <TextBlock x:Name="HelpText" FontSize="18" Foreground="{StaticResource SubText}" TextWrapping="Wrap"
-                   Text="Pick a colour to change it, or a wallpaper to take one from a theme or a picture on the console's drives. Each section of the hub shows a wallpaper in turn." />
+                   Text="Pick a colour to change it, or a wallpaper to take one from a theme or a picture on the console's drives. As the first dashboard's blades did, the hub's sections share four wallpapers: Xbox Live's, Games', Media's and System's." />
       </StackPanel>
       <Grid Grid.Row="2" Grid.ColumnSpan="2" Height="34">
         <TextBlock x:Name="StatusText" FontSize="18" Foreground="{StaticResource SubText}" VerticalAlignment="Center" />

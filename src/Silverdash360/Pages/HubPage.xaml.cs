@@ -594,7 +594,7 @@ namespace Silverdash360.Pages
                 }
                 return;
             }
-            int index = current % themes.Current.Wallpapers.Count;
+            int index = ThemeService.WallpaperSlot(Modules[current].Header, current, themes.Current.Wallpapers.Count);
             if (index == shownWallpaper)
             {
                 return;

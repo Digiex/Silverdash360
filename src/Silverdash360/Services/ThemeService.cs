@@ -561,6 +561,42 @@ namespace Silverdash360.Services
             return null;
         }
 
+        /// <summary>
+        /// The wallpaper a hub section shows. A theme's four wallpapers go
+        /// with the first dashboard's blades but Marketplace, in their order:
+        /// Xbox Live, Games, Media and System (the dashboard's Spectrum theme
+        /// is orange, green, blue and purple, the blades' colours). So home
+        /// and me show the first, as does apps, Marketplace's blade being
+        /// orange too; games the second, media the third and settings the
+        /// fourth. A theme with fewer goes round them; a section the hub
+        /// doesn't know takes its place in turn.
+        /// </summary>
+        public static int WallpaperSlot(string header, int section, int count)
+        {
+            int slot;
+            switch (header)
+            {
+                case "home":
+                case "me":
+                case "apps":
+                    slot = 0;
+                    break;
+                case "games":
+                    slot = 1;
+                    break;
+                case "media":
+                    slot = 2;
+                    break;
+                case "settings":
+                    slot = 3;
+                    break;
+                default:
+                    slot = section;
+                    break;
+            }
+            return count > 0 ? slot % count : 0;
+        }
+
         /// <summary>Whether <see cref="Wallpaper"/> has the wallpaper decoded already.</summary>
         public bool IsDecoded(int index)
         {

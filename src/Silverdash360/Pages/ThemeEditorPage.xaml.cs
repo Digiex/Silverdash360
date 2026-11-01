@@ -185,7 +185,7 @@ namespace Silverdash360.Pages
                 rows.Add(new Row
                 {
                     Title = "Wallpaper " + (slot + 1),
-                    Subtitle = slot == 0 ? "Home and every fourth section" : "The next section",
+                    Subtitle = SlotSections[slot],
                     Detail = () => ThemeDraft.Wallpapers[slot] != null ? (ThemeDraft.Wallpapers[slot].Length / 1024) + " KB" : "none",
                     Run = () =>
                     {
@@ -226,6 +226,16 @@ namespace Silverdash360.Pages
             Rows.Items = rows.Cast<object>().ToList();
             Rows.SelectedIndex = Math.Min(selected, rows.Count - 1);
         }
+
+        // The sections each wallpaper shows in, as the first dashboard's
+        // blades had them (ThemeService.WallpaperSlot).
+        private static readonly string[] SlotSections =
+        {
+            "Home, apps and me (the Xbox Live blade)",
+            "Games",
+            "Media",
+            "Settings (the System blade)",
+        };
 
         private static List<ColourSetting> Colours()
         {
