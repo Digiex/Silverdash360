@@ -71,6 +71,12 @@ namespace Silverdash360.Services
             return "package:" + titleId.ToString("X8") + "/" + fileName.ToLowerInvariant();
         }
 
+        /// <summary>
+        /// For each wallpaper that's raw pixels (<see cref="WallpaperImage"/>),
+        /// its pixels made ready in the background; null otherwise.
+        /// </summary>
+        public WallpaperImage.Pixels[] RawPixels { get; set; }
+
         /// <summary>The colours worked out from the first wallpaper, once they are.</summary>
         public Theme.Palette Palette { get; set; }
 
@@ -243,11 +249,14 @@ namespace Silverdash360.Services
 
         // The built-in themes are in the dashboard's DashPack, a package in
         // the system extension partition, each in a ThemeN folder laid out
-        // as a theme package is.
+        // as a theme package is. A console keeps it in the partition's
+        // content folder, as content is kept on the hard drive (common
+        // content of title FFFE07DF, type 0x8000); xenia's sysext folder
+        // has it at its root.
         private static readonly string[] DashPackPaths =
         {
+            @"\Device\Harddisk0\SystemExtPartition\Content\0000000000000000\FFFE07DF\00008000\FFFE07DF00000006",
             @"\Device\Harddisk0\SystemExtPartition\FFFE07DF00000006",
-            @"\Device\Harddisk0\SystemAuxPartition\FFFE07DF00000006",
         };
         private const string PackMount = "sdpack";
 
@@ -258,6 +267,11 @@ namespace Silverdash360.Services
         // A custom theme, kept as the cache keeps one:
         // CustomTheme\<offline XUID or Nobody>\theme.txt and Wallpaper1 to 4.
         private const string CustomRoot = "CustomTheme/";
+        // Themes saved from the editor for everyone on the console:
+        // SavedThemes\<id>\, listed with their names in SavedThemes\index.txt.
+        private const string SavedRoot = "SavedThemes/";
+        private const string SavedIndex = "SavedThemes/index.txt";
+        public const string SavedPrefix = "saved:";
         private const string CacheMeta = "theme.txt";
         private const uint OpenPackageFlags = 0x43;
         private const int MaxBuiltIn = 16;
@@ -506,7 +520,7 @@ namespace Silverdash360.Services
         }
 
         /// <summary>A wallpaper decoded, keeping the latest few; null when there's none or it doesn't decode.</summary>
-        public BitmapImage Wallpaper(int index)
+        public BitmapSource Wallpaper(int index)
         {
             DashTheme theme = Current;
             if (theme == null || theme.Wallpapers.Count == 0)
@@ -517,7 +531,8 @@ namespace Silverdash360.Services
             DecodedWallpaper wallpaper = FindDecoded(index);
             if (wallpaper == null)
             {
-                wallpaper = new DecodedWallpaper { Index = index, Image = Decode(theme.Wallpapers[index]) };
+                WallpaperImage.Pixels pixels = theme.RawPixels != null ? theme.RawPixels[index] : null;
+                wallpaper = new DecodedWallpaper { Index = index, Image = WallpaperImage.Create(theme.Wallpapers[index], pixels) };
             }
             decoded.Remove(wallpaper);
             decoded.Add(wallpaper);
@@ -531,7 +546,7 @@ namespace Silverdash360.Services
         private sealed class DecodedWallpaper
         {
             public int Index;
-            public BitmapImage Image;
+            public BitmapSource Image;
         }
 
         private DecodedWallpaper FindDecoded(int index)
@@ -610,6 +625,7 @@ namespace Silverdash360.Services
                 if (result.Theme != null)
                 {
                     result.FromCache = true;
+                    PrepareRaw(result.Theme);
                     return result;
                 }
                 // Nothing saved for this profile: the dashboard's theme.
@@ -622,16 +638,31 @@ namespace Silverdash360.Services
             }
             else if (Setting.StartsWith(PackagePrefix))
             {
-                string wanted = Setting.Substring(PackagePrefix.Length);
-                package = installed.FirstOrDefault(t => LibraryCache.KeyOf(t) == wanted);
-                if (package == null)
+                package = FindPackage(installed, Setting, out id);
+                if (package == null && !partial)
                 {
-                    Log.Write("Theme {0} isn't installed any more", wanted);
+                    Log.Write("Theme {0} isn't installed any more", Setting);
+                }
+            }
+            else if (Setting.StartsWith(SavedPrefix))
+            {
+                id = Setting;
+                if (id == loadedPackage && loadedPackage != null)
+                {
+                    result.Unchanged = true;
+                    return result;
+                }
+                result.Theme = ReadCache(SavedRoot + Setting.Substring(SavedPrefix.Length) + "/", id, null);
+                if (result.Theme != null)
+                {
+                    result.FromCache = true;
+                    PrepareRaw(result.Theme);
                 }
                 else
                 {
-                    id = DashTheme.PackageId(package.TitleId, package.FileName);
+                    Log.Write("Saved theme {0} isn't there any more", Setting);
                 }
+                return result;
             }
             else if (Setting.StartsWith(BuiltInPrefix))
             {
@@ -681,7 +712,41 @@ namespace Silverdash360.Services
                 result.Theme.CacheFolder = folder;
                 WriteCache(result.Theme);
             }
+            if (result.Theme != null)
+            {
+                PrepareRaw(result.Theme);
+            }
             return result;
+        }
+
+        // A picture theme the dashboard made keeps its wallpaper as raw
+        // pixels: they're made ready here, in the background, so showing it
+        // doesn't hold up the UI.
+        private void PrepareRaw(DashTheme theme)
+        {
+            // The theme on screen read again, as once its package is found:
+            // its pixels are ready already.
+            DashTheme shown = Current;
+            if (shown != null && shown.Id == theme.Id && shown.RawPixels != null &&
+                shown.Wallpapers.Count == theme.Wallpapers.Count)
+            {
+                theme.RawPixels = shown.RawPixels;
+                return;
+            }
+            WallpaperImage.Pixels[] pixels = new WallpaperImage.Pixels[theme.Wallpapers.Count];
+            bool any = false;
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                if (WallpaperImage.IsRaw(theme.Wallpapers[i]))
+                {
+                    int started = Environment.TickCount;
+                    pixels[i] = WallpaperImage.ToPixels(theme.Wallpapers[i]);
+                    any |= pixels[i] != null;
+                    Log.Write("Theme {0}: wallpaper {1} is raw pixels, made ready in {2} ms", theme.Name, i + 1,
+                              Environment.TickCount - started);
+                }
+            }
+            theme.RawPixels = any ? pixels : null;
         }
 
         private static string CacheFolder(Gamer gamer)
@@ -698,6 +763,134 @@ namespace Silverdash360.Services
         {
             return CustomTheme + ":" + Owner(gamer);
         }
+
+        // The installed package a package: setting picks, by its title and
+        // file name: whose it is can read differently from when it was
+        // picked (a profile's package was once taken for the console's).
+        // id is the theme's, found or not, or null for a setting that
+        // doesn't parse.
+        private static ContentItem FindPackage(List<ContentItem> installed, string choice, out string id)
+        {
+            // owner/device/title/type/file
+            string[] parts = choice.Substring(PackagePrefix.Length).Split('/');
+            uint titleId;
+            if (parts.Length < 5 || !uint.TryParse(parts[2], System.Globalization.NumberStyles.HexNumber, null, out titleId))
+            {
+                id = null;
+                return null;
+            }
+            string fileName = parts[4];
+            id = DashTheme.PackageId(titleId, fileName);
+            return installed.FirstOrDefault(t => t.TitleId == titleId &&
+                                                 string.Equals(t.FileName, fileName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>A theme saved from the editor for everyone on the console.</summary>
+        public sealed class SavedTheme
+        {
+            public string Id;
+            public string Name;
+
+            public string Setting { get { return SavedPrefix + Id; } }
+        }
+
+        private List<SavedTheme> saved;
+
+        /// <summary>The themes saved for everyone, by name. Reads a small file the first time.</summary>
+        public List<SavedTheme> SavedThemes()
+        {
+            if (saved == null)
+            {
+                saved = new List<SavedTheme>();
+                foreach (string line in (AppStorage.ReadText(SavedIndex) ?? "").Split('\n'))
+                {
+                    int tab = line.IndexOf('\t');
+                    if (tab > 0)
+                    {
+                        saved.Add(new SavedTheme { Id = line.Substring(0, tab), Name = line.Substring(tab + 1).TrimEnd('\r') });
+                    }
+                }
+            }
+            return saved.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        private void WriteSavedIndex()
+        {
+            StringBuilder text = new StringBuilder();
+            foreach (SavedTheme theme in saved)
+            {
+                text.Append(theme.Id).Append('\t').Append(theme.Name.Replace('\n', ' ')).Append('\n');
+            }
+            string contents = text.ToString();
+            Background.Run(() => { AppStorage.WriteText(SavedIndex, contents); return 0; }, (r, e) => { });
+        }
+
+        /// <summary>
+        /// Saves the editor's theme under a name for everyone on the
+        /// console, and uses it; done is called on the UI thread once it's shown.
+        /// </summary>
+        public void SaveThemeAs(string name, Theme.Palette palette, List<byte[]> wallpapers, Action done)
+        {
+            SavedThemes();
+            SavedTheme entry = new SavedTheme { Id = DateTime.UtcNow.Ticks.ToString("X"), Name = name };
+            DashTheme theme = new DashTheme(-1)
+            {
+                Id = entry.Setting,
+                SavedName = name,
+                CacheFolder = SavedRoot + entry.Id + "/",
+                Palette = palette,
+                PaletteKnown = true,
+                SphereColor = -1,
+                BladeStyle = -1,
+            };
+            theme.Wallpapers.AddRange(wallpapers);
+            Background.Run(() =>
+            {
+                WriteCache(theme);
+                Log.Write("Theme {0} saved for everyone: {1} wallpapers", name, wallpapers.Count);
+                return 0;
+            }, delegate
+            {
+                saved.Add(entry);
+                WriteSavedIndex();
+                Choose(entry.Setting, done);
+            });
+        }
+
+        /// <summary>
+        /// Deletes a theme saved for everyone; one in use gives way to the
+        /// console dashboard's theme. done is called on the UI thread.
+        /// </summary>
+        public void DeleteSavedTheme(SavedTheme theme, Action done)
+        {
+            SavedThemes();
+            saved = saved.Where(s => s.Id != theme.Id).ToList();
+            WriteSavedIndex();
+            string folder = SavedRoot + theme.Id + "/";
+            Background.Run(() =>
+            {
+                for (int i = 1; i <= MaxWallpaperSlots; i++)
+                {
+                    AppStorage.Delete(folder + "Wallpaper" + i);
+                }
+                AppStorage.Delete(folder + CacheMeta);
+                Log.Write("Saved theme {0} deleted", theme.Name);
+                return 0;
+            }, delegate
+            {
+                if (Setting == theme.Setting)
+                {
+                    Choose(FollowDashboard, done);
+                }
+                else
+                {
+                    done();
+                }
+            });
+        }
+
+        // Wallpapers a theme keeps at most.
+        private const int MaxWallpaperSlots = 4;
 
         /// <summary>Whether the signed-in profile, or nobody signed in, has a custom theme saved.</summary>
         public bool HasCustomTheme()
@@ -763,12 +956,16 @@ namespace Silverdash360.Services
                 }
                 else if (choice.StartsWith(PackagePrefix))
                 {
-                    string wanted = choice.Substring(PackagePrefix.Length);
-                    ContentItem package = installed.FirstOrDefault(t => LibraryCache.KeyOf(t) == wanted);
+                    string id;
+                    ContentItem package = FindPackage(installed, choice, out id);
                     if (package != null)
                     {
                         theme = ReadTheme(package);
                     }
+                }
+                else if (choice.StartsWith(SavedPrefix))
+                {
+                    theme = ReadCache(SavedRoot + choice.Substring(SavedPrefix.Length) + "/", choice, null);
                 }
                 return theme != null ? theme.Wallpapers : new List<byte[]>();
             }, (wallpapers, error) => done(wallpapers ?? new List<byte[]>()));
@@ -803,7 +1000,9 @@ namespace Silverdash360.Services
                 }
                 theme.Wallpapers.Add(wallpaper);
             }
-            if (meta.TryGetValue("palette", out value))
+            // "colours": "palette" was kept as none for wallpapers that didn't
+            // decode then, raw ones among them, and is worked out again.
+            if (meta.TryGetValue("colours", out value))
             {
                 theme.PaletteKnown = true;
                 theme.Palette = ParsePalette(value);
@@ -835,7 +1034,7 @@ namespace Silverdash360.Services
             text.Append("wallpapers=").Append(theme.Wallpapers.Count).Append('\n');
             if (theme.PaletteKnown)
             {
-                text.Append("palette=").Append(FormatPalette(theme.Palette)).Append('\n');
+                text.Append("colours=").Append(FormatPalette(theme.Palette)).Append('\n');
             }
             AppStorage.WriteText(theme.CacheFolder + CacheMeta, text.ToString());
         }
@@ -1129,13 +1328,15 @@ namespace Silverdash360.Services
             // then kept with it.
             if (theme != null && !theme.PaletteKnown)
             {
-                BitmapImage first = Wallpaper(0);
+                BitmapSource first = Wallpaper(0);
                 if (first != null)
                 {
                     palette = Theme.PaletteFrom(first);
                 }
                 theme.Palette = palette;
-                theme.PaletteKnown = true;
+                // A wallpaper that didn't decode says nothing of the colours:
+                // they're worked out again next time.
+                theme.PaletteKnown = first != null || theme.Wallpapers.Count == 0;
                 if (theme.CacheFolder != null)
                 {
                     Background.Run(() => { WriteMeta(theme); return 0; }, (r, e) => { });
@@ -1149,19 +1350,5 @@ namespace Silverdash360.Services
             }
         }
 
-        private static BitmapImage Decode(byte[] bytes)
-        {
-            try
-            {
-                BitmapImage bitmap = new BitmapImage();
-                bitmap.SetSource(new MemoryStream(bytes));
-                return bitmap;
-            }
-            catch (Exception e)
-            {
-                Log.Write("Couldn't decode a wallpaper: {0}", e.Message);
-                return null;
-            }
-        }
     }
 }

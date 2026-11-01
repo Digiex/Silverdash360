@@ -67,6 +67,7 @@
     <Page Include="Pages\WelcomePage.xaml"><Generator>MSBuild:Compile</Generator></Page>
     <Compile Include="Pages\WelcomePage.xaml.cs"><DependentUpon>Pages\WelcomePage.xaml</DependentUpon></Compile>
     <Compile Include="Modules\BasicSettings.cs" />
+    <Compile Include="Services\WallpaperImage.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Native\NativeBuffer.cs" />

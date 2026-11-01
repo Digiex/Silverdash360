@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Windows.Input;
 using System.Windows.Navigation;
 using Microsoft.Xbox.Controls;
 using Silverdash360.Controls;
@@ -23,7 +24,11 @@ namespace Silverdash360.Pages
             public string Title;
             public string Subtitle;
             public ContentItem Package;
+            public ThemeService.SavedTheme Saved;
         }
+
+        // X was pressed once on this saved theme: a second press deletes it.
+        private ThemeService.SavedTheme deleting;
 
         public ThemePage()
         {
@@ -49,6 +54,34 @@ namespace Silverdash360.Pages
                     StatusText.Text = "";
                     Show();
                 });
+            };
+            Items.ItemButton += delegate(object sender, ItemEventArgs e)
+            {
+                Choice choice = (Choice)e.Item;
+                if (e.Button != GamePadButton.X || choice.Saved == null)
+                {
+                    return;
+                }
+                e.Handled = true;
+                if (deleting != choice.Saved)
+                {
+                    deleting = choice.Saved;
+                    StatusText.Text = "Press X again to delete " + choice.Saved.Name + " for everyone.";
+                    return;
+                }
+                deleting = null;
+                StatusText.Text = "Deleting " + choice.Saved.Name + "...";
+                Themes.DeleteSavedTheme(choice.Saved, delegate
+                {
+                    StatusText.Text = "";
+                    Show();
+                });
+            };
+            Items.SelectionChanged += delegate
+            {
+                deleting = null;
+                Choice selected = Items.SelectedItem as Choice;
+                Legend.Text = selected != null && selected.Saved != null ? "A use theme   X delete   B back" : "A use theme   B back";
             };
             Items.SelectionChanged += delegate
             {
@@ -101,6 +134,16 @@ namespace Silverdash360.Pages
                     Title = ThemeService.CustomThemeName,
                     Subtitle = Context.Library.Gamer != null ? "The one you saved for " + Context.Library.Gamer.Gamertag
                         : "The one saved for nobody signed in",
+                });
+            }
+            foreach (ThemeService.SavedTheme saved in Themes.SavedThemes())
+            {
+                choices.Add(new Choice
+                {
+                    Setting = saved.Setting,
+                    Title = saved.Name,
+                    Subtitle = "Saved in Silverdash for everyone on this console",
+                    Saved = saved,
                 });
             }
             foreach (ColourScheme scheme in ColourScheme.All())

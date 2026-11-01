@@ -49,6 +49,8 @@ namespace Silverdash360.Debugging
             commands.Add("net.fetch", "<url> [timeoutMs] [accept]", "A GET through the platform's HttpWebRequest (HTTPS too): the status, or the error.", Fetch);
             commands.Add("fs.drives", "", "The drives the dashboard knows and which are present.", r => Drives());
             commands.Add("fs.list", "<path>", "A folder's entries, such as /Hdd1/Content.", List);
+            commands.Add("fs.device", "<devicePath>", "A folder's entries by the kernel's name, such as \\Device\\Harddisk0\\SystemExtPartition.",
+                         r => Files.ListDevice(r.Arg(0, "devicePath", true)).Take(MaxListed).Select(e => Entry(e)).ToList());
             commands.Add("fs.stat", "<path>", "A file or folder's size, kind and time.", Stat);
             commands.Add("fs.read", "<path> [bytes] [offset]", "Bytes of a file, in hex (at most " + MaxRead + ").", Read);
         }

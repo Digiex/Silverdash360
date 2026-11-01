@@ -120,9 +120,11 @@ namespace Silverdash360.Modules
             }
         }
 
-        // The console's keyboard; changed is called with what was typed,
-        // unless it was cancelled or left empty.
-        private static void Ask(DashboardContext context, string title, string description, string text,
+        /// <summary>
+        /// The console's keyboard; changed is called on the UI thread with
+        /// what was typed, unless it was cancelled or left empty.
+        /// </summary>
+        public static void Ask(DashboardContext context, string title, string description, string text,
                                 Action<string> changed)
         {
             SoftwareKeyboardInput keyboard = new SoftwareKeyboardInput

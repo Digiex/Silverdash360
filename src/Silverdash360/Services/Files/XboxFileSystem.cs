@@ -128,6 +128,21 @@ namespace Silverdash360.Services.Files
             return entries;
         }
 
+        /// <summary>
+        /// A folder's entries by the kernel's name for it, such as
+        /// \Device\Harddisk0\SystemExtPartition, outside the drives' tree.
+        /// </summary>
+        public List<FileEntry> ListDevice(string device)
+        {
+            List<FileEntry> entries;
+            int status = TryList(device, out entries);
+            if (status != Kernel.StatusSuccess)
+            {
+                throw new IOException(string.Format("{0} can't be listed: 0x{1:X8}", device, status));
+            }
+            return entries;
+        }
+
         /// <summary>The entry for a path, or null when there's nothing there.</summary>
         public FileEntry Stat(string path)
         {

@@ -211,6 +211,12 @@ namespace Silverdash360.Pages
                     Run = () => Save(true),
                 });
             }
+            rows.Add(new Row
+            {
+                Title = "Save as...",
+                Subtitle = "Keep it under a name in Silverdash, for everyone on this console",
+                Run = SaveAs,
+            });
             if (first)
             {
                 // Back from a picker: the row in view, as it was opened from.
@@ -299,25 +305,35 @@ namespace Silverdash360.Pages
             });
         }
 
+        // Asks for a name with the console's keyboard, then saves it for everyone.
+        private void SaveAs()
+        {
+            BasicSettings.Ask(Context, "Save theme as", "A name for the theme, for everyone on this console.", "My theme",
+                              delegate(string name)
+                              {
+                                  saving = true;
+                                  StatusText.Text = "Saving " + name + "...";
+                                  Context.Themes.SaveThemeAs(name, ThemeDraft.Palette.Copy(), ThemeDraft.SetWallpapers(), delegate
+                                  {
+                                      saving = false;
+                                      saved = true;
+                                      StatusText.Text = "";
+                                      if (NavigationService.CanGoBack)
+                                      {
+                                          NavigationService.GoBack();
+                                      }
+                                  });
+                              });
+        }
+
         private void ShowWallpaper()
         {
             byte[] first = ThemeDraft.Wallpapers.FirstOrDefault(w => w != null);
-            BitmapImage image = null;
-            if (first != null)
+            WallpaperImage.Load(first, delegate(BitmapSource image)
             {
-                try
-                {
-                    image = new BitmapImage();
-                    image.SetSource(new MemoryStream(first));
-                }
-                catch (Exception e)
-                {
-                    Log.Write("Couldn't decode a wallpaper: {0}", e.Message);
-                    image = null;
-                }
-            }
-            Wallpaper.Source = image;
-            WallpaperShade.Visibility = image != null ? Visibility.Visible : Visibility.Collapsed;
+                Wallpaper.Source = image;
+                WallpaperShade.Visibility = image != null ? Visibility.Visible : Visibility.Collapsed;
+            });
         }
 
         // Greys, then twelve hues from dark to light; boxed, as above.

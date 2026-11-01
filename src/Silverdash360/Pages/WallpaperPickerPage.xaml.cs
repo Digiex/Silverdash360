@@ -173,22 +173,17 @@ namespace Silverdash360.Pages
 
         private void ShowPreview(byte[] wallpaper)
         {
-            BitmapImage image = null;
-            if (wallpaper != null)
+            WallpaperImage.Load(wallpaper, delegate(BitmapSource image)
             {
-                try
+                // The selection moved on while a raw one was made ready.
+                Choice choice = Items.SelectedItem as Choice;
+                if ((choice != null ? choice.Wallpaper : null) != wallpaper)
                 {
-                    image = new BitmapImage();
-                    image.SetSource(new MemoryStream(wallpaper));
+                    return;
                 }
-                catch (Exception e)
-                {
-                    Log.Write("Couldn't decode a wallpaper: {0}", e.Message);
-                    image = null;
-                }
-            }
-            Preview.Source = image;
-            PreviewShade.Visibility = image != null ? Visibility.Visible : Visibility.Collapsed;
+                Preview.Source = image;
+                PreviewShade.Visibility = image != null ? Visibility.Visible : Visibility.Collapsed;
+            });
         }
 
         private void GoBack()
