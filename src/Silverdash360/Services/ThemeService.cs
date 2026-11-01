@@ -104,11 +104,11 @@ namespace Silverdash360.Services
                         BackgroundOffsets = new[] { 0.04, 0.47, 1.0 },
                         // The blades' colours, a little deeper for white text.
                         Sections = Blades(0.8,
+                                          new[] { Rgb(0xEB, 0x41, 0x23), Rgb(0xEB, 0x73, 0x2C), Rgb(0xEB, 0x41, 0x23) },
                                           new[] { Rgb(0xFF, 0x6E, 0x00), Rgb(0xEB, 0xB9, 0x46), Rgb(0xFF, 0x66, 0x00) },
                                           new[] { Rgb(0x0D, 0xB4, 0x64), Rgb(0xA0, 0xDC, 0x2D), Rgb(0x14, 0xB4, 0x5A) },
                                           new[] { Rgb(0x23, 0x23, 0xBE), Rgb(0x82, 0xB4, 0xFF), Rgb(0x28, 0x3C, 0xBE) },
-                                          new[] { Rgb(0x28, 0x1E, 0x82), Rgb(0xBE, 0x96, 0xE1), Rgb(0x28, 0x1E, 0x78) },
-                                          new[] { Rgb(0xEB, 0x41, 0x23), Rgb(0xEB, 0x73, 0x2C), Rgb(0xEB, 0x41, 0x23) }),
+                                          new[] { Rgb(0x28, 0x1E, 0x82), Rgb(0xBE, 0x96, 0xE1), Rgb(0x28, 0x1E, 0x78) }),
                     },
                 },
                 new ColourScheme
@@ -124,11 +124,11 @@ namespace Silverdash360.Services
                         Background = new[] { Rgb(0x0F, 0x0F, 0x0F), Rgb(0x55, 0x55, 0x55), Rgb(0x0F, 0x0F, 0x0F) },
                         BackgroundOffsets = new[] { 0.04, 0.52, 1.0 },
                         Sections = Blades(1,
+                                          new[] { Rgb(0x0F, 0x0F, 0x0F), Rgb(0x7E, 0x18, 0x0F), Rgb(0x0F, 0x0F, 0x0F) },
                                           new[] { Rgb(0x26, 0x0F, 0x0F), Rgb(0x7E, 0x64, 0x0F), Rgb(0x26, 0x0F, 0x0F) },
                                           new[] { Rgb(0x0F, 0x0F, 0x0F), Rgb(0x32, 0x5A, 0x0F), Rgb(0x0F, 0x0F, 0x0F) },
                                           new[] { Rgb(0x0F, 0x0F, 0x28), Rgb(0x0F, 0x50, 0x64), Rgb(0x0F, 0x0F, 0x28) },
-                                          new[] { Rgb(0x0F, 0x0F, 0x0F), Rgb(0x4B, 0x3C, 0x64), Rgb(0x32, 0x32, 0x32) },
-                                          new[] { Rgb(0x0F, 0x0F, 0x0F), Rgb(0x7E, 0x18, 0x0F), Rgb(0x0F, 0x0F, 0x0F) }),
+                                          new[] { Rgb(0x0F, 0x0F, 0x0F), Rgb(0x4B, 0x3C, 0x64), Rgb(0x32, 0x32, 0x32) }),
                     },
                 },
             };
@@ -136,6 +136,9 @@ namespace Silverdash360.Services
 
         // The sections' backgrounds from the blades' colours, left to right:
         // Marketplace, Xbox Live, Games, Media, System; each colour scaled.
+        // The skins keep them Marketplace, then System back to Xbox Live;
+        // Xbox Live orange, Games green and Media blue, as the dashboard
+        // showed them.
         private static Dictionary<string, System.Windows.Media.Color[]> Blades(double scale,
             System.Windows.Media.Color[] marketplace, System.Windows.Media.Color[] live, System.Windows.Media.Color[] games,
             System.Windows.Media.Color[] media, System.Windows.Media.Color[] system)
