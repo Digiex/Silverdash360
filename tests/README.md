@@ -29,6 +29,14 @@ When the dashboard isn't running, give another FTP server with `--ftp host:port 
 
 Staging needs a build with the debug server, since that build does the install.
 
+`tools/screenshot.py` saves what the dashboard shows as a PNG: the dashboard draws its screen into a file (`ui.screenshot`), and the script copies it off over the dashboard's FTP server.
+
+```
+python tools/screenshot.py 192.168.1.20 menu.png
+```
+
+Only what Silverlight draws is in it: the Guide, the console's notifications and video that the player puts on screen itself are missing.
+
 In xenia, run with `--systemlink_transport=off` and `--ftp-port 2121`, since xenia moves ports below 1024, and with a `--target` under `/Hdd1/Content`, the only folder of its hard drive xenia has. xenia mounts a launched title's folder read-only and as `\Device\Package_0`, so `app.location` can't name it. Relaunching needs xenia-edge's `pr-socket-accept-relaunch` fix: before it, a title that relaunched while a thread waited in `accept` crashed the emulator at its next socket.
 
 ## Running the tests
@@ -100,6 +108,7 @@ python tests/debugclient.py 192.168.1.20
 | `ui.timeline <button> [ms]`, `ui.motion [name value]...` | What a press costs: its own work, the first frame after it, a page's arrival and readiness, the frame gaps; and the animation settings, changed live. |
 | `media.sources`, `media.search`, `media.add <url>`, `media.list`, `media.play`, `media.state`, `media.next` | The media section: sources, media servers, folders, playing and what the player is doing. |
 | `app.location`, `app.launch [path]`, `ftp.start [port]`, `ftp.stop` | Where the dashboard runs from, starting a build, and the FTP server, for deploy.py. |
+| `ui.screenshot` | Draws the screen into `Screenshot.argb` in the data folder, for `tools/screenshot.py`. |
 
 A controller's button events can't be made from code, so `ui.press` does what the button does instead: it calls the focused grid's `TileGrid.Press`, then the hub's `HubPage.Press`, then the frame's back for B. Pages with their own button handling, such as the search page's keyboard, aren't reached that way.
 

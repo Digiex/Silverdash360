@@ -5,11 +5,13 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Microsoft.Xbox.Controls;
 using Silverdash360.Controls;
 using Silverdash360.Model;
 using Silverdash360.Modules;
 using Silverdash360.Pages;
+using Silverdash360.Services;
 
 namespace Silverdash360.Debugging
 {
@@ -70,6 +72,46 @@ namespace Silverdash360.Debugging
             commands.Add("ui.timeline", "<button> [ms]",
                          "Presses a button and times what follows: the press's own work, the first frame, a page's arrival and the frames.", Timeline);
             commands.Add("ui.motion", "[name value]...", "The animation settings (Controls/Motion.cs), changing any given.", MotionSettings);
+            commands.Add("ui.screenshot", "",
+                         "Draws the screen into " + ScreenshotFile + " in the data folder, for FTP: its pixels a row at a time, " +
+                         "four bytes each, alpha, red, green and blue (tools/screenshot.py makes a PNG of it).", Screenshot);
+        }
+
+        private const string ScreenshotFile = "Screenshot.argb";
+
+        // Silverlight draws the page into a bitmap as it draws the screen.
+        // What it doesn't draw is missing: the Guide and the console's
+        // notifications, and video the player puts on screen itself.
+        private object Screenshot(DebugRequest request)
+        {
+            int start = Environment.TickCount;
+            int width = 0, height = 0;
+            int[] pixels = UiThread.Invoke(() =>
+            {
+                UIElement root = Application.Current.RootVisual;
+                WriteableBitmap bitmap = new WriteableBitmap(root, null);
+                width = bitmap.PixelWidth;
+                height = bitmap.PixelHeight;
+                return bitmap.Pixels;
+            });
+            int drawn = Environment.TickCount - start;
+            // An int's bytes in memory, the console being big-endian: alpha,
+            // red, green, blue. One copy, as a loop over a million pixels
+            // takes seconds here.
+            byte[] bytes = new byte[pixels.Length * 4];
+            Buffer.BlockCopy(pixels, 0, bytes, 0, bytes.Length);
+            if (!AppStorage.WriteBytes(ScreenshotFile, bytes, null))
+            {
+                throw new DebugException("Couldn't write " + ScreenshotFile + ".");
+            }
+            return new JsonObject
+            {
+                { "path", AppStorage.Folder + "/" + ScreenshotFile },
+                { "width", width },
+                { "height", height },
+                { "drawMs", drawn },
+                { "ms", Environment.TickCount - start },
+            };
         }
 
         private object MotionSettings(DebugRequest request)
