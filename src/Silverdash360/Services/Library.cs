@@ -241,7 +241,19 @@ namespace Silverdash360.Services
         private static volatile int profileThread;
         private const int ProfileFirstMaxMs = 30000;
 
-        private static void WaitForProfile()
+        // The profile a sign-in or sign-out during a refresh read: what the
+        // refresh shows of a profile from then on, as the one it started
+        // with is gone.
+        private sealed class ProfileRead
+        {
+            public Gamer Gamer;
+            public List<PlayedTitle> Played;
+            public List<ContentItem> Own;
+        }
+
+        private volatile ProfileRead latestProfile;
+
+        internal static void WaitForProfile()
         {
             int started = Environment.TickCount;
             while (profileFirst && Thread.CurrentThread.ManagedThreadId != profileThread &&
@@ -269,10 +281,9 @@ namespace Silverdash360.Services
             // The console's packages are under XUID 0, a profile's under its
             // offline XUID.
             List<ContentItem> content = before.Content.Where(c => c.Owner == 0).ToList();
-            if (gamer != null)
-            {
-                content.AddRange(ReadOwn(gamer, Pace(0)));
-            }
+            List<ContentItem> own = gamer != null ? ReadOwn(gamer, Pace(0)) : new List<ContentItem>();
+            content.AddRange(own);
+            latestProfile = new ProfileRead { Gamer = gamer, Played = played, Own = own };
             LoadResult built = Build(content, before.Executables, gamer, played);
             Log.Write("Library: now for {0}, {1} packages of its own, in {2} ms",
                       gamer != null ? gamer.Gamertag : "nobody signed in", content.Count(c => c.Owner != 0),
@@ -345,6 +356,7 @@ namespace Silverdash360.Services
         private LoadResult Load(bool full)
         {
             DateTime started = DateTime.UtcNow;
+            latestProfile = null;
             Gamer gamer = profiles.SignedIn().FirstOrDefault();
             List<PlayedTitle> played = gamer != null ? profiles.PlayedTitles(gamer) : new List<PlayedTitle>();
 
@@ -387,16 +399,28 @@ namespace Silverdash360.Services
                         return;
                     }
                     int building = Environment.TickCount;
+                    // With the profile signed in since this started, when
+                    // one was, rather than the one it started with.
+                    ProfileRead read = latestProfile;
                     // A file saved before profiles had their own has the
                     // packages of whoever was signed in then: those its
                     // records say are a profile's aren't shown, and the rest
                     // go when the console's are listed again.
-                    List<ContentItem> packages = section.Content.Where(c => c.Xuid == 0).Concat(ownCached).ToList();
-                    LoadResult partial = Build(packages, section.Executables, gamer, played);
+                    List<ContentItem> packages = section.Content.Where(c => c.Xuid == 0)
+                                                        .Concat(read != null ? read.Own : ownCached).ToList();
+                    LoadResult partial = Build(packages, section.Executables, read != null ? read.Gamer : gamer,
+                                               read != null ? read.Played : played);
                     partial.Complete = section.Complete;
                     Log.Write("Library: showing {0} saved packages{1}, built in {2} ms", packages.Count,
                               section.Complete ? "" : " so far", Environment.TickCount - building);
-                    Background.OnUi(() => Publish(partial));
+                    Background.OnUi(() =>
+                    {
+                        // A profile read while it was built is newer.
+                        if (latestProfile == read)
+                        {
+                            Publish(partial);
+                        }
+                    });
                 });
                 sharedCached = cached.Content.Where(c => c.Xuid == 0).ToList();
                 // That file is saved again with the console's packages alone.
@@ -518,12 +542,23 @@ namespace Silverdash360.Services
             {
                 Log.Write("Library: the profile changed during the refresh, to {0}",
                           now != null ? now.Gamertag : "nobody signed in");
-                gamer = now;
-                played = now != null ? profiles.PlayedTitles(now) : new List<PlayedTitle>();
                 content = content.Where(c => c.Owner == 0).ToList();
-                if (now != null)
+                // Read already when it was shown, unless it changed again.
+                ProfileRead read = latestProfile;
+                if (read != null && (read.Gamer != null ? read.Gamer.Xuid : 0) == (now != null ? now.Xuid : 0))
                 {
-                    content.AddRange(ReadOwn(now, pace));
+                    gamer = read.Gamer;
+                    played = read.Played;
+                    content.AddRange(read.Own);
+                }
+                else
+                {
+                    gamer = now;
+                    played = now != null ? profiles.PlayedTitles(now) : new List<PlayedTitle>();
+                    if (now != null)
+                    {
+                        content.AddRange(ReadOwn(now, pace));
+                    }
                 }
                 // ReadOwn saved the new profile's file; the other's stays as it was.
                 profileCache = null;

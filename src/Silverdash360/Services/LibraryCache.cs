@@ -164,6 +164,7 @@ namespace Silverdash360.Services
                 if (i % BreatheEvery == 0)
                 {
                     UiIdle.WaitWhileMoving(UiIdle.BackgroundQuietMs);
+                    Library.WaitForProfile();
                 }
                 ContentItem item = ContentItem.ReadRecord(reader);
                 byte header = reader.ReadByte();
