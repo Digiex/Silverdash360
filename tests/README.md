@@ -117,6 +117,7 @@ python tests/debugclient.py 192.168.1.20
 | `ui.timeline <button> [ms]`, `ui.motion [name value]...` | What a press costs: its own work, the first frame after it, a page's arrival and readiness, the frame gaps; and the animation settings, changed live. |
 | `media.sources`, `media.search`, `media.add <url>`, `media.list`, `media.play`, `media.state`, `media.next` | The media section: sources, media servers, folders, playing and what the player is doing. |
 | `app.location`, `app.launch [path]`, `ftp.start [port]`, `ftp.stop` | Where the dashboard runs from, starting a build, and the FTP server, for deploy.py. |
+| `net.offline [off\|dns\|noroute]` | Makes requests to the internet fail as on a console without it, leaving servers on the network alone: `dns` as with no network or DNS server, `noroute` as when the router has no internet, so requests wait until they time out. |
 | `ui.screenshot [name]` | Draws the screen into `Screenshots\<name>.argb` in the data folder, for `tools/screenshot.py` and `tools/docs_screenshots.py`. `ui.state` says how many images are still loading (`imagesPending`) and how much of the hub's logo shows (`logoShown`). |
 
 A controller's button events can't be made from code, so `ui.press` does what the button does instead: it calls the focused grid's `TileGrid.Press`, then the hub's `HubPage.Press`, then the frame's back for B. Pages with their own button handling, such as the search page's keyboard, aren't reached that way.

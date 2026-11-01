@@ -54,10 +54,33 @@ namespace Silverdash360.Services
             public Func<byte[]> Read;
         }
 
-        private readonly object queueLock = new object();
-        private readonly LinkedList<Request> queue = new LinkedList<Request>();
-        private readonly AutoResetEvent queued = new AutoResetEvent(false);
-        private Thread worker;
+        // A worker reading requests, newest first. The art on the console's
+        // drives and the Marketplace's have one each, so a download waiting
+        // for an answer, as one does with no internet until it times out,
+        // doesn't hold up the pictures that are there already.
+        private sealed class Reader
+        {
+            public readonly object QueueLock = new object();
+            public readonly LinkedList<Request> Queue = new LinkedList<Request>();
+            public readonly AutoResetEvent Queued = new AutoResetEvent(false);
+            public string Name;
+            public Thread Worker;
+            public volatile bool Reading;
+
+            public bool Busy
+            {
+                get
+                {
+                    lock (QueueLock)
+                    {
+                        return Reading || Queue.Count > 0;
+                    }
+                }
+            }
+        }
+
+        private readonly Reader local = new Reader { Name = "Images" };
+        private readonly Reader online = new Reader { Name = "Marketplace images" };
 
         private readonly IContentSource source;
         private readonly Dictionary<string, ImageSource> cache = new Dictionary<string, ImageSource>();
@@ -70,7 +93,6 @@ namespace Silverdash360.Services
         private readonly LinkedList<KeyValuePair<string, byte[]>> decodes = new LinkedList<KeyValuePair<string, byte[]>>();
         private bool decoding;
         private int firstWaiting;
-        private volatile bool reading;
 
         // Images are shown a batch at a time: a frame that changes the screen
         // costs far more to draw than the decode, so while the reader has more
@@ -83,10 +105,10 @@ namespace Silverdash360.Services
             this.source = source;
         }
 
-        /// <summary>The title's art; the callback isn't called when there is none.</summary>
         /// <summary>Images asked for and not shown yet; on the UI thread.</summary>
         public int Pending { get { return pending.Count; } }
 
+        /// <summary>The title's art; the callback isn't called when there is none.</summary>
         public void TitleArt(TitleEntry title, uint userIndex, Action<ImageSource> done)
         {
             Get("title:" + title.Key, () => TitlePng(title, userIndex), done);
@@ -96,14 +118,14 @@ namespace Silverdash360.Services
         public void BoxArt(TitleEntry title, Action<ImageSource> done)
         {
             Get("boxart:" + title.TitleId.ToString("X8"), () => MarketplaceArt.Image(title.TitleId, MarketplaceArt.BoxArt),
-                done);
+                done, online);
         }
 
         /// <summary>The backdrop the Marketplace has for the title; the callback isn't called when there's none.</summary>
         public void Backdrop(TitleEntry title, Action<ImageSource> done)
         {
             Get("backdrop:" + title.TitleId.ToString("X8"), () => MarketplaceArt.Image(title.TitleId, MarketplaceArt.Background),
-                done);
+                done, online);
         }
 
         /// <summary>A package's own thumbnail, such as an add-on's.</summary>
@@ -190,6 +212,11 @@ namespace Silverdash360.Services
 
         private void Get(string key, Func<byte[]> read, Action<ImageSource> done)
         {
+            Get(key, read, done, local);
+        }
+
+        private void Get(string key, Func<byte[]> read, Action<ImageSource> done, Reader reader)
+        {
             ImageSource image;
             if (cache.TryGetValue(key, out image))
             {
@@ -208,7 +235,7 @@ namespace Silverdash360.Services
                 return;
             }
             pending.Add(key, new List<Action<ImageSource>> { done });
-            Enqueue(new Request { Key = key, Read = read });
+            Enqueue(new Request { Key = key, Read = read }, reader);
         }
 
         // On the UI thread, when the worker has read a PNG: it's decoded when
@@ -263,13 +290,7 @@ namespace Silverdash360.Services
 
         private bool ReaderBusy
         {
-            get
-            {
-                lock (queueLock)
-                {
-                    return reading || queue.Count > 0;
-                }
-            }
+            get { return local.Busy || online.Busy; }
         }
 
         private void Finish(string key, byte[] png)
@@ -291,21 +312,21 @@ namespace Silverdash360.Services
             }
         }
 
-        private void Enqueue(Request request)
+        private void Enqueue(Request request, Reader reader)
         {
             List<string> dropped = new List<string>();
-            lock (queueLock)
+            lock (reader.QueueLock)
             {
-                queue.AddLast(request);
-                while (queue.Count > MaxQueued)
+                reader.Queue.AddLast(request);
+                while (reader.Queue.Count > MaxQueued)
                 {
-                    dropped.Add(queue.First.Value.Key);
-                    queue.RemoveFirst();
+                    dropped.Add(reader.Queue.First.Value.Key);
+                    reader.Queue.RemoveFirst();
                 }
-                if (worker == null)
+                if (reader.Worker == null)
                 {
-                    worker = new Thread(Work) { IsBackground = true, Name = "Images" };
-                    worker.Start();
+                    reader.Worker = new Thread(() => Work(reader)) { IsBackground = true, Name = reader.Name };
+                    reader.Worker.Start();
                 }
             }
             // Asked for again, a dropped image is read then.
@@ -313,28 +334,28 @@ namespace Silverdash360.Services
             {
                 pending.Remove(key);
             }
-            queued.Set();
+            reader.Queued.Set();
         }
 
-        // One reader, newest request first.
-        private void Work()
+        // A reader's worker, newest request first.
+        private void Work(Reader reader)
         {
             while (true)
             {
                 Request request = null;
-                lock (queueLock)
+                lock (reader.QueueLock)
                 {
-                    if (queue.Count > 0)
+                    if (reader.Queue.Count > 0)
                     {
-                        request = queue.Last.Value;
-                        queue.RemoveLast();
+                        request = reader.Queue.Last.Value;
+                        reader.Queue.RemoveLast();
                     }
-                    reading = request != null;
+                    reader.Reading = request != null;
                 }
                 if (request == null)
                 {
                     Activity.Images = "idle";
-                    queued.WaitOne();
+                    reader.Queued.WaitOne();
                     continue;
                 }
                 byte[] png = null;

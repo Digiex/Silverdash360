@@ -213,16 +213,24 @@ namespace Silverdash360.Services
             {
                 return null;
             }
-            lock (stateLock)
-            {
-                if (offline && Environment.TickCount - offlineSince < OfflinePauseMs)
-                {
-                    return null;
-                }
-                offline = false;
-            }
             int status;
-            byte[] body = Download(new Uri(url), out status);
+            byte[] body;
+            // One download at a time. Whether the Marketplace is answering is
+            // looked at once it's this one's turn: a download that waited
+            // behind one that found no internet doesn't wait for its own
+            // answer as long again.
+            lock (downloadLock)
+            {
+                lock (stateLock)
+                {
+                    if (offline && Environment.TickCount - offlineSince < OfflinePauseMs)
+                    {
+                        return null;
+                    }
+                    offline = false;
+                }
+                body = Download(new Uri(url), out status);
+            }
             if (body != null && status == 200 && (!IsComplete(file, body) || IsPlaceholder(body)))
             {
                 // The catalog answers an unknown title with an empty feed,

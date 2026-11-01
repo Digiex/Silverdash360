@@ -22,6 +22,34 @@ namespace Silverdash360.Services.Media
     {
         public const int Timeout = 15000;
 
+        /// <summary>
+        /// For testing, from the debug server's net.offline: how a request
+        /// to the internet fails, as on a console without it. "dns": its
+        /// name doesn't resolve, as with no network or no DNS server;
+        /// "noroute": it goes to an address nothing answers, as when the
+        /// router has no internet. Null for the real thing. Servers named by
+        /// an address, as media servers on the network are, are left alone.
+        /// </summary>
+        public static string OfflineMode { get; set; }
+
+        // What a request goes to instead under OfflineMode: a name the DNS
+        // can't know (.invalid is reserved for that), and an address in a
+        // private range that nothing on the network has.
+        private const string NoSuchHost = "silverdash-offline.invalid";
+        private const string NoRouteAddress = "10.255.255.1";
+
+        /// <summary>The URL a request goes to under <see cref="OfflineMode"/>.</summary>
+        public static Uri Offline(Uri url)
+        {
+            string mode = OfflineMode;
+            if (mode == null || NativeSocket.ParseAddress(url.Host) != 0)
+            {
+                return url;
+            }
+            UriBuilder offline = new UriBuilder(url) { Host = mode == "dns" ? NoSuchHost : NoRouteAddress };
+            return offline.Uri;
+        }
+
         public sealed class Response : IDisposable
         {
             internal SocketReader Reader;
@@ -116,6 +144,7 @@ namespace Silverdash360.Services.Media
         /// <summary>Sends a request and reads the status line and headers; the body is left to read.</summary>
         public static Response Send(string method, Uri url, IDictionary<string, string> headers, byte[] body)
         {
+            url = Offline(url);
             uint ip = NativeSocket.Resolve(url.Host);
             Activity.Art = "connecting to " + url.Host;
             NativeSocket socket = NativeSocket.Connect(ip, url.Port);

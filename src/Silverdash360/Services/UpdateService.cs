@@ -10,6 +10,7 @@ using System.Windows.Resources;
 using Silverdash360.Core;
 using Silverdash360.Native;
 using Silverdash360.Services.Files;
+using Silverdash360.Services.Media;
 
 namespace Silverdash360.Services
 {
@@ -82,8 +83,12 @@ namespace Silverdash360.Services
                 string why = null;
                 if (error != null)
                 {
+                    // The platform's message is a resource key with its
+                    // arguments ("[HttpWebRequest_WebException_RemoteServer]
+                    // Arguments: NotFound ..."): the log keeps it, settings
+                    // says what it most likely means.
                     Log.Write("Update check failed: {0}", error.Message);
-                    why = "Couldn't reach GitHub: " + error.Message;
+                    why = "Couldn't reach GitHub. Check that the console is connected to the internet.";
                 }
                 else
                 {
@@ -521,6 +526,7 @@ namespace Silverdash360.Services
         // thread, and done is called there.
         private static void Get(Uri url, string accept, Action<byte[], Exception> done)
         {
+            url = Http.Offline(url);
             Background.OnUi(delegate
             {
                 try

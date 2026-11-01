@@ -6,6 +6,7 @@ using Silverdash360.Modules;
 using Silverdash360.Native;
 using Silverdash360.Services;
 using Silverdash360.Services.Files;
+using Silverdash360.Services.Media;
 using Silverdash360.Services.Ftp;
 
 namespace Silverdash360.Debugging
@@ -32,6 +33,21 @@ namespace Silverdash360.Debugging
         {
             commands.Add("app.location", "", "Where the dashboard runs from, where it's kept otherwise, and the build's deploy ID.", r => Location());
             commands.Add("app.launch", "[path]", "Starts the default.xex in a folder (this one by default), ending this run.", Launch);
+            commands.Add("net.offline", "[off|dns|noroute]",
+                         "Makes requests to the internet fail as on a console without it (see Http.OfflineMode); with nothing, says which.", r =>
+            {
+                if (r.Args.Count > 0)
+                {
+                    string mode = r.Args[0];
+                    if (mode != "off" && mode != "dns" && mode != "noroute")
+                    {
+                        throw new DebugException("off, dns or noroute.");
+                    }
+                    Http.OfflineMode = mode == "off" ? null : mode;
+                    Log.Write("Debug: requests to the internet {0}", Http.OfflineMode == null ? "go out" : "fail: " + mode);
+                }
+                return Http.OfflineMode ?? "off";
+            });
             commands.Add("update.check", "[asIfVersion]", "Looks for an update as if this build were the version given, and offers it.", UpdateCheck);
             commands.Add("update.verify", "", "Downloads the latest release and checks it against its size and SHA-256, without installing it.", UpdateVerify);
             commands.Add("update.install", "<zipPath>", "Installs a release zip on the console's drives, as an update would, and starts it.", UpdateInstall);
