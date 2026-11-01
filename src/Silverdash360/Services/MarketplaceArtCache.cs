@@ -45,10 +45,11 @@ namespace Silverdash360.Services
             {
                 foreach (TitleEntry title in list)
                 {
-                    if (MarketplaceArt.Covers(title.TitleId) && !listed.ContainsKey(title.TitleId))
+                    uint titleId = title.ArtTitleId;
+                    if (MarketplaceArt.Covers(titleId) && !listed.ContainsKey(titleId))
                     {
-                        listed[title.TitleId] = true;
-                        titleIds.Add(title.TitleId);
+                        listed[titleId] = true;
+                        titleIds.Add(titleId);
                     }
                 }
             }

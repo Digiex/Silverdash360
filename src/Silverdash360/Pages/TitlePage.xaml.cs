@@ -127,12 +127,44 @@ namespace Silverdash360.Pages
         {
             base.OnNavigatedTo(e);
             string key;
-            if (!NavigationContext.QueryString.TryGetValue("key", out key) ||
-                (title = Context.Library.Find(Uri.UnescapeDataString(key))) == null)
+            if (!NavigationContext.QueryString.TryGetValue("key", out key))
             {
                 NameText.Text = "Title not found";
                 return;
             }
+            waitingFor = Uri.UnescapeDataString(key);
+            Open();
+        }
+
+        protected override void OnNavigatedFrom(NavigationEventArgs e)
+        {
+            base.OnNavigatedFrom(e);
+            Context.Library.Changed -= OnLibraryChanged;
+        }
+
+        // The key of a title the library hasn't listed yet.
+        private string waitingFor;
+
+        // A tile pressed while a start shows the saved library a section at a
+        // time can be one the library hasn't got to: it opens when it does.
+        private void Open()
+        {
+            Context.Library.Changed -= OnLibraryChanged;
+            title = Context.Library.Find(waitingFor);
+            if (title == null)
+            {
+                if (Context.Library.IsComplete)
+                {
+                    NameText.Text = "Title not found";
+                }
+                else
+                {
+                    Context.Library.Changed += OnLibraryChanged;
+                    NameText.Text = "Loading...";
+                }
+                return;
+            }
+            waitingFor = null;
             ShowTitle();
             FocusHelper.Focus(Actions);
             // Its saves and add-ons as they are now: a start doesn't list them.
@@ -154,6 +186,14 @@ namespace Silverdash360.Pages
                     }
                 }
             });
+        }
+
+        private void OnLibraryChanged(object sender, EventArgs e)
+        {
+            if (waitingFor != null)
+            {
+                Open();
+            }
         }
 
         private void ShowTitle()
@@ -192,7 +232,7 @@ namespace Silverdash360.Pages
             });
             ShowInfo(null);
             TitleEntry shown = title;
-            Core.Background.Run(() => MarketplaceArt.ReadDetails(shown.TitleId), delegate(TitleDetails details, Exception error)
+            Core.Background.Run(() => MarketplaceArt.ReadDetails(shown.ArtTitleId), delegate(TitleDetails details, Exception error)
             {
                 if (details != null && title == shown)
                 {

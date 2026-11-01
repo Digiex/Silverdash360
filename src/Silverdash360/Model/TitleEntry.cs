@@ -47,6 +47,16 @@ namespace Silverdash360.Model
         public const uint HomebrewPrefix = 0xFFFF;
         public const uint HomebrewShortcutPrefix = 0xC0DE;
 
+        /// <summary>
+        /// An original Xbox game's title ID, by the rule of the console's
+        /// XamIsXbox1TitleId: a game number below 2000 (Xbox 360 games
+        /// number from 2000).
+        /// </summary>
+        public static bool IsOriginalXboxTitleId(uint titleId)
+        {
+            return titleId != 0 && !IsSystemTitle(titleId) && (titleId & 0x7FFF) < 0x7D0;
+        }
+
         public TitleEntry(uint titleId) : this(titleId, titleId.ToString("X8"))
         {
         }
@@ -66,6 +76,27 @@ namespace Silverdash360.Model
         }
 
         public uint TitleId { get; private set; }
+
+        /// <summary>
+        /// The title ID to look up art by: an original Xbox package filed
+        /// under <see cref="XboxCompatibilityTitleId"/> has the game's own in
+        /// its header.
+        /// </summary>
+        public uint ArtTitleId
+        {
+            get
+            {
+                if (TitleId == XboxCompatibilityTitleId)
+                {
+                    ContentItem item = LaunchItem ?? Content.FirstOrDefault();
+                    if (item != null && item.Metadata != null && item.Metadata.TitleId != 0)
+                    {
+                        return item.Metadata.TitleId;
+                    }
+                }
+                return TitleId;
+            }
+        }
 
         /// <summary>What pages find the title by: its title ID, or for a separate executable its path.</summary>
         public string Key { get; private set; }

@@ -117,14 +117,14 @@ namespace Silverdash360.Services
         /// <summary>The Marketplace's box front for the title; the callback isn't called when there's none.</summary>
         public void BoxArt(TitleEntry title, Action<ImageSource> done)
         {
-            Get("boxart:" + title.TitleId.ToString("X8"), () => MarketplaceArt.Image(title.TitleId, MarketplaceArt.BoxArt),
+            Get("boxart:" + title.ArtTitleId.ToString("X8"), () => MarketplaceArt.Image(title.ArtTitleId, MarketplaceArt.BoxArt),
                 done, online);
         }
 
         /// <summary>The backdrop the Marketplace has for the title; the callback isn't called when there's none.</summary>
         public void Backdrop(TitleEntry title, Action<ImageSource> done)
         {
-            Get("backdrop:" + title.TitleId.ToString("X8"), () => MarketplaceArt.Image(title.TitleId, MarketplaceArt.Background),
+            Get("backdrop:" + title.ArtTitleId.ToString("X8"), () => MarketplaceArt.Image(title.ArtTitleId, MarketplaceArt.Background),
                 done, online);
         }
 

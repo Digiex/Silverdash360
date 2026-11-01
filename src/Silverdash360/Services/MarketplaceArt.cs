@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -29,6 +30,12 @@ namespace Silverdash360.Services
     /// is read into memory.
     /// Call it from a background thread: it blocks on the disk and the
     /// network.
+    ///
+    /// An original Xbox game's art is under the title ID of its Xbox
+    /// Originals release, not the game's own, and the console's dashboard
+    /// shows none for these. The catalog's list of Xbox Originals names each
+    /// release's images after the game's own ID, which maps one to the
+    /// other; the map is kept in Art/XboxOriginals.map.
     /// </summary>
     public static class MarketplaceArt
     {
@@ -47,6 +54,18 @@ namespace Silverdash360.Services
             "&Names=OfferFilterLevel&Values=1&Names=MediaIds&Values=66acd000-77fe-1000-9115-d802{0:x8}" +
             "&Names=UserTypes&Values=2&Names=MediaTypes&Values=1&Names=MediaTypes&Values=21" +
             "&Names=MediaTypes&Values=23&Names=MediaTypes&Values=37&Names=MediaTypes&Values=46";
+        // Every Xbox Originals release (media type 21), 82 of them.
+        private const string OriginalsUrl =
+            "http://catalog.xboxlive.com/Catalog/Catalog.asmx/Query?methodName=FindGames" +
+            "&Names=Locale&Values=en-US&Names=LegalLocale&Values=en-US&Names=Store&Values=1" +
+            "&Names=PageSize&Values=200&Names=PageNum&Values=1&Names=DetailView&Values=5" +
+            "&Names=OfferFilterLevel&Values=1&Names=UserTypes&Values=2&Names=MediaTypes&Values=21";
+        private const string OriginalsFolder = "XboxOriginals";
+        private const string OriginalsList = "catalog.xml";
+        private const string OriginalsMap = "Art/XboxOriginals.map";
+        // A release's images under the compatibility title, named after the
+        // game's own title ID and an image number.
+        private const string OriginalImage = "t.fffe07d2/marketplace/0/";
         private const string Folder = "Art";
         private const string MissingSuffix = ".missing";
         // Left in a title's folder once every image the catalog lists is kept.
@@ -80,6 +99,10 @@ namespace Silverdash360.Services
         private static readonly object downloadLock = new object();
         private static bool offline;
         private static int offlineSince;
+        // Original Xbox title IDs to their Xbox Originals releases' ones; null
+        // until read or downloaded.
+        private static readonly object originalsLock = new object();
+        private static Dictionary<uint, uint> originals;
 
         /// <summary>
         /// Whether the Marketplace can have the title: not homebrew (FFFF and
@@ -93,13 +116,23 @@ namespace Silverdash360.Services
         /// <summary>One of the title's images, kept or downloaded; null when there's none.</summary>
         public static byte[] Image(uint titleId, string file)
         {
-            return Covers(titleId) ? Get(titleId, file, string.Format(ImageUrl, titleId, file)) : null;
+            if (!Covers(titleId))
+            {
+                return null;
+            }
+            titleId = ReleaseOf(titleId);
+            return Get(titleId, file, string.Format(ImageUrl, titleId, file));
         }
 
         /// <summary>The title's details, kept or downloaded; null when there are none.</summary>
         public static TitleDetails ReadDetails(uint titleId)
         {
-            byte[] xml = Covers(titleId) ? Get(titleId, Details, string.Format(DetailsUrl, titleId)) : null;
+            if (!Covers(titleId))
+            {
+                return null;
+            }
+            titleId = ReleaseOf(titleId);
+            byte[] xml = Get(titleId, Details, string.Format(DetailsUrl, titleId));
             if (xml == null)
             {
                 return null;
@@ -126,6 +159,7 @@ namespace Silverdash360.Services
             {
                 return true;
             }
+            titleId = ReleaseOf(titleId);
             string folder = Folder + "/" + titleId.ToString("X8") + "/";
             if (AppStorage.Stat(folder + CompleteMarker) != null)
             {
@@ -192,9 +226,145 @@ namespace Silverdash360.Services
             }
         }
 
+        /// <summary>
+        /// The title ID the Marketplace has a title's art under: for an
+        /// original Xbox game, its Xbox Originals release's, when it had one.
+        /// </summary>
+        public static uint ReleaseOf(uint titleId)
+        {
+            if (!TitleEntry.IsOriginalXboxTitleId(titleId))
+            {
+                return titleId;
+            }
+            Dictionary<uint, uint> map = Originals();
+            uint release;
+            return map != null && map.TryGetValue(titleId, out release) ? release : titleId;
+        }
+
+        // The map of original Xbox games to their releases, read or made from
+        // the catalog's list; null while that can't be had.
+        private static Dictionary<uint, uint> Originals()
+        {
+            lock (originalsLock)
+            {
+                if (originals != null)
+                {
+                    return originals;
+                }
+                byte[] kept = AppStorage.ReadBytes(OriginalsMap);
+                if (kept != null && kept.Length > 0)
+                {
+                    originals = ReadMap(kept);
+                    return originals;
+                }
+                byte[] list = Get(OriginalsFolder, OriginalsList, OriginalsUrl);
+                if (list == null)
+                {
+                    return null;
+                }
+                originals = MapReleases(Encoding.UTF8.GetString(list, 0, list.Length));
+                StringBuilder text = new StringBuilder();
+                foreach (KeyValuePair<uint, uint> pair in originals)
+                {
+                    text.AppendFormat("{0:X8}={1:X8}\n", pair.Key, pair.Value);
+                }
+                AppStorage.WriteBytes(OriginalsMap, Encoding.UTF8.GetBytes(text.ToString()), null);
+                // The list is large and only the map is read again.
+                AppStorage.Delete(Folder + "/" + OriginalsFolder + "/" + OriginalsList);
+                Log.Write("Marketplace: {0} original Xbox games have Xbox Originals art", originals.Count);
+                return originals;
+            }
+        }
+
+        private static Dictionary<uint, uint> ReadMap(byte[] text)
+        {
+            Dictionary<uint, uint> map = new Dictionary<uint, uint>();
+            foreach (string line in Encoding.UTF8.GetString(text, 0, text.Length).Split('\n'))
+            {
+                string[] parts = line.Trim().Split('=');
+                uint game, release;
+                if (parts.Length == 2 && uint.TryParse(parts[0], NumberStyles.HexNumber, null, out game) &&
+                    uint.TryParse(parts[1], NumberStyles.HexNumber, null, out release))
+                {
+                    map[game] = release;
+                }
+            }
+            return map;
+        }
+
+        // Each release in the catalog's list with the games whose IDs name
+        // its images. An ID under several releases goes to the one from the
+        // game's publisher (the first four digits): some releases show other
+        // publishers' images too. Several from the publisher are the same
+        // game listed twice; with none, it isn't known whose game it is.
+        private static Dictionary<uint, uint> MapReleases(string list)
+        {
+            Dictionary<uint, List<uint>> candidates = new Dictionary<uint, List<uint>>();
+            foreach (string entry in list.Split(new[] { "<entry" }, StringSplitOptions.None).Skip(1))
+            {
+                uint release;
+                if (!uint.TryParse(Between(entry, "<live:titleId>", "</live:titleId>"), out release) || release == 0)
+                {
+                    continue;
+                }
+                for (int at = entry.IndexOf(OriginalImage, StringComparison.OrdinalIgnoreCase); at >= 0;
+                     at = entry.IndexOf(OriginalImage, at + 1, StringComparison.OrdinalIgnoreCase))
+                {
+                    int start = at + OriginalImage.Length;
+                    uint game;
+                    if (start + 8 > entry.Length ||
+                        !uint.TryParse(entry.Substring(start, 8), NumberStyles.HexNumber, null, out game) ||
+                        !TitleEntry.IsOriginalXboxTitleId(game))
+                    {
+                        continue;
+                    }
+                    List<uint> releases;
+                    if (!candidates.TryGetValue(game, out releases))
+                    {
+                        candidates[game] = releases = new List<uint>();
+                    }
+                    if (!releases.Contains(release))
+                    {
+                        releases.Add(release);
+                    }
+                }
+            }
+            Dictionary<uint, uint> map = new Dictionary<uint, uint>();
+            foreach (KeyValuePair<uint, List<uint>> pair in candidates)
+            {
+                List<uint> releases = pair.Value;
+                if (releases.Count > 1)
+                {
+                    releases = releases.Where(r => r >> 16 == pair.Key >> 16).ToList();
+                }
+                if (releases.Count > 0)
+                {
+                    map[pair.Key] = releases[0];
+                }
+            }
+            return map;
+        }
+
+        private static string Between(string text, string open, string close)
+        {
+            int start = text.IndexOf(open, StringComparison.Ordinal);
+            if (start < 0)
+            {
+                return null;
+            }
+            start += open.Length;
+            int end = text.IndexOf(close, start, StringComparison.Ordinal);
+            return end < 0 ? null : text.Substring(start, end - start);
+        }
+
         private static byte[] Get(uint titleId, string file, string url)
         {
-            string path = Folder + "/" + titleId.ToString("X8") + "/" + file;
+            return Get(titleId.ToString("X8"), file, url);
+        }
+
+        private static byte[] Get(string name, string file, string url)
+        {
+            string path = Folder + "/" + name + "/" + file;
             byte[] kept = AppStorage.ReadBytes(path);
             if (kept != null && kept.Length > 0)
             {
@@ -282,7 +452,7 @@ namespace Silverdash360.Services
         // unknown title is empty.
         private static bool IsComplete(string file, byte[] body)
         {
-            if (file != Details)
+            if (file != Details && file != OriginalsList)
             {
                 return body.Length > 0;
             }
