@@ -11,7 +11,8 @@ namespace Silverdash360.Pages
 {
     /// <summary>
     /// Picks the dashboard's theme: the one the console's dashboard uses for
-    /// the profile, Silverdash's own, or any installed theme package.
+    /// the profile, Silverdash's own, one built into the console's dashboard,
+    /// or any installed theme package.
     /// </summary>
     public partial class ThemePage : XboxApplicationPage
     {
@@ -73,6 +74,15 @@ namespace Silverdash360.Pages
                 },
                 new Choice { Setting = ThemeService.NoTheme, Title = "Silverdash", Subtitle = "No wallpaper, the usual colours" },
             };
+            foreach (int builtIn in Themes.BuiltInThemes)
+            {
+                choices.Add(new Choice
+                {
+                    Setting = ThemeService.SettingFor(builtIn),
+                    Title = ThemeService.BuiltInName(builtIn),
+                    Subtitle = "Built into the Xbox Dashboard",
+                });
+            }
             foreach (ContentItem package in Themes.Installed())
             {
                 choices.Add(new Choice

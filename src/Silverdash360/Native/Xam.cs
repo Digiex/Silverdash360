@@ -54,6 +54,14 @@ namespace Silverdash360.Native
         [DllImport("xam.xex", EntryPoint = "#607")]
         public static extern uint XamContentGetDeviceName(uint deviceId, uint name, uint chars);
 
+        // 0x269: DWORD XamContentOpenFile(DWORD userIndex, LPCSTR rootName,
+        //   LPCSTR path, DWORD flags, DWORD, PDWORD licenseMask, PXOVERLAPPED)
+        // Mounts the package stored in a file under rootName. The platform
+        // opens its own packages with user 0xFF and flags 0x43.
+        [DllImport("xam.xex", EntryPoint = "#617", CharSet = CharSet.Ansi)]
+        public static extern uint XamContentOpenFile(uint userIndex, string rootName, string path, uint flags,
+                                                     uint unknown, uint licenseMask, uint overlapped);
+
         // 0x25A: DWORD XamContentClose(LPCSTR rootName, PXOVERLAPPED)
         [DllImport("xam.xex", EntryPoint = "#602", CharSet = CharSet.Ansi)]
         public static extern uint XamContentClose(string rootName, uint overlapped);

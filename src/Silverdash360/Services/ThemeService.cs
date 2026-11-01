@@ -14,18 +14,38 @@ namespace Silverdash360.Services
 {
     /// <summary>
     /// A theme package as the console's dashboard installs it (content type
-    /// 0x30000), read for what Silverdash can show of it: the wallpapers.
+    /// 0x30000), or one of the dashboard's built-in themes, read for what
+    /// Silverdash can show of it: the wallpapers.
     /// </summary>
     public sealed class DashTheme
     {
         public DashTheme(ContentItem package)
         {
             Package = package;
+            BuiltIn = -1;
             Wallpapers = new List<byte[]>();
         }
 
+        /// <summary>The dashboard's built-in theme with this number.</summary>
+        public DashTheme(int builtIn)
+        {
+            BuiltIn = builtIn;
+            Wallpapers = new List<byte[]>();
+        }
+
+        /// <summary>The theme package, or null for a built-in theme.</summary>
         public ContentItem Package { get; private set; }
-        public string Name { get { return Package.DisplayName; } }
+
+        /// <summary>The number of a built-in theme (its ThemeN folder), or -1.</summary>
+        public int BuiltIn { get; private set; }
+
+        public string Name { get { return Package != null ? Package.DisplayName : ThemeService.BuiltInName(BuiltIn); } }
+
+        /// <summary>Which theme it is, as <see cref="ThemeService.Setting"/> names it.</summary>
+        public string Key
+        {
+            get { return Package != null ? ThemeService.SettingFor(Package) : ThemeService.SettingFor(BuiltIn); }
+        }
 
         /// <summary>
         /// The wallpapers, as stored (PNG or JPEG). The first dashboard's
@@ -66,17 +86,30 @@ namespace Silverdash360.Services
         public const string NoTheme = "silverdash";
 
         private const string PackagePrefix = "package:";
+        private const string BuiltInPrefix = "builtin:";
         private const string SettingFile = "theme.txt";
 
         // Where the console's dashboard keeps the profile's theme: a file in
         // the profile's package, 0x144 bytes of XCONTENT_DATA_INTERNAL with
         // the package's file name at 0x108 and its title at 0x140. A name
-        // starting dashpack:// is one of the dashboard's built-in themes.
+        // dashpack://ThemeN is the dashboard's built-in theme N.
         private const string ProfileMount = "sdprof";
         private const string ThemeChoiceFile = "ThematicSkin";
         private const int ThemeChoiceSize = 0x144;
-        private const string BuiltInPrefix = "dashpack://";
+        private const string DashPackPrefix = "dashpack://Theme";
         private const uint DashboardTitleId = 0xFFFE07D1;
+
+        // The built-in themes are in the dashboard's DashPack, a package in
+        // the system extension partition, each in a ThemeN folder laid out
+        // as a theme package is.
+        private static readonly string[] DashPackPaths =
+        {
+            @"\Device\Harddisk0\SystemExtPartition\FFFE07DF00000006",
+            @"\Device\Harddisk0\SystemAuxPartition\FFFE07DF00000006",
+        };
+        private const string PackMount = "sdpack";
+        private const uint OpenPackageFlags = 0x43;
+        private const int MaxBuiltIn = 16;
 
         private const string ThemeMount = "sdtheme";
         private const uint OpenExisting = 3;
@@ -101,6 +134,8 @@ namespace Silverdash360.Services
         private bool loaded;
         private bool loading;
         private bool loadAgain;
+        // The built-in themes' numbers, read once; null until then.
+        private volatile List<int> builtInThemes;
 
         public ThemeService(Library library)
         {
@@ -122,9 +157,34 @@ namespace Silverdash360.Services
 
         /// <summary>
         /// When following the console's dashboard: its theme was one of its
-        /// own built-in ones, which Silverdash can't show.
+        /// own built-in ones, which couldn't be read.
         /// </summary>
         public bool DashboardThemeIsBuiltIn { get; private set; }
+
+        /// <summary>
+        /// When following the console's dashboard: the file name of the
+        /// theme package it picks that isn't installed, such as a theme an
+        /// older dashboard had; null otherwise. The dashboard shows its first
+        /// theme then.
+        /// </summary>
+        public string DashboardThemeMissing { get; private set; }
+
+        /// <summary>The dashboard's built-in themes by number; empty until they're read or when there are none.</summary>
+        public List<int> BuiltInThemes
+        {
+            get { return builtInThemes ?? new List<int>(); }
+        }
+
+        /// <summary>A built-in theme's name, by its number.</summary>
+        public static string BuiltInName(int number)
+        {
+            return "Xbox Dashboard theme " + (number + 1);
+        }
+
+        public static string SettingFor(int builtIn)
+        {
+            return BuiltInPrefix + builtIn;
+        }
 
         /// <summary>A theme was loaded or let go, on the UI thread.</summary>
         public event EventHandler Changed;
@@ -205,7 +265,8 @@ namespace Silverdash360.Services
                 if (result != null && !result.Unchanged)
                 {
                     DashboardThemeIsBuiltIn = result.BuiltIn;
-                    loadedKey = result.Theme != null ? LibraryCache.KeyOf(result.Theme.Package) : null;
+                    DashboardThemeMissing = result.Missing;
+                    loadedKey = result.Theme != null ? result.Theme.Key : null;
                     Show(result.Theme);
                 }
                 if (loadAgain)
@@ -285,7 +346,11 @@ namespace Silverdash360.Services
             {
                 if (Current == null && DashboardThemeIsBuiltIn)
                 {
-                    return "Silverdash (the Xbox Dashboard's theme is a built-in one)";
+                    return "Silverdash (the Xbox Dashboard's built-in theme couldn't be read)";
+                }
+                if (Current == null && DashboardThemeMissing != null)
+                {
+                    return "Silverdash (the Xbox Dashboard's theme " + DashboardThemeMissing + " isn't installed)";
                 }
                 return name + " (from the Xbox Dashboard)";
             }
@@ -296,6 +361,7 @@ namespace Silverdash360.Services
         {
             public DashTheme Theme;
             public bool BuiltIn;
+            public string Missing;
             public bool Unchanged;
         }
 
@@ -308,13 +374,16 @@ namespace Silverdash360.Services
                 string saved = AppStorage.ReadText(SettingFile);
                 setting = string.IsNullOrEmpty(saved) ? FollowDashboard : saved.Trim();
             }
+            if (builtInThemes == null)
+            {
+                builtInThemes = FindBuiltIn();
+            }
             LoadResult result = new LoadResult();
             ContentItem package = null;
+            int builtIn = -1;
             if (Setting == FollowDashboard)
             {
-                bool builtIn;
-                package = DashboardChoice(gamer, installed, out builtIn);
-                result.BuiltIn = builtIn;
+                package = DashboardChoice(gamer, installed, out builtIn, out result.Missing);
             }
             else if (Setting.StartsWith(PackagePrefix))
             {
@@ -325,7 +394,11 @@ namespace Silverdash360.Services
                     Log.Write("Theme {0} isn't installed any more", wanted);
                 }
             }
-            string key = package != null ? LibraryCache.KeyOf(package) : null;
+            else if (Setting.StartsWith(BuiltInPrefix))
+            {
+                int.TryParse(Setting.Substring(BuiltInPrefix.Length), out builtIn);
+            }
+            string key = package != null ? SettingFor(package) : builtIn >= 0 ? SettingFor(builtIn) : null;
             if (key == loadedPackage && loadedPackage != null)
             {
                 result.Unchanged = true;
@@ -334,13 +407,82 @@ namespace Silverdash360.Services
             {
                 result.Theme = ReadTheme(package);
             }
+            else if (builtIn >= 0)
+            {
+                result.Theme = ReadBuiltIn(builtIn);
+                result.BuiltIn = result.Theme == null;
+            }
             return result;
         }
 
-        // The installed theme the console's dashboard shows for the profile.
-        private static ContentItem DashboardChoice(Gamer gamer, List<ContentItem> installed, out bool builtIn)
+        // Mounts the dashboard's DashPack, from wherever the console keeps it.
+        private static bool OpenDashPack()
         {
-            builtIn = false;
+            foreach (string path in DashPackPaths)
+            {
+                if (Xam.XamContentOpenFile(0xFF, PackMount, path, OpenPackageFlags, 0, 0, 0) == Xam.ErrorSuccess)
+                {
+                    return true;
+                }
+            }
+            Log.Write("The Xbox Dashboard's DashPack, with its built-in themes, isn't there");
+            return false;
+        }
+
+        // The built-in themes' numbers: the DashPack's ThemeN folders that
+        // have a wallpaper, counting up from 0.
+        private static List<int> FindBuiltIn()
+        {
+            List<int> found = new List<int>();
+            if (!OpenDashPack())
+            {
+                return found;
+            }
+            try
+            {
+                for (int n = 0; n < MaxBuiltIn; n++)
+                {
+                    if (ReadFile(@"\??\" + PackMount + @":\Theme" + n + @"\Wallpaper1", 8) == null)
+                    {
+                        break;
+                    }
+                    found.Add(n);
+                }
+            }
+            finally
+            {
+                Xam.XamContentClose(PackMount, 0);
+            }
+            Log.Write("The Xbox Dashboard has {0} built-in themes", found.Count);
+            return found;
+        }
+
+        // Reads one of the dashboard's built-in themes from its DashPack.
+        private static DashTheme ReadBuiltIn(int number)
+        {
+            if (!OpenDashPack())
+            {
+                return null;
+            }
+            DashTheme theme = new DashTheme(number) { BladeStyle = -1, SphereColor = -1 };
+            try
+            {
+                ReadThemeFiles(theme, @"\??\" + PackMount + @":\Theme" + number + @"\");
+            }
+            finally
+            {
+                Xam.XamContentClose(PackMount, 0);
+            }
+            return theme.Wallpapers.Count > 0 ? theme : null;
+        }
+
+        // The installed theme the console's dashboard shows for the profile,
+        // or builtIn the number of its built-in one.
+        private static ContentItem DashboardChoice(Gamer gamer, List<ContentItem> installed, out int builtIn,
+                                                   out string missing)
+        {
+            builtIn = -1;
+            missing = null;
             if (gamer == null)
             {
                 return null;
@@ -371,16 +513,24 @@ namespace Silverdash360.Services
             {
                 titleId = DashboardTitleId;
             }
-            if (fileName.StartsWith(BuiltInPrefix, StringComparison.OrdinalIgnoreCase))
+            if (fileName.StartsWith(DashPackPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 Log.Write("The Xbox Dashboard's theme for {0} is its built-in {1}", gamer.Gamertag, fileName);
-                builtIn = true;
+                int number;
+                if (int.TryParse(fileName.Substring(DashPackPrefix.Length), out number))
+                {
+                    builtIn = number;
+                }
                 return null;
             }
             ContentItem package = installed.FirstOrDefault(
                 t => t.TitleId == titleId && string.Equals(t.FileName, fileName, StringComparison.OrdinalIgnoreCase));
             Log.Write("The Xbox Dashboard's theme for {0} is {1:X8}/{2}{3}", gamer.Gamertag, titleId, fileName,
                       package != null ? "" : ", which isn't installed");
+            if (package == null)
+            {
+                missing = fileName;
+            }
             return package;
         }
 
@@ -398,36 +548,41 @@ namespace Silverdash360.Services
                 }
                 try
                 {
-                    string root = @"\??\" + ThemeMount + @":\";
-                    // The names' case varies between themes; the console's
-                    // names are case-insensitive.
-                    for (int i = 1; i <= WallpaperCount; i++)
-                    {
-                        byte[] wallpaper = ReadFile(root + "Wallpaper" + i, MaxFileSize);
-                        if (wallpaper != null && wallpaper.Length > 8)
-                        {
-                            theme.Wallpapers.Add(wallpaper);
-                        }
-                    }
-                    byte[] style = ReadFile(root + "DashStyle", 4);
-                    byte[] parameters = ReadFile(root + "parameters.ini", 0x1000);
-                    if (parameters != null)
-                    {
-                        theme.SphereColor = SphereColorOf(Encoding.UTF8.GetString(parameters, 0, parameters.Length));
-                    }
-                    else if (style != null && style.Length == 4)
-                    {
-                        theme.BladeStyle = (int)BigEndian.U32(style, 0);
-                    }
+                    ReadThemeFiles(theme, @"\??\" + ThemeMount + @":\");
                 }
                 finally
                 {
                     Xam.XamContentClose(ThemeMount, 0);
                 }
             }
+            return theme;
+        }
+
+        // A theme's wallpapers and style from the folder at root.
+        private static void ReadThemeFiles(DashTheme theme, string root)
+        {
+            // The names' case varies between themes; the console's names are
+            // case-insensitive.
+            for (int i = 1; i <= WallpaperCount; i++)
+            {
+                byte[] wallpaper = ReadFile(root + "Wallpaper" + i, MaxFileSize);
+                if (wallpaper != null && wallpaper.Length > 8)
+                {
+                    theme.Wallpapers.Add(wallpaper);
+                }
+            }
+            byte[] style = ReadFile(root + "DashStyle", 4);
+            byte[] parameters = ReadFile(root + "parameters.ini", 0x1000);
+            if (parameters != null)
+            {
+                theme.SphereColor = SphereColorOf(Encoding.UTF8.GetString(parameters, 0, parameters.Length));
+            }
+            else if (style != null && style.Length == 4)
+            {
+                theme.BladeStyle = (int)BigEndian.U32(style, 0);
+            }
             Log.Write("Theme {0}: {1} wallpapers, {2}", theme.Name, theme.Wallpapers.Count,
                       theme.IsSceneTheme ? "scene colour " + theme.SphereColor : "blade style " + theme.BladeStyle);
-            return theme;
         }
 
         private static int SphereColorOf(string ini)

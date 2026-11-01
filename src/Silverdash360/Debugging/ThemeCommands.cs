@@ -24,8 +24,8 @@ namespace Silverdash360.Debugging
         public void Register(DebugCommandSet commands)
         {
             commands.Add("theme.state", "", "The theme picked, the one loaded and its colours.", r => UiThread.Invoke(() => State()));
-            commands.Add("theme.list", "", "The installed theme packages, with the setting that picks each.", r => UiThread.Invoke(() => List()));
-            commands.Add("theme.set", "<dashboard|silverdash|key> [timeoutMs]",
+            commands.Add("theme.list", "", "The built-in themes and installed theme packages, with the setting that picks each.", r => UiThread.Invoke(() => List()));
+            commands.Add("theme.set", "<dashboard|silverdash|builtin:N|key> [timeoutMs]",
                          "Picks a theme, as settings does, and waits for it to load. A key is a package's from theme.list.", Set);
         }
 
@@ -41,7 +41,8 @@ namespace Silverdash360.Debugging
                 { "theme", theme == null ? null : new JsonObject
                     {
                         { "name", theme.Name },
-                        { "package", theme.Package.ToString() },
+                        { "package", theme.Package != null ? theme.Package.ToString() : null },
+                        { "builtIn", theme.BuiltIn },
                         { "wallpapers", theme.Wallpapers.Select(w => w.Length).ToList() },
                         { "sceneTheme", theme.IsSceneTheme },
                         { "sphereColor", theme.SphereColor },
@@ -57,19 +58,24 @@ namespace Silverdash360.Debugging
 
         private object List()
         {
-            return Themes.Installed().Select(t => new JsonObject
+            return Themes.BuiltInThemes.Select(n => new JsonObject
+            {
+                { "setting", ThemeService.SettingFor(n) },
+                { "name", ThemeService.BuiltInName(n) },
+            }).Concat(Themes.Installed().Select(t => new JsonObject
             {
                 { "setting", ThemeService.SettingFor(t) },
                 { "name", t.DisplayName },
                 { "title", t.TitleName },
                 { "package", t.ToString() },
-            }).ToList();
+            })).ToList();
         }
 
         private object Set(DebugRequest request)
         {
             string choice = request.Arg(0, "theme", true);
-            if (choice != ThemeService.FollowDashboard && choice != ThemeService.NoTheme && !choice.StartsWith("package:"))
+            if (choice != ThemeService.FollowDashboard && choice != ThemeService.NoTheme && !choice.StartsWith("package:") &&
+                !choice.StartsWith("builtin:"))
             {
                 ContentItem package = UiThread.Invoke(() => Themes.Installed())
                     .FirstOrDefault(t => ThemeService.SettingFor(t).EndsWith(choice, StringComparison.OrdinalIgnoreCase) ||
