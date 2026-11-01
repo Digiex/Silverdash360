@@ -1,0 +1,27 @@
+<xbox:XboxApplicationPage x:Class="Silverdash360.Pages.WallpaperPickerPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:xbox="clr-namespace:Microsoft.Xbox.Controls;assembly=Microsoft.Xbox"
+    xmlns:local="clr-namespace:Silverdash360.Controls"
+    Title="Wallpaper">
+  <Grid Background="{StaticResource PageBackground}">
+    <Image x:Name="Preview" Stretch="UniformToFill" />
+    <Rectangle x:Name="PreviewShade" Fill="Black" Opacity="0.45" Visibility="Collapsed" />
+    <Grid Margin="64,40,64,28">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+      <StackPanel Margin="0,0,0,18">
+        <TextBlock x:Name="KindText" Text="wallpaper" FontSize="26" Foreground="{StaticResource SubText}" />
+        <TextBlock x:Name="TitleText" FontSize="36" Foreground="White" Margin="0,4,0,0" />
+      </StackPanel>
+      <local:TileGrid x:Name="Items" Grid.Row="1" Width="572" HorizontalAlignment="Left" />
+      <Grid Grid.Row="2" Height="34">
+        <TextBlock x:Name="StatusText" FontSize="18" Foreground="{StaticResource SubText}" VerticalAlignment="Center" />
+        <local:ButtonLegend VerticalAlignment="Center" HorizontalAlignment="Right" Text="A select   B back" />
+      </Grid>
+    </Grid>
+  </Grid>
+</xbox:XboxApplicationPage>

@@ -1,0 +1,38 @@
+<xbox:XboxApplicationPage x:Class="Silverdash360.Pages.ThemeEditorPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:xbox="clr-namespace:Microsoft.Xbox.Controls;assembly=Microsoft.Xbox"
+    xmlns:local="clr-namespace:Silverdash360.Controls"
+    Title="Theme editor">
+  <Grid Background="{StaticResource PageBackground}">
+    <Image x:Name="Wallpaper" Stretch="UniformToFill" />
+    <Rectangle x:Name="WallpaperShade" Fill="Black" Opacity="0.45" Visibility="Collapsed" />
+    <Grid Margin="64,40,64,28">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="572" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <StackPanel Grid.ColumnSpan="2" Margin="0,0,0,18">
+        <TextBlock Text="edit theme" FontSize="26" Foreground="{StaticResource SubText}" />
+        <TextBlock x:Name="TitleText" FontSize="36" Foreground="White" Margin="0,4,0,0"
+                   Text="Your colours and wallpapers" />
+      </StackPanel>
+      <local:TileGrid x:Name="Rows" Grid.Row="1" />
+      <StackPanel Grid.Row="1" Grid.Column="1" Margin="36,0,0,0">
+        <TextBlock x:Name="SwatchTitle" FontSize="22" Foreground="White" Margin="0,0,0,12" />
+        <local:TileGrid x:Name="Swatches" Height="420" Visibility="Collapsed" />
+        <TextBlock x:Name="HelpText" FontSize="18" Foreground="{StaticResource SubText}" TextWrapping="Wrap"
+                   Text="Pick a colour to change it, or a wallpaper to take one from a theme or a picture on the console's drives. Each section of the hub shows a wallpaper in turn." />
+      </StackPanel>
+      <Grid Grid.Row="2" Grid.ColumnSpan="2" Height="34">
+        <TextBlock x:Name="StatusText" FontSize="18" Foreground="{StaticResource SubText}" VerticalAlignment="Center" />
+        <local:ButtonLegend x:Name="Legend" VerticalAlignment="Center" HorizontalAlignment="Right" Text="A change   B back without saving" />
+      </Grid>
+    </Grid>
+  </Grid>
+</xbox:XboxApplicationPage>

@@ -31,6 +31,26 @@ namespace Silverdash360.Controls
             /// null or a section missing for <see cref="Background"/>.
             /// </summary>
             public Dictionary<string, Color[]> Sections;
+
+            /// <summary>The colours alone, without a scheme's section colours.</summary>
+            public Palette Copy()
+            {
+                return new Palette
+                {
+                    Accent = Accent,
+                    SubText = SubText,
+                    Panel = Panel,
+                    PanelHighlight = PanelHighlight,
+                    Background = (Color[])Background.Clone(),
+                    BackgroundOffsets = BackgroundOffsets,
+                };
+            }
+        }
+
+        /// <summary>The colours shown now.</summary>
+        public static Palette Applied
+        {
+            get { return applied ?? DefaultPalette(); }
         }
 
         private static Palette applied;

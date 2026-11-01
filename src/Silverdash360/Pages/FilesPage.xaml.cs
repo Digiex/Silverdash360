@@ -47,6 +47,8 @@ namespace Silverdash360.Pages
         }
 
         private string path;
+        // Picking a wallpaper for the theme editor: A on a picture takes it.
+        private bool picking;
 
         public FilesPage()
         {
@@ -69,6 +71,18 @@ namespace Silverdash360.Pages
         {
             base.OnNavigatedTo(e);
             string query;
+            picking = NavigationContext.QueryString.TryGetValue("pick", out query) && query == "wallpaper";
+            // Picked on a folder further in: back to the editor, once this
+            // navigation is over.
+            if (picking && ThemeDraft.Picked)
+            {
+                Silverdash360.Core.Background.OnUi(GoBack);
+                return;
+            }
+            if (picking)
+            {
+                StatusText.Text = "Pick a JPEG or PNG picture for the wallpaper.";
+            }
             path = NavigationContext.QueryString.TryGetValue("path", out query) ? query : "/";
             FolderText.Text = path == "/" ? "Drives" : path;
             FocusHelper.Focus(Items);
@@ -130,6 +144,11 @@ namespace Silverdash360.Pages
 
         private void Open(Item item)
         {
+            if (picking)
+            {
+                PickWallpaper(item);
+                return;
+            }
             switch (item.Kind)
             {
                 case Kind.Folder:
@@ -147,6 +166,41 @@ namespace Silverdash360.Pages
                 default:
                     StatusText.Text = "Silverdash can't open " + item.Name + ".";
                     break;
+            }
+        }
+
+        private void PickWallpaper(Item item)
+        {
+            if (item.Kind == Kind.Folder)
+            {
+                Context.OpenFiles(item.Path, true);
+                return;
+            }
+            if (!ThemeDraft.IsPicture(item.Name))
+            {
+                StatusText.Text = "A wallpaper is a JPEG or PNG picture.";
+                return;
+            }
+            StatusText.Text = "Reading " + item.Name + "...";
+            string picture = item.Path;
+            long size = item.Size;
+            Silverdash360.Core.Background.Run(() => ThemeDraft.ReadPicture(Files, picture, size), delegate(byte[] bytes, Exception error)
+            {
+                if (error != null || bytes == null)
+                {
+                    StatusText.Text = "Couldn't use " + item.Name + ": " + (error != null ? error.Message : "it's empty");
+                    return;
+                }
+                ThemeDraft.Pick(bytes);
+                GoBack();
+            });
+        }
+
+        private void GoBack()
+        {
+            if (NavigationService.CanGoBack)
+            {
+                NavigationService.GoBack();
             }
         }
 

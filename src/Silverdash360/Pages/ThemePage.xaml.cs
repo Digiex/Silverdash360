@@ -5,6 +5,7 @@ using System.Windows.Navigation;
 using Microsoft.Xbox.Controls;
 using Silverdash360.Controls;
 using Silverdash360.Model;
+using Silverdash360.Modules;
 using Silverdash360.Services;
 
 namespace Silverdash360.Pages
@@ -37,6 +38,11 @@ namespace Silverdash360.Pages
             Items.ItemInvoked += delegate(object sender, ItemEventArgs e)
             {
                 Choice choice = (Choice)e.Item;
+                if (choice.Setting == EditSetting)
+                {
+                    Context.OpenThemeEditor();
+                    return;
+                }
                 StatusText.Text = "Loading " + choice.Title + "...";
                 Themes.Choose(choice.Setting, delegate
                 {
@@ -54,6 +60,11 @@ namespace Silverdash360.Pages
 
         private static ThemeService Themes { get { return App.Context.Themes; } }
 
+        private static DashboardContext Context { get { return App.Context; } }
+
+        // Not a theme: the first row opens the editor.
+        private const string EditSetting = "edit";
+
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
@@ -70,12 +81,28 @@ namespace Silverdash360.Pages
             {
                 new Choice
                 {
+                    Setting = EditSetting,
+                    Title = "Edit current theme",
+                    Subtitle = "Its colours and wallpapers, mixed from other themes and your pictures",
+                },
+                new Choice
+                {
                     Setting = ThemeService.FollowDashboard,
                     Title = "Same as the Xbox Dashboard",
                     Subtitle = "The theme the profile signed in uses there",
                 },
                 new Choice { Setting = ThemeService.NoTheme, Title = "Silverdash", Subtitle = "No wallpaper, the usual colours" },
             };
+            if (Themes.HasCustomTheme())
+            {
+                choices.Add(new Choice
+                {
+                    Setting = ThemeService.CustomTheme,
+                    Title = ThemeService.CustomThemeName,
+                    Subtitle = Context.Library.Gamer != null ? "The one you saved for " + Context.Library.Gamer.Gamertag
+                        : "The one saved for nobody signed in",
+                });
+            }
             foreach (ColourScheme scheme in ColourScheme.All())
             {
                 choices.Add(new Choice
@@ -104,7 +131,11 @@ namespace Silverdash360.Pages
                     Package = package,
                 });
             }
-            Choice picked = choices.FirstOrDefault(c => c.Setting == Themes.Setting);
+            // The row the user is on stays selected, as when the built-in
+            // themes come in; at first, the theme in use.
+            Choice on = Items.SelectedItem as Choice;
+            string wanted = on != null ? on.Setting : Themes.Setting;
+            Choice picked = choices.FirstOrDefault(c => c.Setting == wanted);
             int selected = picked != null ? choices.IndexOf(picked) : 0;
             Items.Items = choices.Cast<object>().ToList();
             Items.SelectedIndex = selected;

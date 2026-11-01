@@ -24,7 +24,17 @@ The welcome screen opens at the first start with the basic settings: whether the
 
 ## Themes
 
-The theme follows the console dashboard's own by default, so your wallpapers come with you. **Theme** lists the themes built into the console's dashboard and those installed on the console; A uses one. The built-in themes are read from the console's own dashboard files, so they're the ones your dashboard version has. A theme's wallpapers go to the sections, a wallpaper each, and its colours to Silverdash360's. **Silverdash** is Silverdash360's own colours and no wallpaper. **Blades (Default)** and **Blades (Carbon)** are colours after the two styles of the first Xbox 360 dashboard, with no wallpaper; as its blades did, each section has a colour of its own: me is Xbox Live's orange, games green, media blue, apps the Marketplace blade's and settings the System blade's. If the dashboard's theme for your profile is a theme package that's no longer installed, such as one from an older dashboard, Silverdash360 shows its own colours and settings names the missing theme.
+The theme follows the console dashboard's own by default, so your wallpapers come with you. **Theme** lists the themes built into the console's dashboard and those installed on the console; A uses one. The built-in themes (Spectrum, Day and Night) are read from the console's own dashboard files, so they're the ones your dashboard version has; the dashboard's Xbox 360 theme isn't among those files, so Silverdash360 shows its own colours for it. A theme's wallpapers go to the sections, a wallpaper each, and its colours to Silverdash360's. **Silverdash** is Silverdash360's own colours and no wallpaper. **Blades (Default)** and **Blades (Carbon)** are colours after the two styles of the first Xbox 360 dashboard, with no wallpaper; as its blades did, each section has a colour of its own: me is Xbox Live's orange, games green, media blue, apps the Marketplace blade's and settings the System blade's. If the dashboard's theme for your profile is a theme package that's no longer installed, such as one from an older dashboard, Silverdash360 shows its own colours and settings names the missing theme.
+
+## Theme editor
+
+**Edit current theme**, the first row of **Theme**, makes a theme of your own, starting from the one shown:
+
+- **Colours**: the accent, secondary text, panels, the selected panel and the three colours of the background. A on one opens a grid of colours; the dashboard takes each on as you move, A keeps it and B puts the old one back.
+- **Wallpapers 1 to 4**: each section of the hub shows one in turn. A wallpaper can be none, a JPEG or PNG picture on the console's drives (up to 4 MB), or any wallpaper of the built-in and installed themes, shown behind the list as you pick.
+- **Save** makes it the custom theme of the profile signed in (or of nobody signed in, when nobody is) and uses it. **Save for nobody signed in too** also keeps it for when nobody is signed in.
+
+B leaves without saving and puts the colours back. Once saved, **Custom theme** in the theme list picks it again; for a profile without one, it's the console dashboard's theme.
 
 ## Storage
 

@@ -41,7 +41,11 @@ namespace Silverdash360.Services
 
         public string Name
         {
-            get { return Package != null ? Package.DisplayName : SavedName ?? ThemeService.BuiltInName(BuiltIn); }
+            get
+            {
+                return Package != null ? Package.DisplayName
+                    : BuiltIn >= 0 ? ThemeService.BuiltInName(BuiltIn) : SavedName ?? ThemeService.CustomThemeName;
+            }
         }
 
         /// <summary>The name kept with a theme read from the cache before its package was found.</summary>
@@ -213,6 +217,15 @@ namespace Silverdash360.Services
         /// <summary>Silverdash's own colours and no wallpaper.</summary>
         public const string NoTheme = "silverdash";
 
+        /// <summary>
+        /// The signed-in profile's own theme from the theme editor, or the
+        /// one saved for nobody signed in; the console dashboard's theme
+        /// for one that has none.
+        /// </summary>
+        public const string CustomTheme = "custom";
+
+        public const string CustomThemeName = "Custom theme";
+
         private const string PackagePrefix = "package:";
         private const string BuiltInPrefix = "builtin:";
         private const string SchemePrefix = "scheme:";
@@ -242,6 +255,9 @@ namespace Silverdash360.Services
         // package, read its wallpapers and work out its colours again:
         // CurrentTheme\<offline XUID>\theme.txt and Wallpaper1 to 4.
         private const string CacheRoot = "CurrentTheme/";
+        // A custom theme, kept as the cache keeps one:
+        // CustomTheme\<offline XUID or Nobody>\theme.txt and Wallpaper1 to 4.
+        private const string CustomRoot = "CustomTheme/";
         private const string CacheMeta = "theme.txt";
         private const uint OpenPackageFlags = 0x43;
         private const int MaxBuiltIn = 16;
@@ -345,7 +361,10 @@ namespace Silverdash360.Services
         /// <summary>A built-in theme's name, by its number.</summary>
         public static string BuiltInName(int number)
         {
-            return "Xbox Dashboard theme " + (number + 1);
+            // The dashboard lists its own Xbox 360 theme first, which isn't
+            // in the DashPack, then these.
+            string[] names = { "Spectrum", "Day", "Night" };
+            return number >= 0 && number < names.Length ? names[number] : "Xbox Dashboard theme " + (number + 1);
         }
 
         public static string SettingFor(int builtIn)
@@ -578,7 +597,26 @@ namespace Silverdash360.Services
             ContentItem package = null;
             int builtIn = -1;
             string id = null;
-            if (Setting == FollowDashboard)
+            bool follow = Setting == FollowDashboard;
+            if (Setting == CustomTheme)
+            {
+                id = CustomId(gamer);
+                if (id == loadedPackage && loadedPackage != null)
+                {
+                    result.Unchanged = true;
+                    return result;
+                }
+                result.Theme = ReadCache(CustomRoot + Owner(gamer) + "/", id, null);
+                if (result.Theme != null)
+                {
+                    result.FromCache = true;
+                    return result;
+                }
+                // Nothing saved for this profile: the dashboard's theme.
+                follow = true;
+                id = null;
+            }
+            if (follow)
             {
                 package = DashboardChoice(gamer, installed, out builtIn, out result.Missing, out id);
             }
@@ -648,7 +686,92 @@ namespace Silverdash360.Services
 
         private static string CacheFolder(Gamer gamer)
         {
-            return CacheRoot + (gamer != null ? gamer.OfflineXuid.ToString("X16") : "Nobody") + "/";
+            return CacheRoot + Owner(gamer) + "/";
+        }
+
+        private static string Owner(Gamer gamer)
+        {
+            return gamer != null ? gamer.OfflineXuid.ToString("X16") : "Nobody";
+        }
+
+        private static string CustomId(Gamer gamer)
+        {
+            return CustomTheme + ":" + Owner(gamer);
+        }
+
+        /// <summary>Whether the signed-in profile, or nobody signed in, has a custom theme saved.</summary>
+        public bool HasCustomTheme()
+        {
+            Gamer gamer = library.Gamer;
+            return AppStorage.Stat(CustomRoot + Owner(gamer) + "/" + CacheMeta) != null;
+        }
+
+        /// <summary>
+        /// Saves a custom theme for the profile signed in, or nobody signed
+        /// in, and for nobody signed in too when asked, and uses it. done is
+        /// called on the UI thread once it's shown.
+        /// </summary>
+        public void SaveCustomTheme(Theme.Palette palette, List<byte[]> wallpapers, bool forNobodyToo, Action done)
+        {
+            Gamer gamer = library.Gamer;
+            List<Gamer> owners = new List<Gamer> { gamer };
+            if (forNobodyToo && gamer != null)
+            {
+                owners.Add(null);
+            }
+            Background.Run(() =>
+            {
+                foreach (Gamer owner in owners)
+                {
+                    DashTheme theme = new DashTheme(-1)
+                    {
+                        Id = CustomId(owner),
+                        SavedName = CustomThemeName,
+                        CacheFolder = CustomRoot + Owner(owner) + "/",
+                        Palette = palette,
+                        PaletteKnown = true,
+                        SphereColor = -1,
+                        BladeStyle = -1,
+                    };
+                    theme.Wallpapers.AddRange(wallpapers);
+                    WriteCache(theme);
+                }
+                Log.Write("Custom theme saved for {0}{1}: {2} wallpapers", gamer != null ? gamer.Gamertag : "nobody signed in",
+                          owners.Count > 1 ? " and nobody signed in" : "", wallpapers.Count);
+                return 0;
+            }, (r, e) => Choose(CustomTheme, done));
+        }
+
+        /// <summary>
+        /// Another theme's wallpapers, as a setting names it (a package or a
+        /// built-in theme), read in the background; done is given them on
+        /// the UI thread, empty when it can't be read.
+        /// </summary>
+        public void ReadWallpapers(string choice, Action<List<byte[]>> done)
+        {
+            List<ContentItem> installed = Installed();
+            Background.Run(() =>
+            {
+                DashTheme theme = null;
+                if (choice.StartsWith(BuiltInPrefix))
+                {
+                    int number;
+                    if (int.TryParse(choice.Substring(BuiltInPrefix.Length), out number))
+                    {
+                        theme = ReadBuiltIn(number);
+                    }
+                }
+                else if (choice.StartsWith(PackagePrefix))
+                {
+                    string wanted = choice.Substring(PackagePrefix.Length);
+                    ContentItem package = installed.FirstOrDefault(t => LibraryCache.KeyOf(t) == wanted);
+                    if (package != null)
+                    {
+                        theme = ReadTheme(package);
+                    }
+                }
+                return theme != null ? theme.Wallpapers : new List<byte[]>();
+            }, (wallpapers, error) => done(wallpapers ?? new List<byte[]>()));
         }
 
         // The kept theme when it's id; null otherwise.

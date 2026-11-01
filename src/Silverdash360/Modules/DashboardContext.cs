@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Silverdash360.Model;
+using Silverdash360.Pages;
 using Silverdash360.Services;
 using Silverdash360.Services.Ftp;
 using Silverdash360.Services.Media;
@@ -99,7 +100,35 @@ namespace Silverdash360.Modules
         /// <summary>The file browser at a path of the file tree, the drives at /.</summary>
         public void OpenFiles(string path)
         {
-            Navigate(new Uri("/Pages/FilesPage.xaml?path=" + Uri.EscapeDataString(path), UriKind.Relative));
+            OpenFiles(path, false);
+        }
+
+        /// <summary>The files page; picking, A on a picture takes it as the theme editor's wallpaper.</summary>
+        public void OpenFiles(string path, bool pickWallpaper)
+        {
+            Navigate(new Uri("/Pages/FilesPage.xaml?path=" + Uri.EscapeDataString(path) + (pickWallpaper ? "&pick=wallpaper" : ""),
+                             UriKind.Relative));
+        }
+
+        /// <summary>Edits the theme shown, starting from it.</summary>
+        public void OpenThemeEditor()
+        {
+            ThemeDraft.Start(Themes.Current);
+            Navigate(new Uri("/Pages/ThemeEditorPage.xaml", UriKind.Relative));
+        }
+
+        /// <summary>Picks a wallpaper for the theme editor: where from, or from a theme's (its setting).</summary>
+        public void OpenWallpaperPicker(string theme)
+        {
+            OpenWallpaperPicker(theme, null);
+        }
+
+        public void OpenWallpaperPicker(string theme, string name)
+        {
+            string query = theme != null
+                ? "?theme=" + Uri.EscapeDataString(theme) + "&name=" + Uri.EscapeDataString(name ?? "")
+                : "";
+            Navigate(new Uri("/Pages/WallpaperPickerPage.xaml" + query, UriKind.Relative));
         }
 
         public void OpenStorage()
