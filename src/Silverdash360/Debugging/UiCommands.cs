@@ -44,7 +44,7 @@ namespace Silverdash360.Debugging
         {
             commands.Add("ui.state", "", "The page, the hub's section, and the focused control and selection.", r => UiThread.Invoke(() => State()));
             commands.Add("ui.section", "<index|header>", "Shows a hub section.", Section);
-            commands.Add("ui.navigate", "<hub|search|storage|theme|files [path] [pick]|media <source>|shelf <header>|title <key>>", "Goes to a page.", Navigate);
+            commands.Add("ui.navigate", "<hub|search [text]|storage|theme|theme-editor|welcome|files [path] [pick]|media <source>|shelf <header>|title <key>>", "Goes to a page.", Navigate);
             commands.Add("ui.tab", "<next|previous>", "On a title's page, shows another tab, as RB and LB do.", r =>
             {
                 UiThread.Invoke(() =>
@@ -72,18 +72,26 @@ namespace Silverdash360.Debugging
             commands.Add("ui.timeline", "<button> [ms]",
                          "Presses a button and times what follows: the press's own work, the first frame, a page's arrival and the frames.", Timeline);
             commands.Add("ui.motion", "[name value]...", "The animation settings (Controls/Motion.cs), changing any given.", MotionSettings);
-            commands.Add("ui.screenshot", "",
-                         "Draws the screen into " + ScreenshotFile + " in the data folder, for FTP: its pixels a row at a time, " +
-                         "four bytes each, alpha, red, green and blue (tools/screenshot.py makes a PNG of it).", Screenshot);
+            commands.Add("ui.screenshot", "[name]",
+                         "Draws the screen into " + ScreenshotFolder + "/<name>.argb in the data folder (" + ScreenshotName +
+                         " by default), for FTP: its pixels a row at a time, four bytes each, alpha, red, green and blue " +
+                         "(tools/screenshot.py makes a PNG of it).", Screenshot);
         }
 
-        private const string ScreenshotFile = "Screenshot.argb";
+        private const string ScreenshotFolder = "Screenshots";
+        private const string ScreenshotName = "screenshot";
 
         // Silverlight draws the page into a bitmap as it draws the screen.
         // What it doesn't draw is missing: the Guide and the console's
         // notifications, and video the player puts on screen itself.
         private object Screenshot(DebugRequest request)
         {
+            string name = request.Arg(0, ScreenshotName);
+            if (name.IndexOfAny(new[] { '/', '\\', ':', '.' }) >= 0)
+            {
+                throw new DebugException("A name is a file name, without a folder or an extension.");
+            }
+            string file = ScreenshotFolder + "/" + name + ".argb";
             int start = Environment.TickCount;
             int width = 0, height = 0;
             int[] pixels = UiThread.Invoke(() =>
@@ -100,13 +108,13 @@ namespace Silverdash360.Debugging
             // takes seconds here.
             byte[] bytes = new byte[pixels.Length * 4];
             Buffer.BlockCopy(pixels, 0, bytes, 0, bytes.Length);
-            if (!AppStorage.WriteBytes(ScreenshotFile, bytes, null))
+            if (!AppStorage.WriteBytes(file, bytes, null))
             {
-                throw new DebugException("Couldn't write " + ScreenshotFile + ".");
+                throw new DebugException("Couldn't write " + file + ".");
             }
             return new JsonObject
             {
-                { "path", AppStorage.Folder + "/" + ScreenshotFile },
+                { "path", AppStorage.Folder + "/" + file },
                 { "width", width },
                 { "height", height },
                 { "drawMs", drawn },
@@ -241,6 +249,17 @@ namespace Silverdash360.Debugging
                 { "sectionHeader", App.Modules[HubPage.CurrentSection].Header },
                 { "sections", App.Modules.Select(m => m.Header).ToList() },
             };
+            LibraryModule shelf = App.Modules[HubPage.CurrentSection] as LibraryModule;
+            if (shelf != null)
+            {
+                state.Add("listView", shelf.ListView);
+            }
+            state.Add("imagesPending", context.Images.Pending);
+            HubPage shown = Frame.Content as HubPage;
+            if (shown != null)
+            {
+                state.Add("logoShown", shown.LogoShown);
+            }
             object focused = FocusManager.GetFocusedElement();
             state.Add("focused", focused != null ? focused.GetType().Name : null);
             TileGrid grid = FocusedGrid();
@@ -288,9 +307,17 @@ namespace Silverdash360.Debugging
                 switch (page)
                 {
                     case "hub": context.Navigate(new Uri("/Pages/HubPage.xaml", UriKind.Relative)); break;
-                    case "search": context.OpenSearch(); break;
+                    case "search":
+                        if (request.Args.Count > 1)
+                        {
+                            SearchPage.Prefill(request.Arg(1, "text", true));
+                        }
+                        context.OpenSearch();
+                        break;
                     case "storage": context.OpenStorage(); break;
                     case "theme": context.OpenThemes(); break;
+                    case "theme-editor": context.OpenThemeEditor(); break;
+                    case "welcome": context.OpenWelcome(); break;
                     case "files": context.OpenFiles(request.Arg(1, "/"), request.Arg(2, "") == "pick"); break;
                     case "media": context.OpenMedia(context.Media.Find(request.Arg(1, "source", true)), null); break;
                     case "shelf": context.OpenShelfOptions(request.Arg(1, "shelf", true)); break;

@@ -84,6 +84,9 @@ namespace Silverdash360.Services
         }
 
         /// <summary>The title's art; the callback isn't called when there is none.</summary>
+        /// <summary>Images asked for and not shown yet; on the UI thread.</summary>
+        public int Pending { get { return pending.Count; } }
+
         public void TitleArt(TitleEntry title, uint userIndex, Action<ImageSource> done)
         {
             Get("title:" + title.Key, () => TitlePng(title, userIndex), done);

@@ -60,6 +60,9 @@ namespace Silverdash360.Pages
         private const int BrandQuietMs = 1000;
         private bool brandWaiting;
 
+        /// <summary>How much of the Silverdash360 logo shows, 0 to 1: less while Digiex's is in.</summary>
+        public double LogoShown { get { return SilverdashLogo.Opacity; } }
+
         // A Release build looks for an update once a start, when the user has
         // left the controller alone this long. Debug builds, which tools\deploy.py
         // puts on a console, don't: the settings page and the debug server can.

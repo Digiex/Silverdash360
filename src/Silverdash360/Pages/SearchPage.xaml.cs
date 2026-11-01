@@ -17,6 +17,12 @@ namespace Silverdash360.Pages
     {
         private static string lastQuery = "";
 
+        /// <summary>The text the page opens with, as if typed.</summary>
+        public static void Prefill(string text)
+        {
+            lastQuery = text;
+        }
+
         public SearchPage()
         {
             InitializeComponent();

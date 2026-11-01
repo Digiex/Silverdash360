@@ -28,6 +28,9 @@ namespace Silverdash360.Modules
         private readonly ShelfOptions options;
         private TileGrid grid;
         private bool listView;
+
+        /// <summary>The shelf shows rows rather than covers.</summary>
+        public bool ListView { get { return listView; } }
         private TitleEntry lastSelected;
         private string lastLetter;
         private bool lettersOnly;

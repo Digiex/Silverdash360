@@ -37,6 +37,15 @@ python tools/screenshot.py 192.168.1.20 menu.png
 
 Only what Silverlight draws is in it: the Guide, the console's notifications and video that the player puts on screen itself are missing.
 
+`tools/docs_screenshots.py` takes the screenshots in `docs/images`, which the README, the docs and the website show. It goes to each screen, waits for its covers and the Silverdash360 logo, draws them all, then copies them off and saves them at 960x540; the shelves' views and the theme are put back afterwards. `--only` takes some of them again, `--title` and `--query` pick the title page and the search shown, and `--theme` takes them with another theme.
+
+```
+python tools/docs_screenshots.py 192.168.1.20
+python tools/docs_screenshots.py 192.168.1.20 --only home games-covers
+```
+
+They show the console's own titles, profile and theme.
+
 In xenia, run with `--systemlink_transport=off` and `--ftp-port 2121`, since xenia moves ports below 1024, and with a `--target` under `/Hdd1/Content`, the only folder of its hard drive xenia has. xenia mounts a launched title's folder read-only and as `\Device\Package_0`, so `app.location` can't name it. Relaunching needs xenia-edge's `pr-socket-accept-relaunch` fix: before it, a title that relaunched while a thread waited in `accept` crashed the emulator at its next socket.
 
 ## Running the tests
@@ -108,7 +117,7 @@ python tests/debugclient.py 192.168.1.20
 | `ui.timeline <button> [ms]`, `ui.motion [name value]...` | What a press costs: its own work, the first frame after it, a page's arrival and readiness, the frame gaps; and the animation settings, changed live. |
 | `media.sources`, `media.search`, `media.add <url>`, `media.list`, `media.play`, `media.state`, `media.next` | The media section: sources, media servers, folders, playing and what the player is doing. |
 | `app.location`, `app.launch [path]`, `ftp.start [port]`, `ftp.stop` | Where the dashboard runs from, starting a build, and the FTP server, for deploy.py. |
-| `ui.screenshot` | Draws the screen into `Screenshot.argb` in the data folder, for `tools/screenshot.py`. |
+| `ui.screenshot [name]` | Draws the screen into `Screenshots\<name>.argb` in the data folder, for `tools/screenshot.py` and `tools/docs_screenshots.py`. `ui.state` says how many images are still loading (`imagesPending`) and how much of the hub's logo shows (`logoShown`). |
 
 A controller's button events can't be made from code, so `ui.press` does what the button does instead: it calls the focused grid's `TileGrid.Press`, then the hub's `HubPage.Press`, then the frame's back for B. Pages with their own button handling, such as the search page's keyboard, aren't reached that way.
 
