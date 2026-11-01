@@ -46,7 +46,10 @@ namespace Silverdash360.Services
             return new LibraryCache(ProfileFolder + offlineXuid.ToString("X16") + ".bin");
         }
         private const uint Magic = 0x53443343; // "SD3C"
-        private const int FormatVersion = 9;
+        private const int FormatVersion = 10;
+        // As FormatVersion, from before the console's packages and each
+        // profile's had files of their own: a profile's could be in it.
+        private const int SharedWithProfileVersion = 9;
         // Without the packages' disc numbers.
         private const int NoDiscsVersion = 8;
         // Without what's inside homebrew packages; still read, so a new
@@ -79,6 +82,8 @@ namespace Silverdash360.Services
             public bool Complete;
             /// <summary>Read from an older format, which a save brings up to date.</summary>
             public bool Outdated;
+            /// <summary>Holds the console's packages alone, whatever their records say.</summary>
+            public bool ConsoleOnly;
         }
 
         /// <summary>
@@ -130,6 +135,11 @@ namespace Silverdash360.Services
                     section(contents);
                 }
                 return contents;
+            }
+            contents.ConsoleOnly = version == FormatVersion;
+            if (version == SharedWithProfileVersion)
+            {
+                version = FormatVersion;
             }
             if (version != FormatVersion && version != NoDiscsVersion && version != NoInsideVersion &&
                 version != NoAppCheckVersion)

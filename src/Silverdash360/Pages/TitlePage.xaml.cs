@@ -135,6 +135,20 @@ namespace Silverdash360.Pages
             }
             ShowTitle();
             FocusHelper.Focus(Actions);
+            // Its saves and add-ons as they are now: a start doesn't list them.
+            string titleKey = title.Key;
+            Context.Library.RefreshTitle(title, delegate
+            {
+                TitleEntry updated = Context.Library.Find(titleKey);
+                if (updated != null && updated != title)
+                {
+                    title = updated;
+                    if (tabs.Count > tab && tabs[tab].Header == "content")
+                    {
+                        ShowTab(tab);
+                    }
+                }
+            });
         }
 
         private void ShowTitle()

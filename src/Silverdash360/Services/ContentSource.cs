@@ -22,6 +22,9 @@ namespace Silverdash360.Services
         /// <summary>One title's packages, of every type, for the user or common content.</summary>
         List<ContentItem> EnumerateTitle(ulong xuid, uint titleId);
 
+        /// <summary>Every package of one content type (Any for all) of one title (0 for every title).</summary>
+        List<ContentItem> EnumerateType(ulong xuid, uint contentType, uint titleId);
+
         /// <summary>The package header's metadata, or null; with its thumbnails when asked for.</summary>
         ContentMetadata ReadMetadata(ContentItem item, bool thumbnails);
 
@@ -61,10 +64,10 @@ namespace Silverdash360.Services
             return Enumerate(xuid, 0, ContentType.Any, found, pace);
         }
 
-        /// <summary>Every package of one content type, for every title.</summary>
-        public List<ContentItem> EnumerateType(ulong xuid, uint contentType)
+        /// <summary>Every package of one content type (Any for all) of one title (0 for every title).</summary>
+        public List<ContentItem> EnumerateType(ulong xuid, uint contentType, uint titleId)
         {
-            return Enumerate(xuid, 0, contentType, null, null);
+            return Enumerate(xuid, titleId, contentType, null, null);
         }
 
         public List<ContentItem> EnumerateTitle(ulong xuid, uint titleId)

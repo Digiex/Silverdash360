@@ -89,8 +89,21 @@ namespace Silverdash360.Pages
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
+            // The packages as saved; a full refresh lists them all again.
+            App.Context.Library.Changed += OnLibraryChanged;
             ShowFilter(lastFilter);
             FocusHelper.Focus(Items);
+        }
+
+        protected override void OnNavigatedFrom(NavigationEventArgs e)
+        {
+            base.OnNavigatedFrom(e);
+            App.Context.Library.Changed -= OnLibraryChanged;
+        }
+
+        private void OnLibraryChanged(object sender, EventArgs e)
+        {
+            ShowFilter(filter);
         }
 
         private void ShowFilter(int index)

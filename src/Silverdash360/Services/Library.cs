@@ -313,10 +313,11 @@ namespace Silverdash360.Services
         /// For the debug server: the read a sign-in makes, timed step by
         /// step, without showing it. On the calling thread.
         /// </summary>
-        public string TimeProfileRead()
+        public string TimeProfileRead(bool nobody)
         {
             int at = Environment.TickCount;
-            Gamer gamer = profiles.SignedIn().FirstOrDefault();
+            // Nobody: as a sign-out would read it.
+            Gamer gamer = nobody ? null : profiles.SignedIn().FirstOrDefault();
             int signinMs = Environment.TickCount - at;
             ProfileRead kept = latestProfile;
             string steps;
@@ -495,7 +496,7 @@ namespace Silverdash360.Services
                     // packages of whoever was signed in then: those its
                     // records say are a profile's aren't shown, and the rest
                     // go when the console's are listed again.
-                    List<ContentItem> packages = section.Content.Where(c => c.Xuid == 0)
+                    List<ContentItem> packages = section.Content.Where(c => c.Xuid == 0 || section.ConsoleOnly)
                                                         .Concat(read != null ? read.Own : ownCached).ToList();
                     LoadResult partial = Build(packages, section.Executables, read != null ? read.Gamer : gamer,
                                                read != null ? read.Played : played);
@@ -511,9 +512,11 @@ namespace Silverdash360.Services
                         }
                     });
                 });
-                sharedCached = cached.Content.Where(c => c.Xuid == 0).ToList();
-                // That file is saved again with the console's packages alone.
-                outdated = cached.Outdated || sharedCached.Count != cached.Content.Count;
+                // A file from before the console's packages had one of their
+                // own can have a profile's: those its records say are one's
+                // are left out, and everything is listed again once.
+                sharedCached = cached.ConsoleOnly ? cached.Content : cached.Content.Where(c => c.Xuid == 0).ToList();
+                outdated = cached.Outdated || !cached.ConsoleOnly;
                 foreach (ContentItem item in cached.Content.Concat(ownCached))
                 {
                     // A header read before without metadata, such as an avatar
@@ -562,95 +565,174 @@ namespace Silverdash360.Services
             Action paceSave = Pace(shown ? PaceSave : 0);
 
             // Common content (games, apps, add-ons) is stored under XUID 0, the
-            // profile's own (saves, its themes) under its offline XUID.
-            Report("Looking for content...", null);
-            List<ContentItem> content = source.Enumerate(0, count => Report("Looking for content... " + count + " found", null), pace);
-            if (gamer != null)
-            {
-                content.AddRange(Owned(source.Enumerate(gamer.OfflineXuid, null, pace), gamer.OfflineXuid));
-            }
-            // Once each: a package reported twice would show twice.
-            Dictionary<string, bool> seen = new Dictionary<string, bool>();
-            content = content.Where(c =>
-            {
-                string key = LibraryCache.KeyOf(c);
-                if (c.TitleId == 0 || seen.ContainsKey(key))
-                {
-                    return false;
-                }
-                seen[key] = true;
-                return true;
-            }).ToList();
+            // profile's own (saves, its themes) under its offline XUID. The
+            // profile's are few, so they're all listed.
+            List<ContentItem> own = gamer != null
+                ? Owned(source.Enumerate(gamer.OfflineXuid, null, pace), gamer.OfflineXuid)
+                : new List<ContentItem>();
 
             Report("Looking in the Apps and Games folders...", null);
             List<ExecutableItem> found = executables.Scan(knownExecutables, paceExecutable);
 
-            // Headers have the names, description, publisher and art. Saves
-            // have little worth the read.
+            // With a library saved, only the console's packages that start
+            // games and apps, with themes and disc installs, are listed again:
+            // listing a type costs seconds on a console however few it has.
+            // The rest, add-ons, saves, avatar items, videos and the like,
+            // thousands on some consoles, are kept as they were saved: a
+            // title's page lists its own again, and a full refresh lists
+            // everything, as a start with nothing saved does. An add-on that
+            // holds an app (Air Band is one) is kept with what was found in it.
+            bool everything = full || sharedCached.Count == 0 || outdated;
+            List<uint[]> passes = new List<uint[]>();
+            passes.Add(everything ? null : StartTypes);
+            List<ContentItem> shared = sharedCached;
+            List<ContentItem> content = null;
             List<ContentItem> unread = new List<ContentItem>();
-            foreach (ContentItem item in content.Where(c => c.Type != ContentType.SavedGame))
+            int appsChecked = 0;
+            for (int pass = 0; pass < passes.Count; pass++)
             {
-                ContentMetadata metadata;
-                // A launchable package kept from before discs were read is
-                // read again, once, for its disc number.
-                if (known.TryGetValue(LibraryCache.KeyOf(item), out metadata) &&
-                    (metadata == null || metadata.DiscsKnown || !ContentType.IsLaunchable(item.Type)))
+                uint[] types = passes[pass];
+                List<ContentItem> listed;
+                if (types == null)
                 {
-                    item.Metadata = metadata;
-                    item.HeaderRead = true;
+                    Report("Looking for content...", null);
+                    listed = source.Enumerate(0, count => Report("Looking for content... " + count + " found", null), pace);
+                    shared = listed;
                 }
                 else
                 {
-                    unread.Add(item);
-                }
-            }
-            int reported = -1;
-            for (int i = 0; i < unread.Count; i++)
-            {
-                int percent = (i * 100) / unread.Count;
-                if (percent != reported)
-                {
-                    reported = percent;
-                    Report(string.Format("Reading {0} of {1} packages...", i + 1, unread.Count), (double)i / unread.Count);
-                }
-                unread[i].Metadata = source.ReadMetadata(unread[i], false);
-                unread[i].HeaderRead = true;
-                if (paceHeader != null)
-                {
-                    paceHeader();
-                }
-            }
-
-            int appsChecked = CheckForApps(content, knownApps, paceHeader) + LookInsideHomebrew(content, knownInside, paceHeader);
-
-            // A profile signed in or out while this ran: the result is for
-            // the one signed in now, its own packages and played titles in
-            // place of the other's, so it doesn't bring that one back.
-            Gamer now = profiles.SignedIn().FirstOrDefault();
-            if ((now != null ? now.Xuid : 0) != (gamer != null ? gamer.Xuid : 0))
-            {
-                Log.Write("Library: the profile changed during the refresh, to {0}",
-                          now != null ? now.Gamertag : "nobody signed in");
-                content = content.Where(c => c.Owner == 0).ToList();
-                // Read already when it was shown, unless it changed again.
-                ProfileRead read = latestProfile;
-                if (read != null && (read.Gamer != null ? read.Gamer.Xuid : 0) == (now != null ? now.Xuid : 0))
-                {
-                    gamer = read.Gamer;
-                    played = read.Played;
-                    content.AddRange(read.Own);
-                }
-                else
-                {
-                    gamer = now;
-                    played = now != null ? profiles.PlayedTitles(now) : new List<PlayedTitle>();
-                    if (now != null)
+                    listed = new List<ContentItem>();
+                    for (int i = 0; i < types.Length; i++)
                     {
-                        content.AddRange(ReadOwn(now, pace));
+                        Report(string.Format("Looking for games and apps... ({0} of {1})", i + 1, types.Length), null);
+                        listed.AddRange(source.EnumerateType(0, types[i], 0));
+                        pace();
+                    }
+                    // The kept records of the types not listed, with the
+                    // listed ones as they are now.
+                    List<ContentItem> kept = new List<ContentItem>(shared.Count);
+                    foreach (ContentItem item in shared)
+                    {
+                        if (!InTypes(types, item.Type))
+                        {
+                            kept.Add(item);
+                        }
+                    }
+                    kept.AddRange(listed);
+                    shared = kept;
+                }
+                // Once each: a package reported twice would show twice.
+                Dictionary<string, bool> seen = new Dictionary<string, bool>();
+                List<ContentItem> unique = new List<ContentItem>(shared.Count);
+                foreach (ContentItem item in shared)
+                {
+                    string key = LibraryCache.KeyOf(item);
+                    if (item.TitleId != 0 && !seen.ContainsKey(key))
+                    {
+                        seen[key] = true;
+                        unique.Add(item);
                     }
                 }
-                // ReadOwn saved the new profile's file; the other's stays as it was.
-                profileCache = null;
+                shared = unique;
+                content = new List<ContentItem>(shared.Count + own.Count);
+                content.AddRange(shared);
+                foreach (ContentItem item in own)
+                {
+                    if (item.TitleId != 0)
+                    {
+                        content.Add(item);
+                    }
+                }
+
+                // Headers have the names, description, publisher and art. Saves
+                // have little worth the read. Packages kept from before have
+                // theirs already.
+                List<ContentItem> toRead = new List<ContentItem>();
+                foreach (ContentItem item in pass == 0 ? content : listed)
+                {
+                    if (item.Type == ContentType.SavedGame || (item.HeaderRead && item.Metadata != null && item.Metadata.DiscsKnown))
+                    {
+                        continue;
+                    }
+                    ContentMetadata metadata;
+                    // A launchable package kept from before discs were read is
+                    // read again, once, for its disc number.
+                    if (known.TryGetValue(LibraryCache.KeyOf(item), out metadata) &&
+                        (metadata == null || metadata.DiscsKnown || !ContentType.IsLaunchable(item.Type)))
+                    {
+                        item.Metadata = metadata;
+                        item.HeaderRead = true;
+                    }
+                    else
+                    {
+                        toRead.Add(item);
+                    }
+                }
+                int reported = -1;
+                for (int i = 0; i < toRead.Count; i++)
+                {
+                    int percent = (i * 100) / toRead.Count;
+                    if (percent != reported)
+                    {
+                        reported = percent;
+                        Report(string.Format("Reading {0} of {1} packages...", i + 1, toRead.Count), (double)i / toRead.Count);
+                    }
+                    toRead[i].Metadata = source.ReadMetadata(toRead[i], false);
+                    toRead[i].HeaderRead = true;
+                    if (paceHeader != null)
+                    {
+                        paceHeader();
+                    }
+                }
+                unread.AddRange(toRead);
+
+                appsChecked += CheckForApps(content, knownApps, paceHeader) + LookInsideHomebrew(content, knownInside, paceHeader);
+
+                // A profile signed in or out while this ran: the result is for
+                // the one signed in now, its own packages and played titles in
+                // place of the other's, so it doesn't bring that one back.
+                Gamer now = profiles.SignedIn().FirstOrDefault();
+                if ((now != null ? now.Xuid : 0) != (gamer != null ? gamer.Xuid : 0))
+                {
+                    Log.Write("Library: the profile changed during the refresh, to {0}",
+                              now != null ? now.Gamertag : "nobody signed in");
+                    // Read already when it was shown, unless it changed again.
+                    ProfileRead read = latestProfile;
+                    if (read != null && (read.Gamer != null ? read.Gamer.Xuid : 0) == (now != null ? now.Xuid : 0))
+                    {
+                        gamer = read.Gamer;
+                        played = read.Played;
+                        own = read.Own;
+                    }
+                    else
+                    {
+                        gamer = now;
+                        played = now != null ? profiles.PlayedTitles(now) : new List<PlayedTitle>();
+                        own = now != null ? ReadOwn(now, pace) : new List<ContentItem>();
+                    }
+                    // ReadOwn saved the new profile's file; the other's stays as it was.
+                    profileCache = null;
+                    content = new List<ContentItem>(shared.Count + own.Count);
+                    content.AddRange(shared);
+                    content.AddRange(own);
+                }
+
+                if (pass < passes.Count - 1)
+                {
+                    // The shelves from what's found so far, while the rest is
+                    // listed; one pass now, kept for more.
+                    ProfileRead read = latestProfile;
+                    LoadResult early = Build(content, found, gamer, played);
+                    Log.Write("Library: {0} packages after listing the games and apps, in {1} ms", content.Count,
+                              (int)(DateTime.UtcNow - started).TotalMilliseconds);
+                    Background.OnUi(() =>
+                    {
+                        if (latestProfile == read)
+                        {
+                            Publish(early);
+                        }
+                    });
+                }
             }
 
             // Each file is saved whenever its packages changed, the console's
@@ -726,6 +808,159 @@ namespace Silverdash360.Services
                 profileCache.Save(new List<IList<ContentItem>> { own }, new List<ExecutableItem>(), pace);
             }
             return own;
+        }
+
+        // The types listed first: what starts games and apps, disc
+        // installs and themes.
+        private static readonly uint[] StartTypes =
+        {
+            ContentType.GameOnDemand, ContentType.ArcadeTitle, ContentType.GameTitle, ContentType.GameDemo,
+            ContentType.Xna, ContentType.CommunityGame, ContentType.XboxOriginalGame, ContentType.InstalledGame,
+            ContentType.Theme,
+        };
+
+
+        // A plain loop: a generic over uint, as Contains is here, is
+        // compiled for it on the console's runtime.
+        private static bool InTypes(uint[] types, uint type)
+        {
+            for (int i = 0; i < types.Length; i++)
+            {
+                if (types[i] == type)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Titles whose packages were listed again since the start.
+        private readonly Dictionary<uint, bool> refreshedTitles = new Dictionary<uint, bool>();
+
+        /// <summary>
+        /// Lists a title's packages again, once a start, as its page wants
+        /// its saves and add-ons as they are: those aren't listed by a
+        /// refresh (see Load). done is called on the UI thread, after the
+        /// library changed when they did.
+        /// </summary>
+        public void RefreshTitle(TitleEntry title, Action done)
+        {
+            uint id = title.TitleId;
+            if (IsLoading || id == 0 || refreshedTitles.ContainsKey(id) || id == HomebrewTitleId ||
+                id == TitleEntry.XboxCompatibilityTitleId)
+            {
+                return;
+            }
+            refreshedTitles[id] = true;
+            LoadResult before = current;
+            Background.Run(() => ListTitle(before, id), delegate(LoadResult result, Exception error)
+            {
+                // A refresh or profile change since has the newer library.
+                if (result != null && current == before && !IsLoading)
+                {
+                    Publish(result);
+                    SaveSoon();
+                }
+                done();
+            });
+        }
+
+        // The library with a title's packages listed again; null when they're as they were.
+        private LoadResult ListTitle(LoadResult before, uint id)
+        {
+            int started = Environment.TickCount;
+            Gamer gamer = before.Gamer;
+            List<ContentItem> shared = source.EnumerateType(0, ContentType.Any, id);
+            List<ContentItem> own = gamer != null
+                ? Owned(source.EnumerateType(gamer.OfflineXuid, ContentType.Any, id), gamer.OfflineXuid)
+                : new List<ContentItem>();
+            Dictionary<string, ContentItem> kept = new Dictionary<string, ContentItem>();
+            foreach (TitleEntry title in before.Titles)
+            {
+                if (title.TitleId == id)
+                {
+                    foreach (ContentItem item in title.Content)
+                    {
+                        kept[LibraryCache.KeyOf(item)] = item;
+                    }
+                }
+            }
+            bool same = shared.Count + own.Count == kept.Count;
+            Dictionary<string, byte> knownApps = new Dictionary<string, byte>();
+            foreach (ContentItem item in shared.Concat(own))
+            {
+                ContentItem was;
+                if (!kept.TryGetValue(LibraryCache.KeyOf(item), out was))
+                {
+                    same = false;
+                    if (item.Type != ContentType.SavedGame)
+                    {
+                        item.Metadata = source.ReadMetadata(item, false);
+                        item.HeaderRead = true;
+                    }
+                    continue;
+                }
+                item.Metadata = was.Metadata;
+                item.HeaderRead = was.HeaderRead;
+                item.AppCheck = was.AppCheck;
+                item.Inside = was.Inside;
+                item.ShortcutTarget = was.ShortcutTarget;
+                item.InsideTitleId = was.InsideTitleId;
+                item.InsideSize = was.InsideSize;
+            }
+            if (same)
+            {
+                Log.Write("Library: title {0:X8} listed again, {1} packages as they were, in {2} ms", id, kept.Count,
+                          Environment.TickCount - started);
+                return null;
+            }
+            CheckForApps(shared, knownApps, null);
+            List<ContentItem> newShared = before.Shared.Where(c => c.TitleId != id).ToList();
+            newShared.AddRange(shared);
+            List<ContentItem> newOwn = before.Own.Where(c => c.TitleId != id).ToList();
+            newOwn.AddRange(own);
+            List<ContentItem> content = new List<ContentItem>(newShared.Count + newOwn.Count);
+            content.AddRange(newShared);
+            content.AddRange(newOwn);
+            List<PlayedTitle> played = new List<PlayedTitle>();
+            foreach (TitleEntry title in before.Titles)
+            {
+                if (title.Played != null)
+                {
+                    played.Add(title.Played);
+                }
+            }
+            LoadResult result = Rebuild(before, content, newOwn, gamer, played, id, shared);
+            result.Shared = newShared;
+            result.Complete = before.Complete;
+            Log.Write("Library: title {0:X8} listed again, {1} packages where {2} were kept, in {3} ms", id,
+                      shared.Count + own.Count, kept.Count, Environment.TickCount - started);
+            return result;
+        }
+
+        // The library saved after a title was listed again, unless a
+        // refresh is under way, which saves it itself.
+        private void SaveSoon()
+        {
+            LoadResult saving = current;
+            Gamer gamer = saving.Gamer;
+            Background.Run(() =>
+            {
+                if (IsLoading)
+                {
+                    return 0;
+                }
+                Action pace = Pace(PaceSave);
+                List<IList<ContentItem>> sections = CacheSections(saving)
+                    .Select(s => (IList<ContentItem>)s.Where(c => c.Owner == 0).ToList()).ToList();
+                cache.Save(sections, saving.Executables, pace);
+                if (gamer != null)
+                {
+                    LibraryCache.ForProfile(gamer.OfflineXuid)
+                                .Save(new List<IList<ContentItem>> { saving.Own }, new List<ExecutableItem>(), pace);
+                }
+                return 0;
+            }, (r, e) => { });
         }
 
         // Marks packages as a profile's own.
@@ -1225,7 +1460,19 @@ namespace Silverdash360.Services
         private LoadResult Rebuild(LoadResult before, List<ContentItem> content, List<ContentItem> own, Gamer gamer,
                                    List<PlayedTitle> played)
         {
+            return Rebuild(before, content, own, gamer, played, 0, null);
+        }
+
+        // As above; refreshId, when not 0, is a title whose packages were
+        // listed again, refreshShared the console's of them now.
+        private LoadResult Rebuild(LoadResult before, List<ContentItem> content, List<ContentItem> own, Gamer gamer,
+                                   List<PlayedTitle> played, uint refreshId, List<ContentItem> refreshShared)
+        {
             Dictionary<uint, bool> touched = new Dictionary<uint, bool>();
+            if (refreshId != 0)
+            {
+                touched[refreshId] = true;
+            }
             foreach (TitleEntry title in before.Titles)
             {
                 if (title.Played != null)
@@ -1300,6 +1547,10 @@ namespace Silverdash360.Services
                     rebuild[id] = true;
                 }
             }
+            if (refreshId != 0)
+            {
+                rebuild[refreshId] = true;
+            }
             Dictionary<uint, PlayedTitle> playedById = new Dictionary<uint, PlayedTitle>();
             foreach (PlayedTitle p in played)
             {
@@ -1317,11 +1568,15 @@ namespace Silverdash360.Services
                 }
                 if (rebuild.ContainsKey(id))
                 {
-                    foreach (ContentItem item in title.Content)
+                    // A title listed again has its packages as they are now.
+                    if (id != refreshId)
                     {
-                        if (item.Owner == 0)
+                        foreach (ContentItem item in title.Content)
                         {
-                            partContent.Add(item);
+                            if (item.Owner == 0)
+                            {
+                                partContent.Add(item);
+                            }
                         }
                     }
                     continue;
@@ -1349,6 +1604,12 @@ namespace Silverdash360.Services
                 copy.Executables.AddRange(title.Executables);
                 PlayedTitle p;
                 copy.Played = playedById.TryGetValue(id, out p) ? p : null;
+                // A title only the old profile's played stats made goes, as
+                // a whole build wouldn't make it.
+                if (copy.Content.Count == 0 && copy.Executables.Count == 0 && copy.Played == null)
+                {
+                    continue;
+                }
                 copy.Name = NameOf(copy);
                 copy.Kind = Classify(copy);
                 copies.Add(copy);
@@ -1359,6 +1620,10 @@ namespace Silverdash360.Services
                 {
                     partContent.Add(item);
                 }
+            }
+            if (refreshShared != null)
+            {
+                partContent.AddRange(refreshShared);
             }
             LoadResult part = Build(partContent, before.Executables.Where(e => rebuild.ContainsKey(e.TitleId)).ToList(),
                                     gamer, played.Where(p => rebuild.ContainsKey(p.TitleId)).ToList());

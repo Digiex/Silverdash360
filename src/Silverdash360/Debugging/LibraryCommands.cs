@@ -31,8 +31,8 @@ namespace Silverdash360.Debugging
             commands.Add("library.wait", "[timeoutMs] [loaded]",
                          "Waits for a refresh to end, or with loaded only until a library is shown.", Wait);
             commands.Add("cache.load", "", "Reads the library cache from storage, as at a start.", r => CacheLoad());
-            commands.Add("library.profile", "", "The read a sign-in makes, timed step by step, without showing it.",
-                         r => Library.TimeProfileRead());
+            commands.Add("library.profile", "[nobody]", "The read a sign-in (or with nobody, a sign-out) makes, timed step by step, without showing it.",
+                         r => Library.TimeProfileRead(r.Arg(0, "") == "nobody"));
         }
 
         private JsonObject Status()
