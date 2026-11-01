@@ -70,10 +70,20 @@
                 <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
                 </li>
               </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../issues/">Problems and ideas</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../contributing/">Contributing</a>
+                </li>
+              </ul>
               <ul class="current">
                 <li class="toctree-l1 current"><a class="reference internal current" href="#">Development</a>
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#building">Building</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#the-runtime">The runtime</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#releases">Releases</a>
     </li>
@@ -117,7 +127,7 @@
                 <h1 id="development">Development<a class="headerlink" href="#development" title="Permanent link">&para;</a></h1>
 <p>Silverdash360 is C# and XAML for the Xbox 360's Silverlight platform, built with the <a href="https://github.com/Digiex/Silverlight360">Silverlight360</a> SDK.</p>
 <h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
-<p>You need what Silverlight360 needs (see its <a href="https://github.com/Digiex/Silverlight360/blob/master/docs/getting-started.md">getting started guide</a>), including a runtime profile. Then:</p>
+<p>You need what Silverlight360 needs (see its <a href="https://github.com/Digiex/Silverlight360/blob/master/docs/getting-started.md">getting started guide</a>), including a runtime profile (see <a href="#the-runtime">The runtime</a>). Then:</p>
 <pre><code class="language-powershell">.\tools\Build.ps1 -Debug -Sdk path\to\Silverlight360
 </code></pre>
 <p>Every build is one of two:</p>
@@ -127,13 +137,18 @@
 </ul>
 <p><code>-AppOnly</code> writes Silverdash360's own files alone, without the runtime, into <code>bin\&lt;Debug|Release&gt;\app\</code>. <code>-Sdk</code> can be left out when the <code>SILVERLIGHT360</code> environment variable points to the SDK, or when it's cloned next to this repository as <code>Silverlight360</code>.</p>
 <p>The package runs as the title the SDK's runtime profile came from (Plex by default), so it's started like that app. The debug server listens on port 4601 without a password, which is why it's only in Debug builds.</p>
+<h2 id="the-runtime">The runtime<a class="headerlink" href="#the-runtime" title="Permanent link">&para;</a></h2>
+<p>Silverdash360 runs on the Silverlight platform the console's own apps shipped with: the runtime (<code>default.xex</code>, <code>xcoreclr.dll</code>, <code>agcore.dll</code> and the rest) and its framework assemblies. They're Microsoft's and the donor app's, so GitHub releases have only Silverdash360's own files, and users get the runtime with the base package from the <a href="https://digiex.net/threads/silverdash360-homebrew-xbox-360-dashboard.20103/">Digiex thread</a> (see <a href="../install/">Installing</a>). To build Silverdash360, or to make the base package, make the runtime yourself from the Plex app for Xbox 360, version 0.0.0.7, extracted; the <a href="https://github.com/Digiex/Silverlight360/blob/master/docs/getting-started.md">Silverlight360 getting started guide</a> says where to get it and how to extract it. In PowerShell in the Silverlight360 folder:</p>
+<pre><code class="language-powershell">.\tools\New-RuntimeProfile.ps1 -DonorApp 'C:\path\to\Plex v0.0.0.7' -Output .\runtime\plex-2015
+</code></pre>
+<p>The runtime is the <code>runtime\plex-2015\package</code> folder it makes, once for every version of Silverdash360. A build puts it and Silverdash360's files together; so does copying a release zip's files over a copy of that folder. The package's <code>default.xex</code> is the platform's, changed to drop the donor app's title, so it starts only on a console that runs homebrew.</p>
 <h2 id="releases">Releases<a class="headerlink" href="#releases" title="Permanent link">&para;</a></h2>
 <pre><code class="language-powershell">.\tools\Release.ps1 -DryRun
 .\tools\Release.ps1
 </code></pre>
 <p><code>Release.ps1</code> makes a Release build of Silverdash360's own files (the SDK's <code>XboxAppOnly</code>), zips them with an <code>INSTALL.txt</code>, and publishes the zip on GitHub Releases with the commits since the last release as its notes. The zip has no <code>default.xex</code>, runtime or framework assemblies: those are Microsoft's and the donor app's, so whoever installs it lays it over a runtime profile of their own.</p>
 <p>Every release has a higher version than the last, tagged <code>v&lt;version&gt;</code>. That's <code>Silverdash360Version</code> in <code>Silverdash360.csproj</code> when it's higher than the last release's, so a minor or major version can be set by hand; otherwise the script raises the last release's patch number (or the part <code>-Bump Minor</code> or <code>-Bump Major</code> names). A new version is committed to the project file and that commit pushed, so the release is built and tagged from it; everything before it has to be committed and pushed already. The release's title has the build number settings shows. The script needs the GitHub CLI (<code>gh</code>) signed in. <code>-DryRun</code> shows the version, builds the zip and shows the notes, without committing, pushing or publishing.</p>
-<p><code>.\tools\Release.ps1 -Console</code> makes a zip for your own console instead and releases nothing: the whole Release package, runtime included, in a <code>Silverdash360</code> folder (<code>src\Silverdash360\bin\Release\console\Silverdash360-&lt;version&gt;-console.zip</code>) to copy to the console. It has the donor app's and Microsoft's files, so it isn't for handing out.</p>
+<p><code>.\tools\Release.ps1 -Console</code> makes the base package that the <a href="https://digiex.net/threads/silverdash360-homebrew-xbox-360-dashboard.20103/">Digiex thread</a> offers, and releases nothing: the whole Release package, runtime included, in a <code>Silverdash360</code> folder (<code>src\Silverdash360\bin\Release\console\Silverdash360-&lt;version&gt;-console.zip</code>) to copy to the console. It has the donor app's and Microsoft's files, so it's posted on Digiex rather than on GitHub.</p>
 <h2 id="the-documentation">The documentation<a class="headerlink" href="#the-documentation" title="Permanent link">&para;</a></h2>
 <p>This site is the <code>docs</code> folder, built with <a href="https://www.mkdocs.org/">MkDocs</a> (<code>mkdocs.yml</code>). A push to <code>master</code> that changes it publishes it to GitHub Pages (<code>.github/workflows/docs.yml</code>). To preview it:</p>
 <pre><code class="language-powershell">pip install mkdocs==1.6.1
@@ -220,7 +235,7 @@ tests/        The tests that run over the debug server, and a client for it
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../troubleshooting/" class="btn btn-neutral float-left" title="Troubleshooting"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../contributing/" class="btn btn-neutral float-left" title="Contributing"><span class="icon icon-circle-arrow-left"></span> Previous</a>
     </div>
 
   <hr/>
@@ -248,7 +263,7 @@ tests/        The tests that run over the debug server, and a client for it
         </span>
     
     
-      <span><a href="../troubleshooting/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <span><a href="../contributing/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
   </span>
