@@ -24,7 +24,11 @@ namespace Silverdash360.Debugging
         public void Register(DebugCommandSet commands)
         {
             commands.Add("theme.state", "", "The theme picked, the one loaded and its colours.", r => UiThread.Invoke(() => State()));
-            commands.Add("theme.list", "", "The built-in themes and installed theme packages, with the setting that picks each.", r => UiThread.Invoke(() => List()));
+            commands.Add("theme.list", "", "The built-in themes and installed theme packages, with the setting that picks each.", r =>
+            {
+                Themes.FindBuiltInThemesNow();
+                return UiThread.Invoke(() => List());
+            });
             commands.Add("theme.set", "<dashboard|silverdash|builtin:N|key> [timeoutMs]",
                          "Picks a theme, as settings does, and waits for it to load. A key is a package's from theme.list.", Set);
         }
@@ -44,6 +48,8 @@ namespace Silverdash360.Debugging
                         { "name", theme.Name },
                         { "package", theme.Package != null ? theme.Package.ToString() : null },
                         { "builtIn", theme.BuiltIn },
+                        { "id", theme.Id },
+                        { "cached", theme.CacheFolder },
                         { "wallpapers", theme.Wallpapers.Select(w => w.Length).ToList() },
                         { "sceneTheme", theme.IsSceneTheme },
                         { "sphereColor", theme.SphereColor },

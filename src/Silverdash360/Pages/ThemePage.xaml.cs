@@ -59,6 +59,8 @@ namespace Silverdash360.Pages
             base.OnNavigatedTo(e);
             Show();
             FocusHelper.Focus(Items);
+            // The built-in themes are read when they're first wanted.
+            Themes.FindBuiltInThemes(Show);
         }
 
         private void Show()

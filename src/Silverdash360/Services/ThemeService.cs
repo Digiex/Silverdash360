@@ -39,13 +39,42 @@ namespace Silverdash360.Services
         /// <summary>The number of a built-in theme (its ThemeN folder), or -1.</summary>
         public int BuiltIn { get; private set; }
 
-        public string Name { get { return Package != null ? Package.DisplayName : ThemeService.BuiltInName(BuiltIn); } }
-
-        /// <summary>Which theme it is, as <see cref="ThemeService.Setting"/> names it.</summary>
-        public string Key
+        public string Name
         {
-            get { return Package != null ? ThemeService.SettingFor(Package) : ThemeService.SettingFor(BuiltIn); }
+            get { return Package != null ? Package.DisplayName : SavedName ?? ThemeService.BuiltInName(BuiltIn); }
         }
+
+        /// <summary>The name kept with a theme read from the cache before its package was found.</summary>
+        public string SavedName { get; set; }
+
+        private string id;
+
+        /// <summary>
+        /// Which theme it is: package:TITLEID/filename, as the console's
+        /// dashboard names a package, or builtin:N.
+        /// </summary>
+        public string Id
+        {
+            get
+            {
+                return id ?? (Package != null ? PackageId(Package.TitleId, Package.FileName) : ThemeService.SettingFor(BuiltIn));
+            }
+            set { id = value; }
+        }
+
+        public static string PackageId(uint titleId, string fileName)
+        {
+            return "package:" + titleId.ToString("X8") + "/" + fileName.ToLowerInvariant();
+        }
+
+        /// <summary>The colours worked out from the first wallpaper, once they are.</summary>
+        public Theme.Palette Palette { get; set; }
+
+        /// <summary>The colours were worked out, even if to none.</summary>
+        public bool PaletteKnown { get; set; }
+
+        /// <summary>The cache folder it's kept in.</summary>
+        public string CacheFolder { get; set; }
 
         /// <summary>
         /// The wallpapers, as stored (PNG or JPEG). The first dashboard's
@@ -208,6 +237,12 @@ namespace Silverdash360.Services
             @"\Device\Harddisk0\SystemAuxPartition\FFFE07DF00000006",
         };
         private const string PackMount = "sdpack";
+
+        // The theme in use, kept per profile so a start doesn't mount its
+        // package, read its wallpapers and work out its colours again:
+        // CurrentTheme\<offline XUID>\theme.txt and Wallpaper1 to 4.
+        private const string CacheRoot = "CurrentTheme/";
+        private const string CacheMeta = "theme.txt";
         private const uint OpenPackageFlags = 0x43;
         private const int MaxBuiltIn = 16;
 
@@ -234,6 +269,9 @@ namespace Silverdash360.Services
         private bool loaded;
         private bool loading;
         private bool loadAgain;
+        // The library changed while a theme was read: a package that was
+        // missing may be in now.
+        private bool checkAgain;
         // The built-in themes' numbers, read once; null until then.
         private volatile List<int> builtInThemes;
 
@@ -269,10 +307,39 @@ namespace Silverdash360.Services
         /// </summary>
         public string DashboardThemeMissing { get; private set; }
 
-        /// <summary>The dashboard's built-in themes by number; empty until they're read or when there are none.</summary>
+        /// <summary>
+        /// The dashboard's built-in themes by number; empty until
+        /// <see cref="FindBuiltInThemes"/> has read them, or when there are none.
+        /// </summary>
         public List<int> BuiltInThemes
         {
             get { return builtInThemes ?? new List<int>(); }
+        }
+
+        /// <summary>
+        /// Reads which built-in themes the dashboard has, once, in the
+        /// background; done is called on the UI thread when they're new.
+        /// </summary>
+        public void FindBuiltInThemes(Action done)
+        {
+            if (builtInThemes != null)
+            {
+                return;
+            }
+            Background.Run(() => FindBuiltIn(), delegate(List<int> found, Exception error)
+            {
+                builtInThemes = found ?? new List<int>();
+                done();
+            });
+        }
+
+        /// <summary>As <see cref="FindBuiltInThemes"/>, on this thread.</summary>
+        public void FindBuiltInThemesNow()
+        {
+            if (builtInThemes == null)
+            {
+                builtInThemes = FindBuiltIn();
+            }
         }
 
         /// <summary>A built-in theme's name, by its number.</summary>
@@ -350,6 +417,7 @@ namespace Silverdash360.Services
             if (loading)
             {
                 loadAgain |= force;
+                checkAgain |= !force;
                 return;
             }
             // The console's dashboard keeps a theme per profile, so another
@@ -365,24 +433,43 @@ namespace Silverdash360.Services
             string current = force ? null : loadedKey;
             // Showing a theme decodes a wallpaper and redraws everything, so it
             // waits until the user stops moving.
-            Background.Run(() => Read(gamer, installed, current), (result, error) => UiIdle.Post(delegate
+            Background.Run(() => Read(gamer, installed, current, partial), (result, error) => UiIdle.Post(delegate
             {
                 loading = false;
-                loaded = !partial || (result != null && result.Theme != null);
+                // A theme from the cache whose package isn't in yet is read
+                // again once the library is complete.
+                loaded = !partial || (result != null && result.Theme != null && !result.Unverified);
                 loadedForXuid = xuid;
                 if (result != null && !result.Unchanged)
                 {
                     DashboardThemeIsBuiltIn = result.BuiltIn;
                     DashboardThemeMissing = result.Missing;
-                    loadedKey = result.Theme != null ? result.Theme.Key
+                    loadedKey = result.Unverified ? null : result.Theme != null ? result.Theme.Id
                         : result.Scheme != null ? SettingFor(result.Scheme) : null;
-                    Show(result.Theme, result.Scheme);
+                    // The cache's theme again, now its package is found: it's
+                    // on screen already.
+                    bool shown = result.FromCache && result.Theme != null && Current != null &&
+                                 Current.Id == result.Theme.Id;
+                    if (!shown)
+                    {
+                        Show(result.Theme, result.Scheme);
+                    }
                 }
                 if (loadAgain)
                 {
                     loadAgain = false;
+                    checkAgain = false;
                     Load(true);
                     return;
+                }
+                if (checkAgain)
+                {
+                    checkAgain = false;
+                    Load(false);
+                    if (loading)
+                    {
+                        return;
+                    }
                 }
                 Done();
             }));
@@ -473,27 +560,27 @@ namespace Silverdash360.Services
             public string Missing;
             public ColourScheme Scheme;
             public bool Unchanged;
+            public bool FromCache;
+            /// <summary>From the cache before its package was found.</summary>
+            public bool Unverified;
         }
 
         // On a background thread: which package is picked, and its art
         // unless it's the one loaded.
-        private LoadResult Read(Gamer gamer, List<ContentItem> installed, string loadedPackage)
+        private LoadResult Read(Gamer gamer, List<ContentItem> installed, string loadedPackage, bool partial)
         {
             if (setting == null)
             {
                 string saved = AppStorage.ReadText(SettingFile);
                 setting = string.IsNullOrEmpty(saved) ? FollowDashboard : saved.Trim();
             }
-            if (builtInThemes == null)
-            {
-                builtInThemes = FindBuiltIn();
-            }
             LoadResult result = new LoadResult();
             ContentItem package = null;
             int builtIn = -1;
+            string id = null;
             if (Setting == FollowDashboard)
             {
-                package = DashboardChoice(gamer, installed, out builtIn, out result.Missing);
+                package = DashboardChoice(gamer, installed, out builtIn, out result.Missing, out id);
             }
             else if (Setting.StartsWith(PackagePrefix))
             {
@@ -503,20 +590,44 @@ namespace Silverdash360.Services
                 {
                     Log.Write("Theme {0} isn't installed any more", wanted);
                 }
+                else
+                {
+                    id = DashTheme.PackageId(package.TitleId, package.FileName);
+                }
             }
             else if (Setting.StartsWith(BuiltInPrefix))
             {
                 int.TryParse(Setting.Substring(BuiltInPrefix.Length), out builtIn);
+                id = SettingFor(builtIn);
             }
             else if (Setting.StartsWith(SchemePrefix))
             {
                 result.Scheme = ColourScheme.All().FirstOrDefault(s => SettingFor(s) == Setting);
+                id = result.Scheme != null ? SettingFor(result.Scheme) : null;
             }
-            string key = package != null ? SettingFor(package) : builtIn >= 0 ? SettingFor(builtIn)
-                : result.Scheme != null ? SettingFor(result.Scheme) : null;
-            if (key == loadedPackage && loadedPackage != null)
+            if (id == loadedPackage && loadedPackage != null)
             {
                 result.Unchanged = true;
+                return result;
+            }
+            if (result.Scheme != null || id == null)
+            {
+                return result;
+            }
+            // The kept theme, when it's the one picked: a theme's files don't
+            // change, so its name says enough. While a start hasn't found
+            // every package, it's used before its package is found.
+            bool readable = package != null || builtIn >= 0;
+            string folder = CacheFolder(gamer);
+            if (readable || partial)
+            {
+                result.Theme = ReadCache(folder, id, package);
+            }
+            if (result.Theme != null)
+            {
+                result.FromCache = true;
+                result.Unverified = !readable;
+                result.Missing = null;
             }
             else if (package != null)
             {
@@ -527,7 +638,148 @@ namespace Silverdash360.Services
                 result.Theme = ReadBuiltIn(builtIn);
                 result.BuiltIn = result.Theme == null;
             }
+            if (result.Theme != null && !result.FromCache)
+            {
+                result.Theme.CacheFolder = folder;
+                WriteCache(result.Theme);
+            }
             return result;
+        }
+
+        private static string CacheFolder(Gamer gamer)
+        {
+            return CacheRoot + (gamer != null ? gamer.OfflineXuid.ToString("X16") : "Nobody") + "/";
+        }
+
+        // The kept theme when it's id; null otherwise.
+        private static DashTheme ReadCache(string folder, string id, ContentItem package)
+        {
+            Dictionary<string, string> meta = ParseMeta(AppStorage.ReadText(folder + CacheMeta));
+            string value;
+            if (!meta.TryGetValue("id", out value) || value != id)
+            {
+                return null;
+            }
+            int builtIn = MetaInt(meta, "builtIn", -1);
+            DashTheme theme = package != null ? new DashTheme(package) : new DashTheme(builtIn);
+            theme.Id = id;
+            theme.CacheFolder = folder;
+            theme.SphereColor = MetaInt(meta, "sphereColor", -1);
+            theme.BladeStyle = MetaInt(meta, "bladeStyle", -1);
+            if (meta.TryGetValue("name", out value))
+            {
+                theme.SavedName = value;
+            }
+            int count = MetaInt(meta, "wallpapers", 0);
+            for (int i = 1; i <= count; i++)
+            {
+                byte[] wallpaper = AppStorage.ReadBytes(folder + "Wallpaper" + i);
+                if (wallpaper == null)
+                {
+                    return null;
+                }
+                theme.Wallpapers.Add(wallpaper);
+            }
+            if (meta.TryGetValue("palette", out value))
+            {
+                theme.PaletteKnown = true;
+                theme.Palette = ParsePalette(value);
+            }
+            Log.Write("Theme {0} from the cache: {1} wallpapers{2}", theme.Name, count,
+                      theme.PaletteKnown ? ", its colours" : "");
+            return theme;
+        }
+
+        // Keeps the theme's wallpapers, then what says which theme they are,
+        // so a cache cut short isn't taken for the theme.
+        private static void WriteCache(DashTheme theme)
+        {
+            for (int i = 0; i < theme.Wallpapers.Count; i++)
+            {
+                AppStorage.WriteBytes(theme.CacheFolder + "Wallpaper" + (i + 1), theme.Wallpapers[i], null);
+            }
+            WriteMeta(theme);
+        }
+
+        private static void WriteMeta(DashTheme theme)
+        {
+            StringBuilder text = new StringBuilder();
+            text.Append("id=").Append(theme.Id).Append('\n');
+            text.Append("name=").Append(theme.Name).Append('\n');
+            text.Append("builtIn=").Append(theme.BuiltIn).Append('\n');
+            text.Append("sphereColor=").Append(theme.SphereColor).Append('\n');
+            text.Append("bladeStyle=").Append(theme.BladeStyle).Append('\n');
+            text.Append("wallpapers=").Append(theme.Wallpapers.Count).Append('\n');
+            if (theme.PaletteKnown)
+            {
+                text.Append("palette=").Append(FormatPalette(theme.Palette)).Append('\n');
+            }
+            AppStorage.WriteText(theme.CacheFolder + CacheMeta, text.ToString());
+        }
+
+        private static Dictionary<string, string> ParseMeta(string text)
+        {
+            Dictionary<string, string> meta = new Dictionary<string, string>();
+            foreach (string line in (text ?? "").Split('\n'))
+            {
+                int equals = line.IndexOf('=');
+                if (equals > 0)
+                {
+                    meta[line.Substring(0, equals)] = line.Substring(equals + 1).TrimEnd('\r');
+                }
+            }
+            return meta;
+        }
+
+        private static int MetaInt(Dictionary<string, string> meta, string key, int fallback)
+        {
+            string value;
+            int number;
+            return meta.TryGetValue(key, out value) && int.TryParse(value, out number) ? number : fallback;
+        }
+
+        // The colours as AARRGGBB words: accent, sub text, panel, panel
+        // highlight and the background's; "none" for a wallpaper with too
+        // little colour, which keeps Silverdash's.
+        private static string FormatPalette(Theme.Palette palette)
+        {
+            if (palette == null)
+            {
+                return "none";
+            }
+            List<System.Windows.Media.Color> colors = new List<System.Windows.Media.Color>
+            {
+                palette.Accent, palette.SubText, palette.Panel, palette.PanelHighlight,
+            };
+            colors.AddRange(palette.Background);
+            return string.Join(" ", colors.Select(c => string.Format("{0:X2}{1:X2}{2:X2}{3:X2}", c.A, c.R, c.G, c.B)).ToArray());
+        }
+
+        private static Theme.Palette ParsePalette(string text)
+        {
+            string[] words = text.Split(' ');
+            if (words.Length < 5)
+            {
+                return null;
+            }
+            System.Windows.Media.Color[] colors = new System.Windows.Media.Color[words.Length];
+            for (int i = 0; i < words.Length; i++)
+            {
+                uint argb;
+                if (!uint.TryParse(words[i], System.Globalization.NumberStyles.HexNumber, null, out argb))
+                {
+                    return null;
+                }
+                colors[i] = System.Windows.Media.Color.FromArgb((byte)(argb >> 24), (byte)(argb >> 16), (byte)(argb >> 8), (byte)argb);
+            }
+            return new Theme.Palette
+            {
+                Accent = colors[0],
+                SubText = colors[1],
+                Panel = colors[2],
+                PanelHighlight = colors[3],
+                Background = colors.Skip(4).ToArray(),
+            };
         }
 
         // Mounts the dashboard's DashPack, from wherever the console keeps it.
@@ -594,10 +846,11 @@ namespace Silverdash360.Services
         // The installed theme the console's dashboard shows for the profile,
         // or builtIn the number of its built-in one.
         private static ContentItem DashboardChoice(Gamer gamer, List<ContentItem> installed, out int builtIn,
-                                                   out string missing)
+                                                   out string missing, out string id)
         {
             builtIn = -1;
             missing = null;
+            id = null;
             if (gamer == null)
             {
                 return null;
@@ -635,6 +888,7 @@ namespace Silverdash360.Services
                 if (int.TryParse(fileName.Substring(DashPackPrefix.Length), out number))
                 {
                     builtIn = number;
+                    id = SettingFor(number);
                 }
                 return null;
             }
@@ -646,6 +900,7 @@ namespace Silverdash360.Services
             {
                 missing = fileName;
             }
+            id = DashTheme.PackageId(titleId, fileName);
             return package;
         }
 
@@ -746,11 +1001,22 @@ namespace Silverdash360.Services
             CurrentScheme = theme == null ? scheme : null;
             Version++;
             decoded.Clear();
-            Theme.Palette palette = CurrentScheme != null ? CurrentScheme.Palette : null;
-            BitmapImage first = Wallpaper(0);
-            if (first != null)
+            Theme.Palette palette = CurrentScheme != null ? CurrentScheme.Palette : theme != null ? theme.Palette : null;
+            // A theme's colours are worked out from its first wallpaper once,
+            // then kept with it.
+            if (theme != null && !theme.PaletteKnown)
             {
-                palette = Theme.PaletteFrom(first);
+                BitmapImage first = Wallpaper(0);
+                if (first != null)
+                {
+                    palette = Theme.PaletteFrom(first);
+                }
+                theme.Palette = palette;
+                theme.PaletteKnown = true;
+                if (theme.CacheFolder != null)
+                {
+                    Background.Run(() => { WriteMeta(theme); return 0; }, (r, e) => { });
+                }
             }
             Theme.Apply(palette ?? Theme.DefaultPalette(), palette == null);
             Log.Write("Showing theme {0}", theme != null ? theme.Name : CurrentScheme != null ? CurrentScheme.Name : "Silverdash");
