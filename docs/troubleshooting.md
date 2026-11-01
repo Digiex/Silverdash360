@@ -12,10 +12,15 @@
 - **Refresh library** in settings reads every package again.
 - Homebrew is looked for in the `Apps` and `Games` folders of `Hdd1` and `Usb0` to `Usb2`, a folder each with a `default.xex` in it.
 
+## An add-on, save or downloaded video is missing
+
+A start looks only for new games, apps and themes. A title's add-ons, updates and saves are read again when you open its page; **Refresh library** in settings reads everything, downloaded videos too.
+
 ## The box art or the theme is missing
 
 - Box art comes from the Xbox Marketplace the first time a title is shown, so the console needs the internet once. A title the Marketplace doesn't have gets a cover of its kind.
-- Right after a start, the theme shows once the library has been read.
+- The theme in use is kept, so it shows straight away at a start. The first time, or after picking another, it shows once its package has been found.
+- Each profile has its own theme, and so has nobody signed in: see [Themes](settings.md#themes).
 
 ## A video doesn't play
 
@@ -32,8 +37,12 @@ Silverdash360 keeps its settings, the library it read, the box art and its logs 
 | In `Data` | |
 |---|---|
 | `settings.txt` | Your shelf options and other settings |
+| `library.bin` | The console's games, apps and other packages it read, the same for every profile, so it starts quickly |
+| `Profiles` | Each profile's own packages, such as its saves and themes, a file per profile |
 | `ThemeChoice` | The theme each profile picked, and the one for nobody signed in |
-| `library.bin` | The library it read, so it starts quickly |
+| `CurrentTheme` | The theme in use for each profile, so it shows straight away |
+| `CustomTheme` | The themes made in the theme editor, each profile's and nobody signed in's |
+| `SavedThemes` | The themes saved with **Save as...**, for everyone |
 | `Art` | The box art and store details it downloaded |
 | `Logs` | What it did: `silverdash.log` for this run, `silverdash.log.last` for the one before |
 

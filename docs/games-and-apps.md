@@ -2,6 +2,11 @@
 
 The **games** and **apps** sections are shelves of everything installed on the console's hard drive and USB drives. Each title has its box art from the Xbox Marketplace, where the console's own dashboard gets it, or the package's own picture.
 
+| | |
+|---|---|
+| ![Games as covers](images/games-covers.png) | ![Games as a list](images/games-list.png) |
+| ![Apps as covers](images/apps-covers.png) | ![Apps as a list](images/apps-list.png) |
+
 ## What's listed
 
 - **Xbox 360 games**: installed discs, Games on Demand and Arcade, Indie and XNA games and demos.
@@ -10,6 +15,8 @@ The **games** and **apps** sections are shelves of everything installed on the c
 - **Homebrew**: a `default.xex` in each folder of a drive's `Apps` and `Games` folders (`Hdd1`, `Usb0` to `Usb2`), and `.xex` files right in `Apps`. Each is named after its folder, unless a package or your profile names it.
 - **QuickBoot shortcuts** show as the app or game they start; a shortcut and the folder it starts are listed once.
 - **Titles with nothing to start**, such as a game with only saves or add-ons left, are hidden until you show them with the shelf's options.
+
+Silverdash360 keeps what it read, so it starts quickly. At a start it shows the library it saved and looks only for what starts games and apps, and for themes, as they come and go; a title's add-ons, updates and saves are listed again when you open its page. **Refresh library** in settings reads everything again.
 
 Box art and store details are downloaded in the background and kept in the `Data\Art` folder, so they're there without the internet afterwards. A title the Marketplace doesn't know gets a cover of its kind with its icon or its initials.
 
@@ -33,7 +40,11 @@ BACK on a shelf opens its options. A changes a setting, X steps it back, and B i
 
 ## A title's details
 
-A title's page has its backdrop, the store's description, developer, genre and release date, what's stored for it (the game, title updates, add-ons, saves) with sizes, and your achievements in it. **Play** starts it.
+A title's page has its backdrop, the store's description, developer, genre and release date, and two lists that LB and RB switch between: **achievements**, your progress in it, when you're signed in and have played it, and **content**, what's stored for it (the game, title updates, add-ons, saves) with sizes. **Play** starts it, with **Play from disc** when its disc is in the drive and a **Play disc** for each disc of a game with several; **Achievements** and **Stored content** go to the lists.
+
+| | |
+|---|---|
+| ![Achievements](images/title-details.png) | ![Stored content](images/title-content.png) |
 
 ## Discs
 

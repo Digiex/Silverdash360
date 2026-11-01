@@ -6,10 +6,12 @@ A dashboard for the Xbox 360. It lists the games and apps on your console, with 
 
 | | |
 |---|---|
-| ![Home](docs/images/home.png) | ![Apps as covers](docs/images/apps-covers.png) |
-| Home: recently played and the apps | A shelf of covers |
-| ![Apps as a list](docs/images/apps-list.png) | ![Title details](docs/images/title-details.png) |
-| The same shelf as a list | A title's details, stored content and achievements |
+| ![Home](docs/images/home.png) | ![Games as covers](docs/images/games-covers.png) |
+| Home: recently played and the apps | A shelf of covers, with a letter heading each letter |
+| ![Games as a list](docs/images/games-list.png) | ![Title details](docs/images/title-details.png) |
+| The same shelf as a list | A title's details and achievements |
+| ![Media](docs/images/media.png) | ![Theme](docs/images/theme.png) |
+| The drives, media servers and downloaded videos | Themes, and a theme editor of your own |
 
 ## Features
 
@@ -17,8 +19,8 @@ A dashboard for the Xbox 360. It lists the games and apps on your console, with 
 - **Jump back in** with the titles you played last, and the disc in the drive first.
 - **Covers or a list**, sorted and filtered as you like, with letters to jump through a long shelf.
 - **Media**: music, videos and pictures from the drives, data discs and DLNA media servers such as Plex, and the videos you downloaded from Xbox LIVE.
-- **Your profile**, gamerscore and achievements.
-- **Themes**: the wallpapers of the console dashboard's themes.
+- **Your profile**, gamerscore and achievements. Each profile has its own saves, theme and played titles, and it works with nobody signed in too.
+- **Themes**: the console dashboard's themes with their wallpapers, its built-in Spectrum, Day and Night, the first dashboard's Blades colours, and a theme editor to mix your own.
 - **Search**, **storage**, a **file browser** and an **FTP server**.
 - **Updates itself** when there's a new version.
 
@@ -41,10 +43,11 @@ The [installation guide](https://digiex.github.io/Silverdash360/install/) has ea
 | A | Play on home; open or select elsewhere |
 | B | Back |
 | START | A title's details on home |
-| X | Search |
-| Y | Open or close the disc tray on home; covers or a list on the shelves |
+| X | Search; your friends on me |
+| Y | Open or close the disc tray on home; covers or a list on the shelves; sign in on me |
 | BACK | A shelf's options |
-| LB, RB | Switch sections |
+| LB, RB | Switch sections at once |
+| Left, right at a section's end | The next section, after a short pause |
 | LT, RT | A screen back or forward |
 
 More in the [documentation](https://digiex.github.io/Silverdash360/getting-around/).
@@ -61,4 +64,4 @@ It's built with [Silverlight360](https://github.com/Digiex/Silverlight360), whic
 
 ## Trademarks
 
-Xbox, Xbox 360, Xbox LIVE and Silverlight are trademarks of the Microsoft group of companies. Plex and the names and art of other apps shown in the screenshots belong to their owners. Silverdash360 isn't affiliated with or endorsed by any of them.
+Xbox, Xbox 360, Xbox LIVE and Silverlight are trademarks of the Microsoft group of companies. Plex, Bungie and the names and art of the other games, apps and themes shown in the screenshots belong to their owners. Silverdash360 isn't affiliated with or endorsed by any of them.
