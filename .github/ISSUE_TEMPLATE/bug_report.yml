@@ -1,0 +1,57 @@
+name: Problem
+description: Something in Silverdash360 doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting it. Please look through the [open issues](https://github.com/Digiex/Silverdash360/issues) first, in case it's been reported already, and see [Troubleshooting](https://digiex.github.io/Silverdash360/troubleshooting/).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What went wrong, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen
+      description: The steps that lead to it, such as which section, page or title, and the buttons you pressed.
+      placeholder: |
+        1. Go to games
+        2. Open a title's page
+        3. Press RB
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Silverdash360 version
+      description: "**Version** in settings, such as `0.1.2, build 77 (commit 3c4fe74)`."
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Console
+      description: "**System version** in settings, and the kind of console if you know it, such as `2.0.17559.0, RGH Slim`."
+  - type: dropdown
+    id: often
+    attributes:
+      label: How often
+      options:
+        - Every time
+        - Sometimes
+        - Once
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: |
+        `Data\Logs\silverdash.log.last` in Silverdash360's folder on the console, from the run that went wrong (`silverdash.log` while it's still running). Copy it off with Silverdash360's FTP server and drag it in here. It has your gamertag and the names of your games in it.
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: Screenshots or photos of the screen, and anything else that helps.

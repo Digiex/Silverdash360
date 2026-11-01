@@ -1,0 +1,27 @@
+name: Feature request
+description: An idea for something Silverdash360 could do, or do better.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please look through the [open issues](https://github.com/Digiex/Silverdash360/issues) first, in case someone has asked for it already: a 👍 on theirs helps too.
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What you'd like Silverdash360 to do, and where in it.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What it would help you with, or what's hard to do now.
+    validations:
+      required: true
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: How the Xbox Dashboard or another dashboard does it, pictures, or other ways it could work.

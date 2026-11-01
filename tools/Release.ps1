@@ -12,8 +12,9 @@ manifests and the splash screens, from the SDK's app-only build
 (Build.ps1 -Release -AppOnly), with no debug server. The package's other
 files, default.xex and the Silverlight platform, are the runtime profile's:
 Microsoft's and the donor app's binaries, which aren't ours to hand out.
-Whoever installs it lays the zip over the package folder of a runtime
-profile they made themselves (see INSTALL.txt in the zip).
+Whoever installs it lays the zip over the base package from the Digiex
+thread, or over a runtime profile they made themselves (see INSTALL.txt in
+the zip).
 
 Every release has a higher version than the last, and is tagged v<version>.
 The version is Silverdash360Version in Silverdash360.csproj when that's
@@ -25,12 +26,12 @@ committed and pushed already: nothing else is pushed.
 
 Needs the GitHub CLI (gh), signed in, unless -DryRun or -Console is given.
 
--Console makes a zip to put on your own console instead, and releases
-nothing: the whole Release package, runtime included, in a Silverdash360
-folder, as Silverdash360-<version>-console.zip in bin\Release\console. It
-has the donor app's and Microsoft's files, so it's for your console only,
-not for handing out. It's the project's version as it is, with no commit,
-tag or push.
+-Console makes the base package instead, and releases nothing: the whole
+Release package, runtime included, in a Silverdash360 folder, as
+Silverdash360-<version>-console.zip in bin\Release\console, for a console
+of your own or for the Digiex thread. It has the donor app's and Microsoft's
+files, so it never goes on GitHub. It's the project's version as it is,
+with no commit, tag or push.
 
 .EXAMPLE
 .\tools\Release.ps1 -DryRun
@@ -101,9 +102,9 @@ if ($Console) {
     Copy-Item -Path (Join-Path $project 'bin\Release\xbox\*') -Destination $staging -Recurse
     $zip = Join-Path $out "Silverdash360-$version-console.zip"
     Compress-Archive -Path $staging -DestinationPath $zip
-    Write-Host "Silverdash360 $version (build $number), for your own console: $zip"
+    Write-Host "Silverdash360 $version (build $number), the base package: $zip"
     Write-Host 'Copy its Silverdash360 folder to the console, such as to Hdd1:\Apps, and start default.xex in it.'
-    Write-Host "It has the donor app's and Microsoft's files: don't hand it out."
+    Write-Host "It has the donor app's and Microsoft's files: it goes on the Digiex thread, never on GitHub."
     return
 }
 
@@ -212,17 +213,18 @@ $install = @"
 $name
 https://github.com/Digiex/Silverdash360
 
-This zip has Silverdash360's own files only. The runtime it runs on,
-default.xex and the Silverlight platform, comes from an Xbox 360 Silverlight
-app you have, and isn't included.
+This zip has Silverdash360's own files only, an update to go over the base
+package. The base package, with the runtime it runs on, is on Digiex:
+https://digiex.net/threads/silverdash360-homebrew-xbox-360-dashboard.20103/
 
-1. Make a runtime profile from an extracted Xbox 360 Silverlight app with
-   the Silverlight360 SDK's tools\New-RuntimeProfile.ps1 (see its getting
-   started guide: https://github.com/Digiex/Silverlight360).
-2. Copy the profile's package folder to a folder on the console, such as
-   Hdd1:\Apps\Silverdash.
-3. Copy everything in this zip into that folder, replacing what's there.
+1. Download the base package and extract it.
+2. Copy everything in this zip into its Silverdash360 folder, replacing
+   what's there.
+3. Copy the Silverdash360 folder to the console, such as to Hdd1:\Apps.
 4. Start default.xex in that folder.
+
+On a console that has Silverdash360 already, copy everything in this zip
+over the files in its folder instead.
 
 Silverdash360 keeps its settings and cache in the Data folder next to it.
 "@
@@ -246,7 +248,7 @@ $notes += if ($previous) { "## Changes since $previous" } else { '## Changes' }
 $notes += ''
 $notes += Invoke-Git log $range --no-merges -E --invert-grep '--grep=^Version [0-9]+\.[0-9]+\.[0-9]+$' --format='- %s (%h)'
 $notes += ''
-$notes += "Build $number, from $($commit.Substring(0, 7)). The zip has Silverdash360's own files; see INSTALL.txt in it for putting it on a runtime profile you made."
+$notes += "Build $number, from $($commit.Substring(0, 7)). The zip has Silverdash360's own files; see INSTALL.txt in it for putting it over the base package from Digiex."
 $notesFile = Join-Path $out 'notes.md'
 Write-Utf8 $notesFile $notes
 

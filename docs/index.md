@@ -28,8 +28,8 @@ Silverdash360 is a dashboard for the Xbox 360: it lists the games and apps on yo
 
 ## Getting started
 
-1. [Install it](install.md): it needs an Xbox 360 that runs homebrew, and the runtime from an Xbox 360 app you have.
+1. [Install it](install.md): it needs an Xbox 360 that runs homebrew, the base package from Digiex and the latest update from GitHub.
 2. Find your way around: [Getting around](getting-around.md) has the controls.
-3. If something isn't right, see [Troubleshooting](troubleshooting.md).
+3. If something isn't right, see [Troubleshooting](troubleshooting.md), and [report it](issues.md) on GitHub if it's not there. Ideas for features go there too.
 
 Silverdash360 is made by [Digiex](https://digiex.net). Its source is on [GitHub](https://github.com/Digiex/Silverdash360); see [Development](development.md) for building it yourself.

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://digiex.github.io/Silverdash360/
+    about: Installing, using and troubleshooting Silverdash360.
+  - name: Questions and chat on Digiex
+    url: https://digiex.net/threads/silverdash360-homebrew-xbox-360-dashboard.20103/
+    about: The Silverdash360 thread on Digiex, for questions and talk about it.

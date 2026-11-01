@@ -2,8 +2,8 @@
 
 ## It doesn't start, or goes back to the console's dashboard
 
-- Check the folder has both the runtime (`default.xex`, `xcoreclr.dll`, `agcore.dll` and the rest) and Silverdash360's files (`Silverdash360.dll`, `AppManifest.xaml`, `XboxAppManifest.xml`). See [Installing](install.md).
-- The runtime has to come from Plex v0.0.0.7, made with Silverlight360's `New-RuntimeProfile.ps1`.
+- Check the folder has everything from the base package (`default.xex`, `xcoreclr.dll`, `agcore.dll` and the rest) and the update's files over them (`Silverdash360.dll`, `AppManifest.xaml`, `XboxAppManifest.xml`). See [Installing](install.md).
+- A runtime you made yourself has to come from Plex v0.0.0.7: see [The runtime](development.md#the-runtime).
 - The console has to run homebrew.
 
 ## A game or app is missing
@@ -46,4 +46,4 @@ Silverdash360 keeps its settings, the library it read, the box art and its logs 
 | `Art` | The box art and store details it downloaded |
 | `Logs` | What it did: `silverdash.log` for this run, `silverdash.log.last` for the one before |
 
-When you report a problem, `Logs\silverdash.log.last` from the run that went wrong helps: report it on [GitHub](https://github.com/Digiex/Silverdash360/issues).
+When something here doesn't help, [report the problem](issues.md#reporting-a-problem) on GitHub; `Logs\silverdash.log.last` from the run that went wrong helps.

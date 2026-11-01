@@ -4,7 +4,7 @@ Silverdash360 is C# and XAML for the Xbox 360's Silverlight platform, built with
 
 ## Building
 
-You need what Silverlight360 needs (see its [getting started guide](https://github.com/Digiex/Silverlight360/blob/master/docs/getting-started.md)), including a runtime profile. Then:
+You need what Silverlight360 needs (see its [getting started guide](https://github.com/Digiex/Silverlight360/blob/master/docs/getting-started.md)), including a runtime profile (see [The runtime](#the-runtime)). Then:
 
 ```powershell
 .\tools\Build.ps1 -Debug -Sdk path\to\Silverlight360
@@ -19,6 +19,16 @@ Every build is one of two:
 
 The package runs as the title the SDK's runtime profile came from (Plex by default), so it's started like that app. The debug server listens on port 4601 without a password, which is why it's only in Debug builds.
 
+## The runtime
+
+Silverdash360 runs on the Silverlight platform the console's own apps shipped with: the runtime (`default.xex`, `xcoreclr.dll`, `agcore.dll` and the rest) and its framework assemblies. They're Microsoft's and the donor app's, so GitHub releases have only Silverdash360's own files, and users get the runtime with the base package from the [Digiex thread](https://digiex.net/threads/silverdash360-homebrew-xbox-360-dashboard.20103/) (see [Installing](install.md)). To build Silverdash360, or to make the base package, make the runtime yourself from the Plex app for Xbox 360, version 0.0.0.7, extracted; the [Silverlight360 getting started guide](https://github.com/Digiex/Silverlight360/blob/master/docs/getting-started.md) says where to get it and how to extract it. In PowerShell in the Silverlight360 folder:
+
+```powershell
+.\tools\New-RuntimeProfile.ps1 -DonorApp 'C:\path\to\Plex v0.0.0.7' -Output .\runtime\plex-2015
+```
+
+The runtime is the `runtime\plex-2015\package` folder it makes, once for every version of Silverdash360. A build puts it and Silverdash360's files together; so does copying a release zip's files over a copy of that folder. The package's `default.xex` is the platform's, changed to drop the donor app's title, so it starts only on a console that runs homebrew.
+
 ## Releases
 
 ```powershell
@@ -30,7 +40,7 @@ The package runs as the title the SDK's runtime profile came from (Plex by defau
 
 Every release has a higher version than the last, tagged `v<version>`. That's `Silverdash360Version` in `Silverdash360.csproj` when it's higher than the last release's, so a minor or major version can be set by hand; otherwise the script raises the last release's patch number (or the part `-Bump Minor` or `-Bump Major` names). A new version is committed to the project file and that commit pushed, so the release is built and tagged from it; everything before it has to be committed and pushed already. The release's title has the build number settings shows. The script needs the GitHub CLI (`gh`) signed in. `-DryRun` shows the version, builds the zip and shows the notes, without committing, pushing or publishing.
 
-`.\tools\Release.ps1 -Console` makes a zip for your own console instead and releases nothing: the whole Release package, runtime included, in a `Silverdash360` folder (`src\Silverdash360\bin\Release\console\Silverdash360-<version>-console.zip`) to copy to the console. It has the donor app's and Microsoft's files, so it isn't for handing out.
+`.\tools\Release.ps1 -Console` makes the base package that the [Digiex thread](https://digiex.net/threads/silverdash360-homebrew-xbox-360-dashboard.20103/) offers, and releases nothing: the whole Release package, runtime included, in a `Silverdash360` folder (`src\Silverdash360\bin\Release\console\Silverdash360-<version>-console.zip`) to copy to the console. It has the donor app's and Microsoft's files, so it's posted on Digiex rather than on GitHub.
 
 ## The documentation
 

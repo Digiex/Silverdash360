@@ -26,11 +26,11 @@ A dashboard for the Xbox 360. It lists the games and apps on your console, with 
 
 ## Installing
 
-You need an Xbox 360 that runs homebrew (RGH or JTAG). A release has Silverdash360's own files; the Silverlight platform it runs on isn't ours to hand out, so you add it from the Plex app for Xbox 360 with [Silverlight360](https://github.com/Digiex/Silverlight360):
+You need an Xbox 360 that runs homebrew (RGH or JTAG).
 
-1. Make a runtime profile from Plex v0.0.0.7 with Silverlight360's `tools\New-RuntimeProfile.ps1`.
-2. Download the [latest release](https://github.com/Digiex/Silverdash360/releases/latest).
-3. Copy the profile's `package` folder and then the release's files into one folder, and copy it to the console, such as to `Hdd1:\Apps\Silverdash360`.
+1. Download the base package from the [Silverdash360 thread on Digiex](https://digiex.net/threads/silverdash360-homebrew-xbox-360-dashboard.20103/) and extract it.
+2. Download the [latest release](https://github.com/Digiex/Silverdash360/releases/latest) and extract its files over the base package's `Silverdash360` folder, replacing what's there.
+3. Copy the `Silverdash360` folder to the console, such as to `Hdd1:\Apps\Silverdash360`.
 4. Start its `default.xex`.
 
 The [installation guide](https://digiex.github.io/Silverdash360/install/) has each step. After that, Silverdash360 offers each new version itself.
@@ -51,6 +51,10 @@ The [installation guide](https://digiex.github.io/Silverdash360/install/) has ea
 | LT, RT | A screen back or forward |
 
 More in the [documentation](https://digiex.github.io/Silverdash360/getting-around/).
+
+## Problems and ideas
+
+[Report a problem](https://github.com/Digiex/Silverdash360/issues/new?template=bug_report.yml) or [request a feature](https://github.com/Digiex/Silverdash360/issues/new?template=feature_request.yml) on GitHub Issues; look through the [open issues](https://github.com/Digiex/Silverdash360/issues) first. [Problems and ideas](https://digiex.github.io/Silverdash360/issues/) says what helps. For questions and chat, there's the [Silverdash360 thread on Digiex](https://digiex.net/threads/silverdash360-homebrew-xbox-360-dashboard.20103/).
 
 ## Building it yourself
 
