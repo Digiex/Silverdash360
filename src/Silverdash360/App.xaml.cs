@@ -38,7 +38,7 @@ namespace Silverdash360
         private void Application_Startup(object sender, StartupEventArgs e)
         {
             LogFile.Start();
-            Log.Write("Starting");
+            Log.Write("Starting Silverdash360 {0}", SettingsModule.VersionDetail());
 #if DEBUG_SERVER
             if (StartPendingInstall())
             {

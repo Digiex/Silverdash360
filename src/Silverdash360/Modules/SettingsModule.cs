@@ -114,9 +114,12 @@ namespace Silverdash360.Modules
             list.SelectedIndex = selected;
         }
 
-        // Such as "0.1.0, build 43 (commit 56aa54d)"; "with changes" for one
-        // made from files changed since that commit.
-        private static string VersionDetail()
+        /// <summary>
+        /// Such as "0.1.0, build 43 (commit 56aa54d)"; "with changes" for one
+        /// made from files changed since that commit. Settings and the log's
+        /// first line show it.
+        /// </summary>
+        internal static string VersionDetail()
         {
             return BuildInfo.Version + ", build " + BuildInfo.Number + " (commit " + BuildInfo.Commit +
                    (BuildInfo.Changed ? ", with changes" : "") + ")";
