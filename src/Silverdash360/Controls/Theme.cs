@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -22,6 +23,23 @@ namespace Silverdash360.Controls
             public Color PanelHighlight;
             /// <summary>The pages' background, top left to bottom right.</summary>
             public Color[] Background;
+            /// <summary>Where along it each background colour is; null for the usual 0, 0.6 and 1.</summary>
+            public double[] BackgroundOffsets;
+            /// <summary>
+            /// A background of its own for some of the hub's sections, by
+            /// header, as each blade of the first dashboard had its colour;
+            /// null or a section missing for <see cref="Background"/>.
+            /// </summary>
+            public Dictionary<string, Color[]> Sections;
+        }
+
+        private static Palette applied;
+        private static string section;
+
+        // App.xaml's PageBackground stops.
+        private static double[] DefaultOffsets()
+        {
+            return new[] { 0, 0.6, 1 };
         }
 
         // What a selected tile grows past its slot by: 6% of the widest
@@ -78,13 +96,37 @@ namespace Silverdash360.Controls
             SetColor(resources, "Accent", palette.Accent);
             SetColor(resources, "SubText", palette.SubText);
             SetColor(resources, "Panel", palette.Panel);
-            LinearGradientBrush background = resources["PageBackground"] as LinearGradientBrush;
-            if (background != null)
+            applied = palette;
+            ShowBackground();
+        }
+
+        /// <summary>The hub shows a section: its background, when the colours have one for it.</summary>
+        public static void ShowSection(string header)
+        {
+            section = header;
+            if (applied != null && applied.Sections != null)
             {
-                for (int i = 0; i < background.GradientStops.Count && i < palette.Background.Length; i++)
-                {
-                    background.GradientStops[i].Color = palette.Background[i];
-                }
+                ShowBackground();
+            }
+        }
+
+        private static void ShowBackground()
+        {
+            LinearGradientBrush background = Application.Current.Resources["PageBackground"] as LinearGradientBrush;
+            if (background == null)
+            {
+                return;
+            }
+            Color[] colors;
+            if (applied.Sections == null || section == null || !applied.Sections.TryGetValue(section, out colors))
+            {
+                colors = applied.Background;
+            }
+            double[] offsets = applied.BackgroundOffsets ?? DefaultOffsets();
+            for (int i = 0; i < background.GradientStops.Count && i < colors.Length; i++)
+            {
+                background.GradientStops[i].Color = colors[i];
+                background.GradientStops[i].Offset = offsets[i];
             }
         }
 

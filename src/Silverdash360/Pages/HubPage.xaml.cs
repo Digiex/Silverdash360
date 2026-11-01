@@ -573,6 +573,25 @@ namespace Silverdash360.Pages
                 Wallpaper.Source = null;
                 WallpaperShade.Visibility = Visibility.Collapsed;
                 shownWallpaper = -1;
+                // Without a wallpaper, a colour scheme can colour the section
+                // as a blade was; that too waits for the user to stop.
+                if (now)
+                {
+                    Theme.ShowSection(Modules[current].Header);
+                }
+                else if (!wallpaperWaiting)
+                {
+                    wallpaperWaiting = true;
+                    UiIdle.Run(() =>
+                    {
+                        wallpaperWaiting = false;
+                        if (SectionHost.Content != null)
+                        {
+                            ShowWallpaper(true);
+                        }
+                        return false;
+                    }, WallpaperQuietMs);
+                }
                 return;
             }
             int index = current % themes.Current.Wallpapers.Count;

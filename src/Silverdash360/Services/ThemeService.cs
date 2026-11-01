@@ -73,7 +73,12 @@ namespace Silverdash360.Services
     /// <summary>
     /// Colours without a wallpaper, after the styles of the first Xbox 360
     /// dashboard's blades: its default and Carbon. Its blades were light,
-    /// and Silverdash's text white, so the light ones are deepened.
+    /// and Silverdash's text white, so the light ones are deepened. The page
+    /// background is the band behind its blades, dark or steel blue at the
+    /// edges and lighter in the middle; the default's pale blue middle is
+    /// toned down for the text. Each blade had a colour of its own, and so
+    /// do the sections after home: apps the Marketplace blade's, me Xbox
+    /// Live's, games, media and settings (System) their own.
     /// </summary>
     public sealed class ColourScheme
     {
@@ -95,7 +100,15 @@ namespace Silverdash360.Services
                         SubText = Rgb(0xC8, 0xC8, 0xC8),
                         Panel = Rgb(0x32, 0x3B, 0x45),
                         PanelHighlight = Rgb(0x43, 0x4F, 0x5C),
-                        Background = new[] { Rgb(0x3E, 0x49, 0x54), Rgb(0x16, 0x1A, 0x1F), Rgb(0x22, 0x28, 0x2E) },
+                        Background = new[] { Rgb(0x70, 0x84, 0x99), Rgb(0x9C, 0xB0, 0xC6), Rgb(0x70, 0x84, 0x99) },
+                        BackgroundOffsets = new[] { 0.04, 0.47, 1.0 },
+                        // The blades' colours, a little deeper for white text.
+                        Sections = Blades(0.8,
+                                          new[] { Rgb(0xFF, 0x6E, 0x00), Rgb(0xEB, 0xB9, 0x46), Rgb(0xFF, 0x66, 0x00) },
+                                          new[] { Rgb(0x0D, 0xB4, 0x64), Rgb(0xA0, 0xDC, 0x2D), Rgb(0x14, 0xB4, 0x5A) },
+                                          new[] { Rgb(0x23, 0x23, 0xBE), Rgb(0x82, 0xB4, 0xFF), Rgb(0x28, 0x3C, 0xBE) },
+                                          new[] { Rgb(0x28, 0x1E, 0x82), Rgb(0xBE, 0x96, 0xE1), Rgb(0x28, 0x1E, 0x78) },
+                                          new[] { Rgb(0xEB, 0x41, 0x23), Rgb(0xEB, 0x73, 0x2C), Rgb(0xEB, 0x41, 0x23) }),
                     },
                 },
                 new ColourScheme
@@ -108,10 +121,43 @@ namespace Silverdash360.Services
                         SubText = Rgb(0x96, 0x96, 0x96),
                         Panel = Rgb(0x32, 0x32, 0x32),
                         PanelHighlight = Rgb(0x50, 0x50, 0x50),
-                        Background = new[] { Rgb(0x3C, 0x3C, 0x3C), Rgb(0x0F, 0x0F, 0x0F), Rgb(0x1E, 0x1E, 0x1E) },
+                        Background = new[] { Rgb(0x0F, 0x0F, 0x0F), Rgb(0x55, 0x55, 0x55), Rgb(0x0F, 0x0F, 0x0F) },
+                        BackgroundOffsets = new[] { 0.04, 0.52, 1.0 },
+                        Sections = Blades(1,
+                                          new[] { Rgb(0x26, 0x0F, 0x0F), Rgb(0x7E, 0x64, 0x0F), Rgb(0x26, 0x0F, 0x0F) },
+                                          new[] { Rgb(0x0F, 0x0F, 0x0F), Rgb(0x32, 0x5A, 0x0F), Rgb(0x0F, 0x0F, 0x0F) },
+                                          new[] { Rgb(0x0F, 0x0F, 0x28), Rgb(0x0F, 0x50, 0x64), Rgb(0x0F, 0x0F, 0x28) },
+                                          new[] { Rgb(0x0F, 0x0F, 0x0F), Rgb(0x4B, 0x3C, 0x64), Rgb(0x32, 0x32, 0x32) },
+                                          new[] { Rgb(0x0F, 0x0F, 0x0F), Rgb(0x7E, 0x18, 0x0F), Rgb(0x0F, 0x0F, 0x0F) }),
                     },
                 },
             };
+        }
+
+        // The sections' backgrounds from the blades' colours, left to right:
+        // Marketplace, Xbox Live, Games, Media, System; each colour scaled.
+        private static Dictionary<string, System.Windows.Media.Color[]> Blades(double scale,
+            System.Windows.Media.Color[] marketplace, System.Windows.Media.Color[] live, System.Windows.Media.Color[] games,
+            System.Windows.Media.Color[] media, System.Windows.Media.Color[] system)
+        {
+            return new Dictionary<string, System.Windows.Media.Color[]>
+            {
+                { "apps", Scale(marketplace, scale) },
+                { "me", Scale(live, scale) },
+                { "games", Scale(games, scale) },
+                { "media", Scale(media, scale) },
+                { "settings", Scale(system, scale) },
+            };
+        }
+
+        private static System.Windows.Media.Color[] Scale(System.Windows.Media.Color[] colors, double scale)
+        {
+            System.Windows.Media.Color[] scaled = new System.Windows.Media.Color[colors.Length];
+            for (int i = 0; i < colors.Length; i++)
+            {
+                scaled[i] = Rgb((byte)(colors[i].R * scale), (byte)(colors[i].G * scale), (byte)(colors[i].B * scale));
+            }
+            return scaled;
         }
 
         private static System.Windows.Media.Color Rgb(byte r, byte g, byte b)
