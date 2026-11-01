@@ -235,7 +235,14 @@ namespace Silverdash360.Services
         private const string PackagePrefix = "package:";
         private const string BuiltInPrefix = "builtin:";
         private const string SchemePrefix = "scheme:";
-        private const string SettingFile = "theme.txt";
+        // The pick is each profile's, and nobody signed in's, as the
+        // console's dashboard keeps a theme per profile:
+        // ThemeChoice\<offline XUID or Nobody>.txt. One that hasn't picked
+        // follows the dashboard, which for nobody is Silverdash's look.
+        private const string ChoiceRoot = "ThemeChoice/";
+        // The one pick for everyone, from before: the first owner read after
+        // an update takes it up.
+        private const string OldSettingFile = "theme.txt";
 
         // Where the console's dashboard keeps the profile's theme: a file in
         // the profile's package, 0x144 bytes of XCONTENT_DATA_INTERNAL with
@@ -294,6 +301,8 @@ namespace Silverdash360.Services
         private readonly List<DecodedWallpaper> decoded = new List<DecodedWallpaper>();
         private readonly List<Action> waiting = new List<Action>();
         private string setting;
+        // Whose the setting is.
+        private string settingOwner;
         private string loadedKey;
         private ulong loadedForXuid;
         private bool loaded;
@@ -417,14 +426,17 @@ namespace Silverdash360.Services
         }
 
         /// <summary>
-        /// Picks a theme and loads it; the pick is saved in the background.
-        /// done, when given, is called on the UI thread once it's loaded.
+        /// Picks a theme for the profile signed in, or nobody signed in, and
+        /// loads it; the pick is saved in the background. done, when given,
+        /// is called on the UI thread once it's loaded.
         /// </summary>
         public void Choose(string choice, Action done)
         {
+            string owner = Owner(library.Gamer);
             setting = choice;
+            settingOwner = owner;
             string text = choice;
-            Background.Run(() => { AppStorage.WriteText(SettingFile, text); return 0; }, (r, e) => { });
+            Background.Run(() => { AppStorage.WriteText(ChoiceFile(owner), text); return 0; }, (r, e) => { });
             if (done != null)
             {
                 waiting.Add(done);
@@ -639,10 +651,11 @@ namespace Silverdash360.Services
         // unless it's the one loaded.
         private LoadResult Read(Gamer gamer, List<ContentItem> installed, string loadedPackage, bool partial)
         {
-            if (setting == null)
+            string owner = Owner(gamer);
+            if (setting == null || settingOwner != owner)
             {
-                string saved = AppStorage.ReadText(SettingFile);
-                setting = string.IsNullOrEmpty(saved) ? FollowDashboard : saved.Trim();
+                setting = ReadChoice(owner);
+                settingOwner = owner;
             }
             LoadResult result = new LoadResult();
             ContentItem package = null;
@@ -793,6 +806,29 @@ namespace Silverdash360.Services
         private static string Owner(Gamer gamer)
         {
             return gamer != null ? gamer.OfflineXuid.ToString("X16") : "Nobody";
+        }
+
+        private static string ChoiceFile(string owner)
+        {
+            return ChoiceRoot + owner + ".txt";
+        }
+
+        // On a background thread: the owner's pick, or the one pick from
+        // before the picks were each profile's.
+        private static string ReadChoice(string owner)
+        {
+            string saved = AppStorage.ReadText(ChoiceFile(owner));
+            if (string.IsNullOrEmpty(saved))
+            {
+                saved = AppStorage.ReadText(OldSettingFile);
+                if (!string.IsNullOrEmpty(saved))
+                {
+                    AppStorage.WriteText(ChoiceFile(owner), saved);
+                    AppStorage.Delete(OldSettingFile);
+                    Log.Write("Theme pick {0} is now {1}'s", saved.Trim(), owner);
+                }
+            }
+            return string.IsNullOrEmpty(saved) ? FollowDashboard : saved.Trim();
         }
 
         private static string CustomId(Gamer gamer)
@@ -964,6 +1000,12 @@ namespace Silverdash360.Services
                     };
                     theme.Wallpapers.AddRange(wallpapers);
                     WriteCache(theme);
+                    // Nobody signed in uses it too; the profile's pick is
+                    // made below.
+                    if (owner != gamer)
+                    {
+                        AppStorage.WriteText(ChoiceFile(Owner(owner)), CustomTheme);
+                    }
                 }
                 Log.Write("Custom theme saved for {0}{1}: {2} wallpapers", gamer != null ? gamer.Gamertag : "nobody signed in",
                           owners.Count > 1 ? " and nobody signed in" : "", wallpapers.Count);

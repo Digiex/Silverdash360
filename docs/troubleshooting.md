@@ -32,7 +32,7 @@ Silverdash360 keeps its settings, the library it read, the box art and its logs 
 | In `Data` | |
 |---|---|
 | `settings.txt` | Your shelf options and other settings |
-| `theme.txt` | The theme you picked |
+| `ThemeChoice` | The theme each profile picked, and the one for nobody signed in |
 | `library.bin` | The library it read, so it starts quickly |
 | `Art` | The box art and store details it downloaded |
 | `Logs` | What it did: `silverdash.log` for this run, `silverdash.log.last` for the one before |
