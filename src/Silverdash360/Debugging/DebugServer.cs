@@ -57,7 +57,7 @@ namespace Silverdash360.Debugging
             {
                 new SystemCommands(server), new LibraryCommands(context), new ApiCommands(context),
                 new UiCommands(context), new BenchCommands(context), new AppCommands(context), new MediaCommands(context),
-                new ThemeCommands(context),
+                new ThemeCommands(context), new SysCacheCommands(context),
             })
             {
                 group.Register(server.Commands);

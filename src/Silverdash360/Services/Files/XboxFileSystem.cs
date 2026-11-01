@@ -143,6 +143,12 @@ namespace Silverdash360.Services.Files
             return entries;
         }
 
+        /// <summary>Lists a folder by the kernel's name for it, returning the status rather than throwing.</summary>
+        public int TryListDevice(string device, out List<FileEntry> entries)
+        {
+            return TryList(device, out entries);
+        }
+
         /// <summary>The entry for a path, or null when there's nothing there.</summary>
         public FileEntry Stat(string path)
         {
