@@ -19,10 +19,32 @@ namespace Silverdash360.Services
     /// The packages are kept in sections, read in order and handed over one
     /// at a time, so a start can show the first screens before it has read
     /// the rest: the console takes seconds to read thousands of packages.
+    ///
+    /// The console's packages and executables, the same whoever is signed
+    /// in, are kept in one file; each profile's own packages (its saves and
+    /// themes) in a file of the profile's (<see cref="ForProfile"/>).
     /// </summary>
     public sealed class LibraryCache
     {
-        private const string FileName = "library.bin";
+        private const string SharedFile = "library.bin";
+        private const string ProfileFolder = "Profiles/";
+        private readonly string fileName;
+
+        /// <summary>The console's packages and executables.</summary>
+        public LibraryCache() : this(SharedFile)
+        {
+        }
+
+        private LibraryCache(string fileName)
+        {
+            this.fileName = fileName;
+        }
+
+        /// <summary>A profile's own packages, by its offline XUID.</summary>
+        public static LibraryCache ForProfile(ulong offlineXuid)
+        {
+            return new LibraryCache(ProfileFolder + offlineXuid.ToString("X16") + ".bin");
+        }
         private const uint Magic = 0x53443343; // "SD3C"
         private const int FormatVersion = 9;
         // Without the packages' disc numbers.
@@ -44,7 +66,7 @@ namespace Silverdash360.Services
         /// <summary>A package's identity: where it's stored and its file name.</summary>
         public static string KeyOf(ContentItem item)
         {
-            return string.Format("{0:X16}/{1:X8}/{2:X8}/{3:X8}/{4}", item.Xuid, item.DeviceId, item.TitleId, item.Type,
+            return string.Format("{0:X16}/{1:X8}/{2:X8}/{3:X8}/{4}", item.Owner, item.DeviceId, item.TitleId, item.Type,
                                  item.FileName);
         }
 
@@ -69,13 +91,13 @@ namespace Silverdash360.Services
             Contents contents = new Contents();
             try
             {
-                byte[] bytes = AppStorage.ReadBytes(FileName);
+                byte[] bytes = AppStorage.ReadBytes(fileName);
                 if (bytes == null)
                 {
                     return contents;
                 }
                 contents = Deserialize(new MemoryStream(bytes), section);
-                Log.Write("Library cache: {0} packages, {1} executables", contents.Content.Count,
+                Log.Write("Library cache {0}: {1} packages, {2} executables", fileName, contents.Content.Count,
                           contents.Executables.Count);
             }
             catch (Exception e)
@@ -201,7 +223,7 @@ namespace Silverdash360.Services
             try
             {
                 byte[] bytes = Serialize(sections, executables);
-                if (!AppStorage.WriteBytes(FileName, bytes, pace))
+                if (!AppStorage.WriteBytes(fileName, bytes, pace))
                 {
                     return;
                 }
@@ -210,12 +232,12 @@ namespace Silverdash360.Services
                 {
                     packages += section.Count;
                 }
-                Log.Write("Library cache saved: {0} packages in {1} sections, {2} executables, {3} bytes", packages,
-                          sections.Count, executables.Count, bytes.Length);
+                Log.Write("Library cache {0} saved: {1} packages in {2} sections, {3} executables, {4} bytes", fileName,
+                          packages, sections.Count, executables.Count, bytes.Length);
             }
             catch (Exception e)
             {
-                Log.Write("Library cache not saved: {0}", e.Message);
+                Log.Write("Library cache {0} not saved: {1}", fileName, e.Message);
             }
         }
 
@@ -272,7 +294,7 @@ namespace Silverdash360.Services
         /// <summary>Forgets the cache, so the next refresh reads every header again.</summary>
         public void Clear()
         {
-            AppStorage.Delete(FileName);
+            AppStorage.Delete(fileName);
         }
     }
 }

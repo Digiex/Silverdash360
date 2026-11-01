@@ -212,17 +212,21 @@ namespace Silverdash360.Services
             List<PlayedTitle> played = gamer != null ? profiles.PlayedTitles(gamer) : new List<PlayedTitle>();
             // The console's packages are under XUID 0, a profile's under its
             // offline XUID.
-            List<ContentItem> content = before.Content.Where(c => c.Xuid == 0).ToList();
-            Dictionary<string, ContentItem> known = new Dictionary<string, ContentItem>();
-            foreach (ContentItem item in before.Content)
-            {
-                known[LibraryCache.KeyOf(item)] = item;
-            }
-            Dictionary<string, bool> seen = content.ToDictionary(c => LibraryCache.KeyOf(c), c => true);
+            List<ContentItem> content = before.Content.Where(c => c.Owner == 0).ToList();
             if (gamer != null)
             {
-                // The profile's enumeration has the console's packages too.
-                foreach (ContentItem item in source.Enumerate(gamer.OfflineXuid, null, Pace(0)))
+                // What was read of the profile's packages when it was last here.
+                LibraryCache profileCache = LibraryCache.ForProfile(gamer.OfflineXuid);
+                List<ContentItem> saved = Owned(profileCache.Load(null).Content, gamer.OfflineXuid);
+                Dictionary<string, ContentItem> known = new Dictionary<string, ContentItem>();
+                foreach (ContentItem item in saved)
+                {
+                    known[LibraryCache.KeyOf(item)] = item;
+                }
+                Dictionary<string, bool> seen = content.ToDictionary(c => LibraryCache.KeyOf(c), c => true);
+                List<ContentItem> own = new List<ContentItem>();
+                int read = 0;
+                foreach (ContentItem item in Owned(source.Enumerate(gamer.OfflineXuid, null, Pace(0)), gamer.OfflineXuid))
                 {
                     string key = LibraryCache.KeyOf(item);
                     if (item.TitleId == 0 || seen.ContainsKey(key))
@@ -230,22 +234,31 @@ namespace Silverdash360.Services
                         continue;
                     }
                     seen[key] = true;
-                    ContentItem read;
-                    if (known.TryGetValue(key, out read) && read.HeaderRead)
+                    if (item.Type != ContentType.SavedGame)
                     {
-                        item.Metadata = read.Metadata;
+                        ContentItem kept;
+                        if (known.TryGetValue(key, out kept) && (kept.Metadata != null || kept.HeaderRead))
+                        {
+                            item.Metadata = kept.Metadata;
+                        }
+                        else
+                        {
+                            item.Metadata = source.ReadMetadata(item, false);
+                            read++;
+                        }
+                        item.HeaderRead = true;
                     }
-                    else if (item.Type != ContentType.SavedGame)
-                    {
-                        item.Metadata = source.ReadMetadata(item, false);
-                    }
-                    item.HeaderRead = true;
-                    content.Add(item);
+                    own.Add(item);
                 }
+                if (Differs(own, saved, read))
+                {
+                    profileCache.Save(new List<IList<ContentItem>> { own }, new List<ExecutableItem>(), Pace(PaceSave));
+                }
+                content.AddRange(own);
             }
             LoadResult built = Build(content, before.Executables, gamer, played);
             Log.Write("Library: now for {0}, {1} packages of its own, in {2} ms",
-                      gamer != null ? gamer.Gamertag : "nobody signed in", content.Count(c => c.Xuid != 0),
+                      gamer != null ? gamer.Gamertag : "nobody signed in", content.Count(c => c.Owner != 0),
                       (int)(DateTime.UtcNow - started).TotalMilliseconds);
             return built;
         }
@@ -318,21 +331,35 @@ namespace Silverdash360.Services
             Gamer gamer = profiles.SignedIn().FirstOrDefault();
             List<PlayedTitle> played = gamer != null ? profiles.PlayedTitles(gamer) : new List<PlayedTitle>();
 
-            // What earlier runs read from package and executable headers.
+            // What earlier runs read from package and executable headers: of
+            // the console's packages, kept whoever is signed in, and of the
+            // profile's own, kept with the profile.
+            LibraryCache profileCache = gamer != null ? LibraryCache.ForProfile(gamer.OfflineXuid) : null;
             Dictionary<string, ContentMetadata> known = new Dictionary<string, ContentMetadata>();
             Dictionary<string, byte> knownApps = new Dictionary<string, byte>();
             Dictionary<string, ContentItem> knownInside = new Dictionary<string, ContentItem>();
             Dictionary<string, ExecutableItem> knownExecutables = new Dictionary<string, ExecutableItem>();
-            int cachedCount = 0;
+            List<ContentItem> sharedCached = new List<ContentItem>();
+            List<ContentItem> ownCached = new List<ContentItem>();
             bool outdated = false;
             bool shown = IsLoaded;
             if (full)
             {
                 cache.Clear();
+                if (profileCache != null)
+                {
+                    profileCache.Clear();
+                }
             }
             else
             {
                 Report("Opening the saved library...", null);
+                // The profile's packages are few: they go up with the first
+                // section, its themes among them.
+                if (profileCache != null)
+                {
+                    ownCached = Owned(profileCache.Load(null).Content, gamer.OfflineXuid);
+                }
                 // On a start, each section goes up as soon as it's read: the
                 // first screens' titles, then every title, then the rest.
                 bool showSections = !IsLoaded;
@@ -343,13 +370,21 @@ namespace Silverdash360.Services
                         return;
                     }
                     int building = Environment.TickCount;
-                    LoadResult partial = Build(section.Content, section.Executables, gamer, played);
+                    // A file saved before profiles had their own has the
+                    // packages of whoever was signed in then: those its
+                    // records say are a profile's aren't shown, and the rest
+                    // go when the console's are listed again.
+                    List<ContentItem> packages = section.Content.Where(c => c.Xuid == 0).Concat(ownCached).ToList();
+                    LoadResult partial = Build(packages, section.Executables, gamer, played);
                     partial.Complete = section.Complete;
-                    Log.Write("Library: showing {0} saved packages{1}, built in {2} ms", section.Content.Count,
+                    Log.Write("Library: showing {0} saved packages{1}, built in {2} ms", packages.Count,
                               section.Complete ? "" : " so far", Environment.TickCount - building);
                     Background.OnUi(() => Publish(partial));
                 });
-                foreach (ContentItem item in cached.Content)
+                sharedCached = cached.Content.Where(c => c.Xuid == 0).ToList();
+                // That file is saved again with the console's packages alone.
+                outdated = cached.Outdated || sharedCached.Count != cached.Content.Count;
+                foreach (ContentItem item in cached.Content.Concat(ownCached))
                 {
                     // A header read before without metadata, such as an avatar
                     // item's, isn't read again on every start.
@@ -370,9 +405,7 @@ namespace Silverdash360.Services
                 {
                     knownExecutables[item.Path] = item;
                 }
-                cachedCount = cached.Content.Count;
-                outdated = cached.Outdated;
-                if (cached.Content.Count > 0 || cached.Executables.Count > 0)
+                if (sharedCached.Count > 0 || cached.Executables.Count > 0)
                 {
                     shown = true;
                 }
@@ -404,7 +437,7 @@ namespace Silverdash360.Services
             List<ContentItem> content = source.Enumerate(0, count => Report("Looking for content... " + count + " found", null), pace);
             if (gamer != null)
             {
-                content.AddRange(source.Enumerate(gamer.OfflineXuid, null, pace));
+                content.AddRange(Owned(source.Enumerate(gamer.OfflineXuid, null, pace), gamer.OfflineXuid));
             }
             // Once each: a package reported twice would show twice.
             Dictionary<string, bool> seen = new Dictionary<string, bool>();
@@ -460,23 +493,52 @@ namespace Silverdash360.Services
 
             int appsChecked = CheckForApps(content, knownApps, paceHeader) + LookInsideHomebrew(content, knownInside, paceHeader);
 
-            // Saved whenever the set of packages or executables changed.
+            // Each file is saved whenever its packages changed, the console's
+            // also when the executables did.
             bool executablesChanged = found.Count != knownExecutables.Count ||
                                       found.Any(e => !knownExecutables.ContainsKey(e.Path) ||
                                                      knownExecutables[e.Path].TitleId != e.TitleId);
-            bool changed = outdated || unread.Count > 0 || appsChecked > 0 || content.Count != cachedCount ||
-                           known.Count != content.Count(c => c.HeaderRead) || executablesChanged;
+            List<ContentItem> sharedContent = content.Where(c => c.Owner == 0).ToList();
+            List<ContentItem> ownContent = content.Where(c => c.Owner != 0).ToList();
+            bool sharedChanged = outdated || appsChecked > 0 || executablesChanged ||
+                                 Differs(sharedContent, sharedCached, unread.Count(c => c.Owner == 0));
+            bool ownChanged = profileCache != null && Differs(ownContent, ownCached, unread.Count(c => c.Owner != 0));
+            bool changed = sharedChanged || ownChanged;
             // What's on screen came from the same packages: nothing to redo.
             LoadResult built = changed || !shown ? Build(content, found, gamer, played) : null;
-            if (changed)
+            if (sharedChanged)
             {
                 Report("Saving the library...", 1);
-                cache.Save(CacheSections(built), found, paceSave);
+                List<IList<ContentItem>> sections = CacheSections(built)
+                    .Select(s => (IList<ContentItem>)s.Where(c => c.Owner == 0).ToList()).ToList();
+                cache.Save(sections, found, paceSave);
+            }
+            if (ownChanged)
+            {
+                profileCache.Save(new List<IList<ContentItem>> { ownContent }, new List<ExecutableItem>(), paceSave);
             }
             Log.Write("Library: {0} packages, {1} headers read, {2} executables, {3}, in {4} ms", content.Count,
                       unread.Count, found.Count, changed ? "changed" : "unchanged",
                       (int)(DateTime.UtcNow - started).TotalMilliseconds);
             return built;
+        }
+
+        // Marks packages as a profile's own.
+        private static List<ContentItem> Owned(List<ContentItem> packages, ulong owner)
+        {
+            foreach (ContentItem item in packages)
+            {
+                item.Owner = owner;
+            }
+            return packages;
+        }
+
+        // Whether packages differ from what was saved of them: others, or
+        // headers read since.
+        private static bool Differs(List<ContentItem> now, List<ContentItem> saved, int read)
+        {
+            return read > 0 || now.Count != saved.Count ||
+                   now.Count(c => c.HeaderRead) != saved.Count(c => c.Metadata != null || c.HeaderRead);
         }
 
         // Looks inside the add-on packages of titles with nothing else to

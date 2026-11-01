@@ -74,6 +74,14 @@ It finds where the dashboard runs from (else `/Hdd1/Apps/Silverdash360`), upload
 | `XamContentGetMetaDataInternal` | A package header's names, description and art |
 | `XamContentLaunchImageInternalEx` | Starting a package |
 
+xenia's hard drive has only its `Content` folder, so a build run from `bin\Debug\xbox` can't save its library, art or logs. To have it save them, install it under the content folder: `-Install` copies the build to `<ContentRoot>\Silverdash360` and runs it from there, where the dashboard finds itself as `/Hdd1/Content/Silverdash360` and keeps its data in `Data` beside it. `-Fresh` deletes that `Data` first, as a new install.
+
+```powershell
+.\tools\Run.ps1 -ContentRoot $env:TEMP\testcontent -Install -Fresh
+```
+
+To sign a profile in at the start, pass `--logged_profile_slot_0_xuid=<offline XUID>` in `-ExtraArgs`; xenia keeps the flags it's given in its config, so clear that line there to start with nobody signed in again. Signing in and out while the dashboard runs is xenia's Profile menu.
+
 The dashboard writes what it does to xenia's log as `(DbgPrint) [Silverdash] ...`. For the FTP server, run with `--systemlink_transport=off` (for example `.\tools\Run.ps1 -ExtraArgs '--systemlink_transport=off'`): otherwise xenia's System Link emulation carries the dashboard's sockets and nothing listens on the PC. xenia moves port 21 to 10021, and the hard drive has only its `Content` folder there.
 
 ## How it works
@@ -104,7 +112,7 @@ The library is read the way the console's dashboard reads it:
 4. **Launching**: `XamContentLaunchImageInternalEx` with the package's record, after checking it isn't partly downloaded or damaged. An executable from an Apps or Games folder starts with `XamLoaderLaunchTitleEx` and flags 0, with its folder as the D: drive.
 5. **FTP**: the console's Winsock (`NetDll_socket`, `bind`, `listen`, `accept`, ...) on threads of its own, and the kernel's file calls on the drives' device paths.
 
-`LibraryCache` keeps the records and the header metadata in `Data\library.bin` in the folder the dashboard is installed in. On a start the cached library is shown first; the enumeration then runs again, and only packages the cache doesn't know have their headers read. Reading the library, the art and the Marketplace pause while the user moves (`UiIdle`), and a save is written to a new file before the old one is replaced, so starting a game part way through doesn't lose it.
+`LibraryCache` keeps the records and the header metadata in the `Data` folder of the folder the dashboard is installed in: the console's packages and the Apps and Games executables, the same whoever is signed in, in `library.bin`, and each profile's own packages (its saves and themes) in `Profiles\<offline XUID>.bin`. A package is the profile's when the profile's enumeration found it, whatever its record's XUID says. On a start the saved library is shown first, the console's packages with the signed-in profile's; the enumeration then runs again, and only packages the files don't know have their headers read. With nobody signed in, only the console's are shown. A profile signing in or out from the Guide changes only the profile's part: the new profile's file and enumeration are read, and the console's packages stay as they are. Reading the library, the art and the Marketplace pause while the user moves (`UiIdle`), and a save is written to a new file before the old one is replaced, so starting a game part way through doesn't lose it.
 
 **Media**: the platform's player plays only from a URI, so the dashboard serves a file on a drive to it over HTTP on the console itself (port 4602, with a key made up at each start in every URL). A media server's files go through the same server, as the player won't play from another machine. Media servers are found with an SSDP search and browsed through their ContentDirectory; `tests/dlna_server.py` is a small one for trying it.
 

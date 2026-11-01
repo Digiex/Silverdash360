@@ -54,6 +54,14 @@ namespace Silverdash360.Model
         }
 
         public ulong Xuid { get { ReadNumbers(); return xuid; } }
+
+        /// <summary>
+        /// Whose package it is: 0 for the console's, a profile's offline XUID
+        /// for its own, as the enumeration that found it was asked. The
+        /// record's <see cref="Xuid"/> can be 0 for a profile's package (xenia
+        /// gives most saves 0), so it's not what tells them apart.
+        /// </summary>
+        public ulong Owner { get; set; }
         public long Size { get { ReadNumbers(); return size; } }
         public DateTime? Created { get { ReadNumbers(); return created; } }
         public uint Flags { get { ReadNumbers(); return flags; } }

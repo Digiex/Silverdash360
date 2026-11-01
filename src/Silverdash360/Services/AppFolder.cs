@@ -15,6 +15,32 @@ namespace Silverdash360.Services
         /// <summary>Where the dashboard is kept when where it runs from isn't known or can't be written.</summary>
         public const string Fallback = "/Hdd1/Apps/Silverdash360";
 
+        // Where a copy may be kept when D: names no folder: xenia gives a
+        // title a drive of its own, and its hard drive has only Content.
+        private static readonly string[] Kept = { Fallback, "/Hdd1/Content/Silverdash360" };
+
+        /// <summary>
+        /// The first place the dashboard is kept in that has a copy of it,
+        /// else <see cref="Fallback"/>.
+        /// </summary>
+        public static string KeptIn(XboxFileSystem files)
+        {
+            foreach (string folder in Kept)
+            {
+                try
+                {
+                    if (files.Stat(folder + "/default.xex") != null)
+                    {
+                        return folder;
+                    }
+                }
+                catch (Exception)
+                {
+                }
+            }
+            return Fallback;
+        }
+
         /// <summary>The folder in the app's folder tools/deploy.py stages a build in.</summary>
         public const string StagingFolder = "_update";
 

@@ -72,7 +72,7 @@ namespace Silverdash360.Services
                 Log.Write("App storage: where the dashboard runs from is unknown: {0}", e.Message);
                 install = null;
             }
-            folder = (install ?? AppFolder.Fallback) + "/" + FolderName;
+            folder = (install ?? AppFolder.KeptIn(files)) + "/" + FolderName;
             Log.Write("App storage in {0}", folder);
         }
 
