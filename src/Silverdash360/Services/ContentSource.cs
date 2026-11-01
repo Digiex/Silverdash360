@@ -58,20 +58,26 @@ namespace Silverdash360.Services
 
         public List<ContentItem> Enumerate(ulong xuid, Action<int> found, Action pace)
         {
-            return Enumerate(xuid, 0, found, pace);
+            return Enumerate(xuid, 0, ContentType.Any, found, pace);
+        }
+
+        /// <summary>Every package of one content type, for every title.</summary>
+        public List<ContentItem> EnumerateType(ulong xuid, uint contentType)
+        {
+            return Enumerate(xuid, 0, contentType, null, null);
         }
 
         public List<ContentItem> EnumerateTitle(ulong xuid, uint titleId)
         {
-            return Enumerate(xuid, titleId, null, null);
+            return Enumerate(xuid, titleId, ContentType.Any, null, null);
         }
 
         // Title 0 is every title.
-        private List<ContentItem> Enumerate(ulong xuid, uint titleId, Action<int> found, Action pace)
+        private List<ContentItem> Enumerate(ulong xuid, uint titleId, uint contentType, Action<int> found, Action pace)
         {
             List<ContentItem> items = new List<ContentItem>();
             uint handle;
-            uint result = Xam.XamContentAggregateCreateEnumerator(xuid, 0, ContentType.Any, titleId, out handle);
+            uint result = Xam.XamContentAggregateCreateEnumerator(xuid, 0, contentType, titleId, out handle);
             if (result != Xam.ErrorSuccess)
             {
                 Log.Write("XamContentAggregateCreateEnumerator({0:X16}, {1:X8}) failed: {2}", xuid, titleId, result);

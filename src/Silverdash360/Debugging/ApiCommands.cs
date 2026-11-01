@@ -81,7 +81,8 @@ namespace Silverdash360.Debugging
         {
             ulong xuid = request.Args.Count > 0 ? Convert.ToUInt64(request.Args[0], 16) : 0;
             int start = Environment.TickCount;
-            List<ContentItem> items = new XamContentSource().Enumerate(xuid, null, null);
+            uint type = request.Args.Count > 1 ? Convert.ToUInt32(request.Args[1], 16) : ContentType.Any;
+            List<ContentItem> items = new XamContentSource().EnumerateType(xuid, type);
             return new JsonObject
             {
                 { "xuid", xuid.ToString("X16") },
