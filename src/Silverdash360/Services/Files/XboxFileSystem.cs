@@ -38,6 +38,12 @@ namespace Silverdash360.Services.Files
         public bool Listed = true;
 
         /// <summary>
+        /// The system's own storage: shown in the tree and over FTP, but not
+        /// searched for games, apps or media.
+        /// </summary>
+        public bool System;
+
+        /// <summary>
         /// Folders the drive is known to have, listed when its root can't be.
         /// xenia, for one, exposes only the hard drive's Content folder.
         /// </summary>
@@ -64,6 +70,12 @@ namespace Silverdash360.Services.Files
                 new Drive("Mu0", @"\Device\Mu0", false),
                 new Drive("Mu1", @"\Device\Mu1", false),
                 new Drive("Dvd", @"\Device\Cdrom0", true),
+                // The system's own storage, read-only: xam's mounts of the
+                // hard drive's system cache, and the partition that keeps the
+                // dashboard parts downloaded from Xbox Live (in online\).
+                new Drive("SysCache0", @"\System??\SysCache0:", true) { System = true },
+                new Drive("SysCache1", @"\System??\SysCache1:", true) { System = true },
+                new Drive("SysAux", @"\Device\Harddisk0\SystemAuxPartition", true) { System = true },
             };
         }
 
@@ -75,7 +87,7 @@ namespace Silverdash360.Services.Files
         {
             get
             {
-                return Drives.Where(d => d.Listed && (Exists(d.DevicePath) ||
+                return Drives.Where(d => d.Listed && (Exists(d.DevicePath) || Exists(d.DevicePath + @"\") ||
                                                       d.StandardFolders.Any(f => Exists(d.DevicePath + @"\" + f))));
             }
         }
@@ -305,8 +317,9 @@ namespace Silverdash360.Services.Files
             {
                 device.Append('\\').Append(parts[i]);
             }
-            // The root of a mount such as \??\name: opens as name:\ only.
-            if (device[device.Length - 1] == ':')
+            // The root of a mount such as \??\name: opens as name:\ only, and a
+            // partition's root as \Device\...\Partition\, not as the device.
+            if (device[device.Length - 1] == ':' || parts.Length == 1)
             {
                 device.Append('\\');
             }

@@ -57,7 +57,7 @@ namespace Silverdash360.Services.Media
         {
             DiscKind disc = Disc();
             return files.AvailableDrives
-                .Where(d => d.Name != "Dvd" || disc == DiscKind.Data)
+                .Where(d => !d.System && (d.Name != "Dvd" || disc == DiscKind.Data))
                 .Select(d => (IMediaSource)new DriveMediaSource(files, d, LocalServer))
                 .ToList();
         }

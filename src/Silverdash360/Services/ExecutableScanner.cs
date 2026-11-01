@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Silverdash360.Core;
 using Silverdash360.Model;
 using Silverdash360.Native;
@@ -47,7 +48,7 @@ namespace Silverdash360.Services
         {
             this.pace = pace;
             List<ExecutableItem> found = new List<ExecutableItem>();
-            foreach (Drive drive in files.AvailableDrives)
+            foreach (Drive drive in files.AvailableDrives.Where(d => !d.System))
             {
                 foreach (string collection in Collections)
                 {
