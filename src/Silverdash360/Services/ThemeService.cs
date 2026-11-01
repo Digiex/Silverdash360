@@ -93,7 +93,7 @@ namespace Silverdash360.Services
                 new ColourScheme
                 {
                     Id = "xbox360",
-                    Name = "Xbox 360 blades",
+                    Name = "Blades (Default)",
                     Palette = new Theme.Palette
                     {
                         Accent = Rgb(0xD4, 0xE8, 0xFF),
@@ -114,7 +114,7 @@ namespace Silverdash360.Services
                 new ColourScheme
                 {
                     Id = "carbon",
-                    Name = "Carbon",
+                    Name = "Blades (Carbon)",
                     Palette = new Theme.Palette
                     {
                         Accent = Rgb(0xEB, 0xEB, 0xEB),
