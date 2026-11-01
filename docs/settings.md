@@ -6,7 +6,10 @@
 | **Storage** | Everything stored, largest first |
 | **Search** | Find a game or app |
 | **File browser** | Every file on the console's drives |
-| **FTP server** | The console's drives over the network: see [FTP server](#ftp-server) |
+| **FTP server** | The console's drives over the network, on or off now: see [FTP server](#ftp-server) |
+| **Start the FTP server with Silverdash** | Starts it whenever Silverdash360 starts |
+| **FTP user name**, **FTP password** | What FTP clients log in with |
+| **Welcome screen** | The basic settings, as at the first start: see [Welcome screen](#welcome-screen) |
 | **Refresh library** | Reads every package again, for when something is missing or out of date |
 | **Sign in** | Signs a profile in |
 | **System version**, **Language**, **Console time** | The console's |
@@ -14,6 +17,10 @@
 | **Version** | Silverdash360's version, build and commit |
 | **Check for updates** | Looks for a new version: see [Updating](updating.md) |
 | **Return to the Xbox Dashboard** | Leaves Silverdash360 |
+
+## Welcome screen
+
+The welcome screen opens at the first start with the basic settings: whether the FTP server starts with Silverdash360 and, once it does, its user name and password. It opens again after an update that adds basic settings, with those marked **new**. Continue or B goes on to Silverdash360. **Welcome screen** in settings opens it any time.
 
 ## Themes
 
@@ -29,7 +36,9 @@ Every folder and file on the console's drives. A opens a folder, plays a song, v
 
 ## FTP server
 
-The FTP server shares the console's drives while Silverdash360 runs. It's off until you turn it on with A; the setting then shows the address, the user (`xbox`) and a password made up each time it starts.
+The FTP server shares the console's drives while Silverdash360 runs. **FTP server** turns it on and off with A, and shows the address, user name and password while it's on. With **Start the FTP server with Silverdash** on, it starts by itself each time.
+
+The user name is `xbox` and the password six digits made up at the first start; both stay the same until you change them. A on **FTP user name** or **FTP password** opens the console's keyboard to change it.
 
 - Connect with plain FTP, such as FileZilla with **Only use plain FTP**; there's no TLS.
 - Each drive is a folder: `Hdd1`, `Usb0` to `Usb2`, `Mu0`, `Mu1` and `Dvd` (read only).

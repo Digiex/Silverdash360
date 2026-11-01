@@ -97,7 +97,7 @@ namespace Silverdash360.Services.Ftp
                     Reply(331, "Password, please.");
                     return;
                 case "PASS":
-                    loggedIn = user == FtpServer.UserName && argument == server.Password;
+                    loggedIn = user == server.UserName && argument == server.Password;
                     if (loggedIn)
                     {
                         Reply(230, "Logged in.");

@@ -199,7 +199,7 @@ namespace Silverdash360.Debugging
             {
                 { "address", ftp.Address },
                 { "port", ftp.ListeningPort },
-                { "user", FtpServer.UserName },
+                { "user", ftp.UserName },
                 { "password", ftp.Password },
             };
         }

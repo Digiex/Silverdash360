@@ -36,7 +36,7 @@ Copy the folder to the console's hard drive, such as to `Hdd1:\Apps\Silverdash36
 
 ## 5. Start it
 
-Start `default.xex` in that folder with your file manager or launcher. The first start reads every package on the console, which takes a minute or two with a large collection; the games and apps fill in as it goes, and later starts are quick.
+Start `default.xex` in that folder with your file manager or launcher. The first start welcomes you with a few basic settings, such as starting the FTP server with Silverdash360 (see [Welcome screen](settings.md#welcome-screen)), and reads every package on the console, which takes a minute or two with a large collection; the games and apps fill in as it goes, and later starts are quick.
 
 Silverdash360 keeps its settings, the library it read and the box art it downloaded in a `Data` folder next to `default.xex`. Deleting `Data` starts it afresh.
 

@@ -24,16 +24,21 @@ namespace Silverdash360.Services
 
         public static bool IsLoaded { get; private set; }
 
+        /// <summary>Nothing was stored, as on a new install.</summary>
+        public static bool WasEmpty { get; private set; }
+
         /// <summary>Reads the stored values in the background.</summary>
         public static void Load()
         {
             Background.Run(() => AppStorage.ReadText(FileName), delegate(string text, Exception error)
             {
+                WasEmpty = true;
                 foreach (string line in (text ?? "").Split('\n'))
                 {
                     int equals = line.IndexOf('=');
                     if (equals > 0)
                     {
+                        WasEmpty = false;
                         // A value set before the file was read wins.
                         string key = line.Substring(0, equals).Trim();
                         if (!values.ContainsKey(key))
@@ -70,6 +75,12 @@ namespace Silverdash360.Services
             }
             values[key] = value;
             Save();
+        }
+
+        public static int GetInt(string key, int fallback)
+        {
+            int value;
+            return int.TryParse(Get(key, null), out value) ? value : fallback;
         }
 
         public static void SetBool(string key, bool value)

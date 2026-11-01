@@ -112,6 +112,12 @@ namespace Silverdash360.Modules
             Navigate(new Uri("/Pages/ThemePage.xaml", UriKind.Relative));
         }
 
+        /// <summary>The welcome screen with the basic settings.</summary>
+        public void OpenWelcome()
+        {
+            Navigate(new Uri("/Pages/WelcomePage.xaml", UriKind.Relative));
+        }
+
         /// <summary>Offers the update in <see cref="UpdateService.Offered"/>.</summary>
         public void OpenUpdate()
         {

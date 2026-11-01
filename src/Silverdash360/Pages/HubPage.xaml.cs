@@ -118,6 +118,8 @@ namespace Silverdash360.Pages
             clock.Start();
             brandTimer.Start();
             Show(current, 0);
+            Settings.Loaded += OnSettingsLoaded;
+            OfferWelcome();
             CheckForUpdate();
             if (Context.Updates.Offered != null)
             {
@@ -141,6 +143,7 @@ namespace Silverdash360.Pages
             Context.Library.Progress -= OnLibraryProgress;
             Context.Themes.Changed -= OnThemeChanged;
             Context.LegendChanged -= OnLegendChanged;
+            Settings.Loaded -= OnSettingsLoaded;
             sliding.Stop();
             SectionHost.Content = null;
             Wallpaper.Source = null;
@@ -409,13 +412,34 @@ namespace Silverdash360.Pages
 #endif
         }
 
+        private void OnSettingsLoaded(object sender, EventArgs e)
+        {
+            OfferWelcome();
+        }
+
+        // On a new install, or after an update that added basic settings,
+        // the welcome screen opens once the settings are read; an update
+        // found meanwhile waits for it.
+        private void OfferWelcome()
+        {
+            UiIdle.Run(() =>
+            {
+                if (SectionHost.Content != null && BasicSettings.WelcomeDue(Context))
+                {
+                    Context.OpenWelcome();
+                }
+                return false;
+            }, UiIdle.QuietMs);
+        }
+
         // Shows the update found once the user is quiet on the hub; on
         // another page, the hub shows it when it's back.
         private void OfferUpdate()
         {
             UiIdle.Run(() =>
             {
-                if (SectionHost.Content != null && Context.Updates.Offered != null)
+                if (SectionHost.Content != null && Context.Updates.Offered != null &&
+                    !BasicSettings.WelcomeDue(Context))
                 {
                     Context.OpenUpdate();
                 }

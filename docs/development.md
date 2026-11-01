@@ -121,6 +121,7 @@ The library is read the way the console's dashboard reads it:
 ## Extending it
 
 - **A new hub section**: implement `IDashboardModule` (or derive from `DashboardModule`) and add it to `ModuleRegistry`, or call `ModuleRegistry.Register` before the hub is shown. A section gives a view, a header, an order and a legend, and hands the D-pad's left and right edges to the hub with `ForwardEdges`.
+- **A new basic setting**: add a `BasicSetting` to `BasicSettings.All` with `Since` one higher than the newest. Settings lists it, and the welcome screen opens once after the update that brings it, with it marked new.
 - **Telling more apps from games**: add an `ITitleClassifier` to `Library.Classifiers`. Classifiers are asked in order and the first answer wins.
 - **Another content source**: implement `IContentSource`, for example to list packages from a network share, and pass it to `Library`.
 - **A new view of titles**: `TileGrid` takes any `ITileTemplate`. `RowTemplate` makes rows from a `RowData` description, and `CoverTileTemplate` makes covers.

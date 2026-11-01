@@ -1,0 +1,29 @@
+<xbox:XboxApplicationPage x:Class="Silverdash360.Pages.WelcomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:xbox="clr-namespace:Microsoft.Xbox.Controls;assembly=Microsoft.Xbox"
+    xmlns:local="clr-namespace:Silverdash360.Controls"
+    Title="Welcome">
+  <Grid Background="{StaticResource PageBackground}">
+    <Grid Margin="64,40,64,28">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+      <StackPanel Margin="0,0,0,24">
+        <TextBlock FontSize="40" Foreground="White" Text="Welcome to Silverdash360" />
+        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+          <TextBlock FontSize="22" Foreground="{StaticResource SubText}" Text="brought to you by" VerticalAlignment="Center" />
+          <Image Source="/Silverdash360;component/Assets/Digiex.png" Height="44" Margin="16,0,12,0" VerticalAlignment="Center" />
+          <TextBlock FontSize="22" Foreground="{StaticResource Accent}" Text="Digiex.net" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock x:Name="IntroText" FontSize="20" Foreground="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,24,0,0" />
+      </StackPanel>
+      <local:TileGrid x:Name="Rows" Grid.Row="1" />
+      <Grid Grid.Row="2" Height="34">
+        <local:ButtonLegend VerticalAlignment="Center" HorizontalAlignment="Right" Text="A change   B continue" />
+      </Grid>
+    </Grid>
+  </Grid>
+</xbox:XboxApplicationPage>

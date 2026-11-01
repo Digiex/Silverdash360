@@ -59,6 +59,9 @@
     <Compile Include="Pages\ThemePage.xaml.cs"><DependentUpon>Pages\ThemePage.xaml</DependentUpon></Compile>
     <Page Include="Pages\UpdatePage.xaml"><Generator>MSBuild:Compile</Generator></Page>
     <Compile Include="Pages\UpdatePage.xaml.cs"><DependentUpon>Pages\UpdatePage.xaml</DependentUpon></Compile>
+    <Page Include="Pages\WelcomePage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Compile Include="Pages\WelcomePage.xaml.cs"><DependentUpon>Pages\WelcomePage.xaml</DependentUpon></Compile>
+    <Compile Include="Modules\BasicSettings.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Native\NativeBuffer.cs" />

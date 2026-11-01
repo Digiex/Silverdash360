@@ -79,6 +79,7 @@ namespace Silverdash360.Modules
                 new Entry { Title = "Search", Detail = "Find a game or app", Run = Context.OpenSearch },
                 new Entry { Title = "File browser", Detail = "Every file on the console's drives", Run = () => Context.OpenFiles("/") },
                 new Entry { Title = "FTP server", Detail = FtpDetail(), Run = ToggleFtp },
+                new Entry { Title = "Welcome screen", Detail = "The basic settings, as at the first start", Run = Context.OpenWelcome },
                 new Entry { Title = "Refresh library", Detail = library.IsLoading ? "Reading..." : "Read every package again", Run = () => library.Refresh(true) },
                 new Entry { Title = "Sign in", Detail = library.Gamer != null ? "Signed in as " + library.Gamer.Gamertag : "Not signed in", Run = Context.Profiles.ShowSignin },
                 new Entry { Title = "System version", Detail = Safe(() => system.SystemVersion) },
@@ -93,6 +94,18 @@ namespace Silverdash360.Modules
                 new Entry { Title = "Built with Silverlight360", Detail = "github.com/Digiex/Silverlight360" },
                 new Entry { Title = "Return to the Xbox Dashboard", Detail = "Exit Silverdash", Run = system.ExitToDashboard },
             };
+            // The welcome screen's settings, after the FTP server's switch.
+            int basic = entries.IndexOf(entries.First(e => e.Title == "FTP server")) + 1;
+            foreach (BasicSetting setting in BasicSettings.All(Context))
+            {
+                BasicSetting changing = setting;
+                entries.Insert(basic++, new Entry
+                {
+                    Title = setting.Title,
+                    Detail = setting.Value(),
+                    Run = () => changing.Change(Refresh),
+                });
+            }
 #if DEBUG_SERVER
             entries.Insert(3, new Entry { Title = "Debug server", Detail = DebugDetail() });
 #endif
@@ -117,7 +130,7 @@ namespace Silverdash360.Modules
                 return "Off. Press A to share the console's drives.";
             }
             return string.Format("ftp://{0}:{1}  user {2}  password {3}", ftp.Address ?? "this console",
-                                 ftp.ListeningPort, FtpServer.UserName, ftp.Password);
+                                 ftp.ListeningPort, ftp.UserName, ftp.Password);
         }
 
 #if DEBUG_SERVER
@@ -135,20 +148,13 @@ namespace Silverdash360.Modules
 #endif
         private void ToggleFtp()
         {
-            try
+            if (Context.Ftp.IsRunning)
             {
-                if (Context.Ftp.IsRunning)
-                {
-                    Context.Ftp.Stop();
-                }
-                else
-                {
-                    Context.Ftp.Start();
-                }
+                Context.Ftp.Stop();
             }
-            catch (Exception e)
+            else
             {
-                Context.ShowStatus("The FTP server didn't start: " + e.Message);
+                BasicSettings.StartFtp(Context);
             }
             Refresh();
         }

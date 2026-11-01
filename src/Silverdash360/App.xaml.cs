@@ -99,6 +99,16 @@ namespace Silverdash360
             {
                 RootVisual = frame;
             }
+            // The FTP server's user and password are settings, and it can
+            // start with the dashboard.
+            Settings.Loaded += delegate
+            {
+                Context.Ftp.LoadSettings();
+                if (Context.Ftp.AutoStart)
+                {
+                    BasicSettings.StartFtp(Context);
+                }
+            };
             Settings.Load();
             Context.Library.Refresh();
 #if DEBUG_SERVER

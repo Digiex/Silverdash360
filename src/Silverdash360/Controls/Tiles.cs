@@ -273,6 +273,8 @@ namespace Silverdash360.Controls
         public bool Dimmed;
         /// <summary>Shows a padlock in place of art, for something still locked.</summary>
         public bool Locked;
+        /// <summary>Marks it new beside the title, as a setting an update added.</summary>
+        public bool New;
     }
 
     /// <summary>A row with an icon, two lines of text and a detail on the right.</summary>
@@ -329,7 +331,25 @@ namespace Silverdash360.Controls
             }
 
             StackPanel text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            text.Children.Add(Theme.TextBlock(row.Title, 21, Theme.Text));
+            if (row.New)
+            {
+                StackPanel titled = new StackPanel { Orientation = Orientation.Horizontal };
+                titled.Children.Add(Theme.TextBlock(row.Title, 21, Theme.Text));
+                Border mark = new Border
+                {
+                    Background = Theme.Accent,
+                    Padding = new Thickness(7, 1, 7, 2),
+                    Margin = new Thickness(10, 0, 0, 0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Child = Theme.TextBlock("new", 14, Theme.Text),
+                };
+                titled.Children.Add(mark);
+                text.Children.Add(titled);
+            }
+            else
+            {
+                text.Children.Add(Theme.TextBlock(row.Title, 21, Theme.Text));
+            }
             if (!string.IsNullOrEmpty(row.Subtitle))
             {
                 text.Children.Add(Theme.TextBlock(row.Subtitle, 15, Theme.SubText));
