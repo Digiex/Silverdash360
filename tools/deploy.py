@@ -14,6 +14,11 @@ runs from, the build goes to <target>/_update and starts from there, copies
 the changed files into the target and starts that (see Debugging/SelfInstall.cs).
 The first time, that folder gets the whole package; after that only changes.
 
+A native image (.ni.dll) of an assembly being replaced, which the new build
+doesn't have (one built with -NoNGen), is renamed to .old, which the dashboard
+deletes at its next start: an image left beside a new assembly stops the
+runtime as it starts.
+
 Without the dashboard running, give another FTP server with --ftp (a homebrew
 dashboard's, say): the files go straight into the target and you start it yourself.
 """
@@ -90,6 +95,18 @@ class Ftp:
         self.make_dirs(path.rsplit('/', 1)[0])
         self.ftp.storbinary('STOR ' + path, io.BytesIO(data), blocksize=0x10000)
 
+    def set_aside(self, path):
+        """Renames path to path.old, if it's there; whether it was."""
+        try:
+            self.ftp.delete(path + '.old')
+        except ftplib.error_perm:
+            pass
+        try:
+            self.ftp.rename(path, path + '.old')
+        except ftplib.error_perm:
+            return False
+        return True
+
     def close(self):
         try:
             self.ftp.quit()
@@ -109,6 +126,17 @@ def remote_manifest(ftp, folder):
 
 def changed(files, manifest):
     return sorted(name for name, sha in files.items() if manifest.get(name) != sha)
+
+
+def set_aside_stale_images(ftp, folder, names, files):
+    """Renames the native images in folder of the assemblies in names that
+    the build has no image of."""
+    for name in names:
+        if not name.endswith('.dll') or name.endswith('.ni.dll'):
+            continue
+        image = name[:-len('.dll')] + '.ni.dll'
+        if image not in files and ftp.set_aside(folder + '/' + image):
+            log('  %s set aside: this build has no native image of %s' % (image, name))
 
 
 def upload(ftp, package, folder, names, files, deploy_id):
@@ -219,14 +247,18 @@ def main():
         if mode == 'direct':
             names = sorted(files) if args.full else changed(files, target_manifest)
             log('Uploading %d of %d files to %s' % (len(names), len(files), target))
+            set_aside_stale_images(ftp, target, names, files)
             upload(ftp, package, target, names, files, deploy_id)
             launch = target
         else:
             staging = target + '/' + STAGING
             names = sorted(files) if args.full else changed(files, remote_manifest(ftp, staging))
             log('Uploading %d of %d files to %s' % (len(names), len(files), staging))
+            set_aside_stale_images(ftp, staging, names, files)
             upload(ftp, package, staging, names, files, deploy_id)
             install = sorted(files) if args.full else changed(files, target_manifest)
+            # The running build's image can be renamed while it's in use.
+            set_aside_stale_images(ftp, target, install, files)
             marker = ['silverdash360-install 1', 'target ' + target]
             marker += ['file ' + name.replace('/', '\\') for name in install + [MANIFEST, DEPLOY_ID]]
             ftp.write(staging + '/' + MARKER, ('\n'.join(marker) + '\n').encode('utf-8'))

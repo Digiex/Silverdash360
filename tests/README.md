@@ -29,6 +29,8 @@ When the dashboard isn't running, give another FTP server with `--ftp host:port 
 
 A Release build can be deployed to as well once its debug server is on (Settings > **Debug server**); pass `--package src/Silverdash360/bin/Release/xbox` to deploy a Release build. The setting is kept, so the new build starts with the server on. Staging needs the running build's debug server, since that build does the install.
 
+A build made with `-NoNGen` has no native image. deploy.py renames the one already on the console to `Silverdash360.ni.dll.old`, which the dashboard deletes at its next start, since an image beside a newer `Silverdash360.dll` stops the runtime as it starts.
+
 `tools/screenshot.py` saves what the dashboard shows as a PNG: the dashboard draws its screen into a file (`ui.screenshot`), and the script copies it off over the dashboard's FTP server.
 
 ```

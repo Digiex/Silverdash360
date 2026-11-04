@@ -9,7 +9,8 @@ release as its notes.
 
 The zip has only what this repository makes: Silverdash360.dll, the app
 manifests and the splash screens, from the SDK's app-only build
-(Build.ps1 -Release -AppOnly), with no debug server. The package's other
+(Build.ps1 -Release -AppOnly), with the debug server off and no native
+image (XboxNGen makes one only from a whole package). The package's other
 files, default.xex and the Silverlight platform, are the runtime profile's:
 Microsoft's and the donor app's binaries, which aren't ours to hand out.
 Whoever installs it lays the zip over the base package from the Digiex
@@ -31,7 +32,9 @@ Release package, runtime included, in a Silverdash360 folder, as
 Silverdash360-<version>-console.zip in bin\Release\console, for a console
 of your own or for the Digiex thread. It has the donor app's and Microsoft's
 files, so it never goes on GitHub. It's the project's version as it is,
-with no commit, tag or push.
+with no commit, tag or push. It has the native image Build.ps1 makes, so
+the dashboard runs compiled; an update from GitHub later sets the image
+aside, and the dashboard runs interpreted until the next base package.
 
 .EXAMPLE
 .\tools\Release.ps1 -DryRun
@@ -170,8 +173,8 @@ if ($version -ne "$projectVersion") {
     }
 }
 
-# A Release build, without the debug server, which listens without a
-# password: the dashboard's own files alone.
+# A Release build, its debug server (which listens without a password)
+# off: the dashboard's own files alone.
 & (Join-Path $PSScriptRoot 'Build.ps1') -Release -AppOnly -Sdk $Sdk
 if ($LASTEXITCODE -ne 0) {
     throw 'The build failed.'

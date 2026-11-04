@@ -71,6 +71,12 @@ if ($Install) {
         Remove-Item -LiteralPath $data -Recurse -Force
     }
     New-Item -ItemType Directory -Force -Path $installed | Out-Null
+    # An earlier build's native image beside this build's assembly stops the
+    # runtime as it starts: a build made with -NoNGen has none of its own.
+    $built = Split-Path -Parent $xex
+    Get-ChildItem -LiteralPath $installed -Filter '*.ni.dll' | Where-Object {
+        -not (Test-Path -LiteralPath (Join-Path $built $_.Name))
+    } | Remove-Item -Force
     Copy-Item -Path (Join-Path (Split-Path -Parent $xex) '*') -Destination $installed -Recurse -Force
     $xex = Join-Path $installed 'default.xex'
 }

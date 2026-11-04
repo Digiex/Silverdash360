@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using Silverdash360.Controls;
+using Silverdash360.Core;
 using Silverdash360.Debugging;
 using Silverdash360.Model;
+using Silverdash360.Native;
 using Silverdash360.Services;
 using Silverdash360.Services.Ftp;
 
@@ -93,6 +95,13 @@ namespace Silverdash360.Modules
                 new Entry { Title = "Return to the Xbox Dashboard", Detail = "Exit Silverdash", Run = system.ExitToDashboard },
                 new Entry { Title = "Debug server", Detail = DebugDetail(), Run = ToggleDebugServer },
             };
+            // XboxNGen's license asks apps with its native images to name it,
+            // so it's here when the dashboard runs compiled.
+            if (NativeImage())
+            {
+                int built = entries.IndexOf(entries.First(e => e.Title == "Built with Silverlight360")) + 1;
+                entries.Insert(built, new Entry { Title = "XboxNGen", Detail = "github.com/Digiex/Silverlight360-XboxNGen" });
+            }
             // The welcome screen's settings, after the FTP server's switch.
             int basic = entries.IndexOf(entries.First(e => e.Title == "FTP server")) + 1;
             foreach (BasicSetting setting in BasicSettings.All(Context))
@@ -119,6 +128,26 @@ namespace Silverdash360.Modules
         {
             return BuildInfo.Version + ", build " + BuildInfo.Number + " (commit " + BuildInfo.Commit +
                    (BuildInfo.Changed ? ", with changes" : "") + ")";
+        }
+
+        private static bool? nativeImage;
+
+        // Whether the runtime loaded tools/Build.ps1's native image of the dashboard.
+        private static bool NativeImage()
+        {
+            if (nativeImage == null)
+            {
+                try
+                {
+                    nativeImage = Kernel.IsModuleLoaded("Silverdash360.ni.dll");
+                }
+                catch (Exception e)
+                {
+                    Log.Write("Couldn't tell whether the native image is loaded: {0}", e.Message);
+                    nativeImage = false;
+                }
+            }
+            return nativeImage.Value;
         }
 
         private string FtpDetail()

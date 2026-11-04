@@ -73,6 +73,7 @@
     <Compile Include="Native\NativeBuffer.cs" />
     <Compile Include="Native\Xam.cs" />
     <Compile Include="Native\KernelFiles.cs" />
+    <Compile Include="Native\KernelModules.cs" />
     <Compile Include="Native\Net.cs" />
     <Compile Include="Core\Activity.cs" />
     <Compile Include="Core\Background.cs" />

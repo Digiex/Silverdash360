@@ -23,9 +23,12 @@ namespace Silverdash360.Services
     /// and SHA-256 against the release's, and puts its files in the
     /// dashboard's folder: each written beside its file as .new, then the
     /// running file renamed to .old (the system lets a file in use be
-    /// renamed) and the new one into its place. A failure part way puts the
-    /// old files back. The dashboard then starts again from its folder, and
-    /// the next start deletes the .old files.
+    /// renamed) and the new one into its place. A native image (.ni.dll,
+    /// from tools/Build.ps1) of an assembly the release replaces without one
+    /// goes to .old too: an image left beside a new assembly stops the
+    /// runtime at the next start. A failure part way puts the old files back.
+    /// The dashboard then starts again from its folder, and the next start
+    /// deletes the .old files.
     /// </summary>
     public sealed class UpdateService
     {
@@ -393,6 +396,12 @@ namespace Silverdash360.Services
                     swapped.Add(path);
                     files.Rename(path + NewSuffix, path);
                 }
+                foreach (string path in StaleImages(folder, contents))
+                {
+                    DeleteIfThere(path + OldSuffix);
+                    files.Rename(path, path + OldSuffix);
+                    swapped.Add(path);
+                }
             }
             catch (Exception)
             {
@@ -418,6 +427,27 @@ namespace Silverdash360.Services
                 throw;
             }
             return paths.Count;
+        }
+
+        // The native images in the folder of assemblies the update replaces
+        // without one.
+        private List<string> StaleImages(string folder, Dictionary<string, byte[]> contents)
+        {
+            List<string> stale = new List<string>();
+            foreach (string name in contents.Keys)
+            {
+                if (!name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||
+                    name.EndsWith(".ni.dll", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                string image = name.Substring(0, name.Length - 4) + ".ni.dll";
+                if (!contents.ContainsKey(image) && files.Stat(folder + "/" + image) != null)
+                {
+                    stale.Add(folder + "/" + image);
+                }
+            }
+            return stale;
         }
 
         /// <summary>
