@@ -16,7 +16,7 @@ Download the base package, such as `Silverdash360-0.1.2-console.zip`, from the f
 The base package isn't updated with every version, so add the newest one's files to it:
 
 1. Download the zip of the [latest release](https://github.com/Digiex/Silverdash360/releases/latest) on GitHub, such as `Silverdash360-0.1.2.zip`.
-2. Extract everything in it into the base package's `Silverdash360` folder, replacing the files that are there. `LICENSE.md` and `INSTALL.txt` can be left out.
+2. Extract everything in it into the base package's `Silverdash360` folder, replacing the files that are there. `LICENSE.md`, `INSTALL.txt` and `NativeImage.txt` can be left out.
 
 If the latest release has the same version as the base package, there's nothing to add.
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -23,9 +24,12 @@ namespace Silverdash360.Services
     /// and SHA-256 against the release's, and puts its files in the
     /// dashboard's folder: each written beside its file as .new, then the
     /// running file renamed to .old (the system lets a file in use be
-    /// renamed) and the new one into its place. A native image (.ni.dll,
-    /// from tools/Build.ps1) of an assembly the release replaces without one
-    /// goes to .old too: an image left beside a new assembly stops the
+    /// renamed) and the new one into its place. A release's native images
+    /// (.ni.dll) go in only when the folder has the runtime they were made
+    /// against, as NativeImage.txt in the zip records it; otherwise they're
+    /// left out and the dashboard runs interpreted. An installed image of an
+    /// assembly the update replaces without one goes to .old too: an image
+    /// left beside a new assembly, or over another runtime, stops the
     /// runtime at the next start. A failure part way puts the old files back.
     /// The dashboard then starts again from its folder, and the next start
     /// deletes the .old files.
@@ -40,6 +44,10 @@ namespace Silverdash360.Services
 
         // Files in a release's zip that aren't the dashboard's to install.
         private static readonly string[] NotInstalled = { "LICENSE.md", "INSTALL.txt" };
+
+        // The runtime a release's native images were made against: each of
+        // its files with its size, a line each (tools/Release.ps1).
+        private const string RuntimeRecord = "NativeImage.txt";
 
         private readonly XboxFileSystem files;
 
@@ -372,6 +380,18 @@ namespace Silverdash360.Services
         private int Put(Dictionary<string, byte[]> contents)
         {
             string folder = Folder();
+            byte[] record;
+            if (contents.TryGetValue(RuntimeRecord, out record))
+            {
+                contents.Remove(RuntimeRecord);
+            }
+            if (!RuntimeMatches(folder, record))
+            {
+                foreach (string image in contents.Keys.Where(IsImage).ToList())
+                {
+                    contents.Remove(image);
+                }
+            }
             List<string> paths = new List<string>();
             using (NativeBuffer buffer = new NativeBuffer(BlockSize))
             {
@@ -429,6 +449,46 @@ namespace Silverdash360.Services
             return paths.Count;
         }
 
+        private static bool IsImage(string name)
+        {
+            return name.EndsWith(".ni.dll", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Whether the folder has the runtime the release's native images were
+        // made against, by its record. An image over another runtime stops it
+        // as it starts; without one the dashboard runs interpreted.
+        private bool RuntimeMatches(string folder, byte[] record)
+        {
+            if (record == null)
+            {
+                return false;
+            }
+            foreach (string line in Encoding.UTF8.GetString(record, 0, record.Length).Split('\n'))
+            {
+                string entry = line.Trim();
+                if (entry.Length == 0 || entry.StartsWith("#"))
+                {
+                    continue;
+                }
+                int space = entry.LastIndexOf(' ');
+                long size;
+                if (space <= 0 || !long.TryParse(entry.Substring(space + 1), out size))
+                {
+                    Log.Write("Update: {0} has a line it doesn't know: {1}", RuntimeRecord, entry);
+                    return false;
+                }
+                string name = entry.Substring(0, space);
+                FileEntry file = files.Stat(folder + "/" + name);
+                if (file == null || file.Size != size)
+                {
+                    Log.Write("Update: {0} isn't the runtime's the native images were made against ({1}, not {2} bytes); " +
+                              "running interpreted", name, file == null ? "missing" : file.Size + " bytes", size);
+                    return false;
+                }
+            }
+            return true;
+        }
+
         // The native images in the folder of assemblies the update replaces
         // without one.
         private List<string> StaleImages(string folder, Dictionary<string, byte[]> contents)
@@ -436,8 +496,7 @@ namespace Silverdash360.Services
             List<string> stale = new List<string>();
             foreach (string name in contents.Keys)
             {
-                if (!name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||
-                    name.EndsWith(".ni.dll", StringComparison.OrdinalIgnoreCase))
+                if (!name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) || IsImage(name))
                 {
                     continue;
                 }

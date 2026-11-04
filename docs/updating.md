@@ -14,11 +14,11 @@ When there's a new version, it shows what's new in it and asks:
 
 ## How an update installs
 
-The update is checked against the release on GitHub before anything is changed: its size and its SHA-256 must match. Silverdash360 then puts each new file next to the one it replaces, swaps them, and starts again. If a step fails, the old files are put back and it carries on as it was. Your settings and library in the `Data` folder stay as they are.
+The update is checked against the release on GitHub before anything is changed: its size and its SHA-256 must match. Silverdash360 then puts each new file next to the one it replaces, swaps them, and starts again. The release's native image, `Silverdash360.ni.dll` (Silverdash360's code compiled with [XboxNGen](https://github.com/Digiex/Silverlight360-XboxNGen), which runs much faster), goes in only when the console has the runtime it was compiled for, the base package's; otherwise Silverdash360 leaves it out and runs without it, slower. If a step fails, the old files are put back and it carries on as it was. Your settings and library in the `Data` folder stay as they are.
 
 ## Updating by hand
 
-Download the zip of the [latest release](https://github.com/Digiex/Silverdash360/releases/latest) and copy what's in it over the files in Silverdash360's folder on the console, replacing them. The runtime files stay as they are.
+Download the zip of the [latest release](https://github.com/Digiex/Silverdash360/releases/latest) and copy what's in it over the files in Silverdash360's folder on the console, replacing them. The runtime files stay as they are. If you installed Silverdash360 over a runtime you made yourself rather than the base package, and it isn't the same as the one `NativeImage.txt` lists, leave `Silverdash360.ni.dll` out: Silverdash360 doesn't start with it over another runtime.
 
 Version 0.1.0 doesn't look for updates, so updating from it to 0.1.1 or later is done by hand once.
 
