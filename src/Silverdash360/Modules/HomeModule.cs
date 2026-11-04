@@ -46,15 +46,20 @@ namespace Silverdash360.Modules
             recentHeader.Children.Add(summary);
             view.Children.Add(recentHeader);
 
+            // Covers the box front's shape (219 by 300) and a little smaller,
+            // so the selected one, grown about 6%, shows it at its own size.
+            // The spacing keeps five across.
+            CoverTileTemplate covers = new CoverTileTemplate(Context.Images, () => Context.UserIndex);
+            covers.GrowToArtSize(207, 283);
             recent = new TileGrid
             {
                 Lines = 1,
-                TileWidth = 214,
+                TileWidth = 207,
                 Margin = Theme.GrowRoom,
-                TileHeight = 286,
-                Spacing = 20,
+                TileHeight = 283,
+                Spacing = 28,
                 PadOutside = 24,
-                TileTemplate = new CoverTileTemplate(Context.Images, () => Context.UserIndex),
+                TileTemplate = covers,
             };
             Grid.SetRow(recent, 1);
             view.Children.Add(recent);

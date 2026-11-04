@@ -19,6 +19,9 @@ namespace Silverdash360.Controls
         /// <summary>How much the selected tile grows, 1 for not at all.</summary>
         protected double Grow = 1.06;
 
+        /// <summary>The point of the tile it grows from, as a fraction of its size.</summary>
+        protected Point GrowOrigin = new Point(0.5, 0.5);
+
         public abstract FrameworkElement Create(object item);
 
         public void SetSelected(FrameworkElement tile, bool selected, bool focused)
@@ -26,6 +29,7 @@ namespace Silverdash360.Controls
             Border frame = (Border)((Grid)tile).Children[((Grid)tile).Children.Count - 1];
             frame.Opacity = selected ? (focused ? 1 : 0.35) : 0;
             double scale = selected && focused ? Grow : 1;
+            tile.RenderTransformOrigin = GrowOrigin;
             ScaleTransform transform = (ScaleTransform)tile.RenderTransform;
             transform.ScaleX = transform.ScaleY = scale;
             OnSelected(tile, selected && focused);
@@ -35,12 +39,7 @@ namespace Silverdash360.Controls
         {
         }
 
-        /// <summary>
-        /// The tile's root; add content, then call <see cref="Finish"/>. It's
-        /// kept drawn as a bitmap, which a scroll only moves: on a console,
-        /// scrolling the games shelf's covers took 75 ms a frame drawing each
-        /// tile again, and 29 ms with them kept.
-        /// </summary>
+        /// <summary>The tile's root; add content, then call <see cref="Finish"/>.</summary>
         protected static Grid NewTile(Brush background)
         {
             return new Grid
@@ -48,7 +47,6 @@ namespace Silverdash360.Controls
                 Background = background,
                 RenderTransform = new ScaleTransform(),
                 RenderTransformOrigin = new Point(0.5, 0.5),
-                CacheMode = new BitmapCache(),
             };
         }
 
@@ -76,6 +74,27 @@ namespace Silverdash360.Controls
             this.userIndex = userIndex;
         }
 
+        // The Marketplace's box front (boxartlg.jpg).
+        private const int ArtWidth = 219;
+
+        private bool artAtTop;
+
+        /// <summary>
+        /// Grows the selected tile, a little smaller than the box front,
+        /// to show it at its own size, its corner on a whole pixel: the
+        /// platform's scaling by a few percent, or a picture between pixels,
+        /// smears every pixel. Tiles at whole pixels are assumed, as a grid
+        /// places them.
+        /// </summary>
+        public void GrowToArtSize(int tileWidth, int tileHeight)
+        {
+            Grow = (double)ArtWidth / tileWidth;
+            double wider = ArtWidth - tileWidth;
+            double taller = tileHeight * Grow - tileHeight;
+            GrowOrigin = new Point(Math.Round(wider / 2) / wider, Math.Round(taller / 2) / taller);
+            // The art's top on the tile's: centred, it would sit between pixels.
+            artAtTop = true;
+        }
         public override FrameworkElement Create(object item)
         {
             TitleEntry title = (TitleEntry)item;
@@ -84,7 +103,11 @@ namespace Silverdash360.Controls
             // Until it's there, the kind's cover with the title's icon under
             // it; a tile scrolled to is made in the frame that shows it, so
             // the cover isn't made when it would never be seen.
-            Image art = new Image { Stretch = Stretch.UniformToFill };
+            Image art = new Image
+            {
+                Stretch = Stretch.UniformToFill,
+                VerticalAlignment = artAtTop ? VerticalAlignment.Top : VerticalAlignment.Center,
+            };
             Covers.Cover cover = null;
             images.BoxArt(title, delegate(ImageSource source)
             {

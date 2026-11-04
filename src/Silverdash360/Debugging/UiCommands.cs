@@ -272,6 +272,10 @@ namespace Silverdash360.Debugging
                     { "items", grid.Items.Count },
                     { "selected", grid.SelectedIndex },
                     { "selectedItem", title != null ? (object)LibraryCommands.TitleSummary(title) : item != null ? item.ToString() : null },
+                    { "tiles", grid.RealizedTiles },
+                    { "cachedTiles", grid.CachedTiles },
+                    { "surfaceCached", grid.SurfaceCached },
+                    { "scrolledTo", grid.ScrolledTo.X + "," + grid.ScrolledTo.Y },
                 });
             }
             return state;

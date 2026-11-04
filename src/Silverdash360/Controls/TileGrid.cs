@@ -117,10 +117,6 @@ namespace Silverdash360.Controls
 
             viewport.Clip = new RectangleGeometry();
             surface.RenderTransform = scroll;
-            if (Motion.CacheGrids)
-            {
-                surface.CacheMode = new BitmapCache();
-            }
             viewport.Children.Add(surface);
             emptyText.FontSize = 24;
             emptyText.Opacity = 0.7;
@@ -574,7 +570,74 @@ namespace Silverdash360.Controls
             scrollStep.From = -from;
             scrollStep.To = -target;
             scrollStep.Duration = TimeSpan.FromMilliseconds(Motion.ScrollMs);
+            CacheTilesWhileMoving();
             scrollAnimation.Begin();
+        }
+
+        // While the grid scrolls, each tile, and the surface they're on
+        // (Motion.CacheGrids), is kept drawn as a bitmap, which the scroll
+        // only moves: on a console the games shelf's covers took 75 ms a
+        // frame drawn again each frame, and 29 ms kept. A kept bitmap that's
+        // scaled or between pixels is softer than the tiles drawn, so once
+        // the grid is still they're drawn as they are again.
+        private const int SettleMs = 400;
+
+        private bool tilesCached;
+        private bool settleWaiting;
+        private int lastScroll;
+
+        private void CacheTilesWhileMoving()
+        {
+            lastScroll = Environment.TickCount;
+            if (!tilesCached)
+            {
+                SetTilesCached(true);
+            }
+            if (!settleWaiting)
+            {
+                settleWaiting = true;
+                UiIdle.Run(() =>
+                {
+                    if (Environment.TickCount - lastScroll < SettleMs)
+                    {
+                        return true;
+                    }
+                    settleWaiting = false;
+                    SetTilesCached(false);
+                    return false;
+                }, 0);
+            }
+        }
+
+        /// <summary>How the grid is drawn now, for the debug server: tiles kept as bitmaps, the surface, where it's scrolled to.</summary>
+        public int CachedTiles
+        {
+            get
+            {
+                int count = 0;
+                foreach (FrameworkElement tile in realized.Values)
+                {
+                    if (tile.CacheMode != null)
+                    {
+                        count++;
+                    }
+                }
+                return count;
+            }
+        }
+
+        public int RealizedTiles { get { return realized.Count; } }
+        public bool SurfaceCached { get { return surface.CacheMode != null; } }
+        public Point ScrolledTo { get { return new Point(scroll.X, scroll.Y); } }
+
+        private void SetTilesCached(bool cached)
+        {
+            tilesCached = cached;
+            surface.CacheMode = cached && Motion.CacheGrids ? new BitmapCache() : null;
+            foreach (FrameworkElement tile in realized.Values)
+            {
+                tile.CacheMode = cached ? new BitmapCache() : null;
+            }
         }
 
         private void Realize()
@@ -657,6 +720,7 @@ namespace Silverdash360.Controls
                 }
                 tile.Width = Width0;
                 tile.Height = TileHeight;
+                tile.CacheMode = tilesCached ? new BitmapCache() : null;
                 Point at = PositionOf(index);
                 Canvas.SetLeft(tile, at.X);
                 Canvas.SetTop(tile, at.Y);

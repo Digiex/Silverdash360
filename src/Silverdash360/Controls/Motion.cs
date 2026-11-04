@@ -37,9 +37,10 @@ namespace Silverdash360.Controls
         public static bool PlatformPages = false;
 
         /// <summary>
-        /// Whether a grid draws its tiles into one cached bitmap, which makes
-        /// a scroll a move of one bitmap but redraws them all when anything
-        /// on a tile changes. Taken by grids made after it's changed.
+        /// Whether a grid draws its tiles into one cached bitmap while it
+        /// scrolls, which makes a scroll a move of one bitmap but redraws them
+        /// all when anything on a tile changes. Still, a grid is drawn as it
+        /// is, as a kept bitmap is softer. Taken from the next scroll.
         /// </summary>
         public static bool CacheGrids = true;
 
