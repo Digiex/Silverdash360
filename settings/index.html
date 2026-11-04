@@ -77,6 +77,8 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#ftp-server">FTP server</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#debug-server">Debug server</a>
+    </li>
     </ul>
                   </li>
               </ul>
@@ -188,8 +190,16 @@
 <td>Looks for a new version: see <a href="../updating/">Updating</a></td>
 </tr>
 <tr>
+<td><strong>XboxNGen</strong></td>
+<td>Shown when Silverdash360's code runs compiled, as native code <a href="https://github.com/Digiex/Silverlight360-XboxNGen">XboxNGen</a> made</td>
+</tr>
+<tr>
 <td><strong>Return to the Xbox Dashboard</strong></td>
 <td>Leaves Silverdash360</td>
+</tr>
+<tr>
+<td><strong>Debug server</strong></td>
+<td>For testing and development, off unless you turn it on: see <a href="#debug-server">Debug server</a>. With it on, anyone on your network can control Silverdash360</td>
 </tr>
 </tbody>
 </table>
@@ -223,6 +233,9 @@
 <li>You can download, upload, rename and delete, and make and remove folders.</li>
 <li>FTP sends the password unencrypted, so use it on a network you trust.</li>
 </ul>
+<h2 id="debug-server">Debug server<a class="headerlink" href="#debug-server" title="Permanent link">&para;</a></h2>
+<p><strong>Debug server</strong>, the last setting, turns on a TCP port (4601) that takes commands from a PC: what tests, <code>tools\deploy.py</code> and the other tools in the <a href="https://github.com/Digiex/Silverdash360">repository</a> use (see <a href="../development/#debug-server-and-tests">Debug server and tests</a>). A turns it on and off at once, and it stays as you left it the next time Silverdash360 starts. It's off unless you turn it on; builds made for testing have it on.</p>
+<p><strong>It has no password.</strong> While it's on, anyone on your network can control Silverdash360, read the files on the console's drives and start programs. Leave it off unless you're testing or developing, and then use it on a network you trust.</p>
               
             </div>
           </div><footer>
