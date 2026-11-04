@@ -456,6 +456,9 @@ namespace Silverdash360.Services.Files
         public uint Attributes { get { return buffer[8]; } }
         public uint IoStatus { get { return buffer[24]; } }
 
+        /// <summary>The name alone, an ANSI_STRING, as ObCreateSymbolicLink takes it.</summary>
+        public uint String { get { return buffer[0]; } }
+
         public void Dispose()
         {
             buffer.Dispose();

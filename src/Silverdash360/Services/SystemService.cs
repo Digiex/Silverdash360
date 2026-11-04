@@ -2,6 +2,7 @@ using System;
 using Silverdash360.Core;
 using Silverdash360.Model;
 using Silverdash360.Native;
+using Silverdash360.Services.Files;
 
 namespace Silverdash360.Services
 {
@@ -39,18 +40,48 @@ namespace Silverdash360.Services
         /// </summary>
         public string Launch(ExecutableItem executable)
         {
+            if (executable == Library.XboxDashboard)
+            {
+                ExitToDashboard();
+                return "Couldn't start the Xbox Dashboard.";
+            }
             Log.Write("Launching {0}", executable.DevicePath);
             Xam.XamLoaderLaunchTitleEx(executable.DevicePath, executable.DeviceFolder, null, 0);
             return "Couldn't start " + executable.Name + ".";
         }
 
-        /// <summary>Returns to the console's own dashboard.</summary>
+        // How xam starts its system apps: their folder linked as XSYSLAUNCH:
+        // and that given as the D: drive (xam 17559, 0x816EFED0).
+        private const string SystemLaunchLink = @"\System??\XSYSLAUNCH:";
+        private const string SystemLaunchDrive = @"XSYSLAUNCH:\";
+
+        /// <summary>
+        /// Starts the console's own dashboard, from the flash, even where
+        /// Silverdash360 is the default. Leaving for the default dashboard
+        /// starts Silverdash360 again then, and DashLaunch (3.x) swaps any
+        /// start of dash.xex for its Default item too, unless the right
+        /// bumper is held or it's a system launch as xam makes one: its D:
+        /// drive XSYSLAUNCH:\ (launch.xex's XamLoaderLaunchTitleEx hook,
+        /// 0x91F091F0). So it's started as one.
+        /// </summary>
         public void ExitToDashboard()
         {
-            // By its path in the flash: leaving for the default dashboard
-            // starts Silverdash360 again where it's been made the default.
-            Log.Write("Returning to the console's dashboard");
-            Launch(Library.XboxDashboard);
+            ExecutableItem dash = Library.XboxDashboard;
+            Log.Write("Returning to the console's dashboard, {0}", dash.DevicePath);
+            using (ObjectName link = new ObjectName(SystemLaunchLink))
+            using (ObjectName folder = new ObjectName(dash.DeviceFolder))
+            {
+                // One left by an earlier start would point elsewhere.
+                Kernel.ObDeleteSymbolicLink(link.String);
+                int status = Kernel.ObCreateSymbolicLink(link.String, folder.String);
+                if (status < 0)
+                {
+                    Log.Write("Couldn't link {0} to {1}: {2:X8}", SystemLaunchLink, dash.DeviceFolder, status);
+                    Xam.XamLoaderLaunchTitleEx(dash.DevicePath, dash.DeviceFolder, null, 0);
+                    return;
+                }
+            }
+            Xam.XamLoaderLaunchTitleEx(dash.DevicePath, SystemLaunchDrive, null, 0);
         }
 
         public string SystemVersion
