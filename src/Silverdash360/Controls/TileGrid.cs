@@ -77,6 +77,10 @@ namespace Silverdash360.Controls
         private readonly TranslateTransform scroll = new TranslateTransform();
         private readonly TextBlock emptyText = new TextBlock();
         private readonly Dictionary<int, FrameworkElement> realized = new Dictionary<int, FrameworkElement>();
+
+        /// <summary>Tiles made by every grid, and the time that took, for the debug server's timings.</summary>
+        public static int TilesMade;
+        public static int TileMakingMs;
         // The template the tiles on screen were made with.
         private ITileTemplate tilesTemplate;
         // The items' TileKeys, each worked out when first needed: a key
@@ -644,7 +648,10 @@ namespace Silverdash360.Controls
                 }
                 else
                 {
+                    int making = Environment.TickCount;
                     tile = TileTemplate.Create(items[index]);
+                    TilesMade++;
+                    TileMakingMs += Environment.TickCount - making;
                     tilesTemplate = TileTemplate;
                     surface.Children.Add(tile);
                 }

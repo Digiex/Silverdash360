@@ -509,6 +509,9 @@ namespace Silverdash360.Debugging
             private readonly List<int> gaps = new List<int>();
             private int last;
             private int stepped;
+            private int stepMs;
+            private int tilesMade;
+            private int tileMakingMs;
             private volatile bool finished;
 
             /// <summary>Done once a frame until it returns false or Steps are done.</summary>
@@ -520,6 +523,8 @@ namespace Silverdash360.Debugging
             public void Start()
             {
                 last = Environment.TickCount;
+                tilesMade = TileGrid.TilesMade;
+                tileMakingMs = TileGrid.TileMakingMs;
                 CompositionTarget.Rendering += OnRendering;
             }
 
@@ -536,7 +541,10 @@ namespace Silverdash360.Debugging
                 last = now;
                 if (Step != null && !finished)
                 {
-                    if (stepped >= Steps || !Step())
+                    int stepping = Environment.TickCount;
+                    bool more = stepped < Steps && Step();
+                    stepMs += Environment.TickCount - stepping;
+                    if (!more)
                     {
                         finished = true;
                     }
@@ -561,6 +569,10 @@ namespace Silverdash360.Debugging
                     { "frameMs95", sorted.Count > 0 ? sorted[Math.Min(sorted.Count - 1, sorted.Count * 95 / 100)] : 0 },
                     { "frameMsMax", sorted.Count > 0 ? sorted[sorted.Count - 1] : 0 },
                     { "framesOver50ms", gaps.Count(g => g > 50) },
+                    // The steps' own work (a press's handler), and of it the tiles made.
+                    { "stepMs", stepMs },
+                    { "tilesMade", TileGrid.TilesMade - tilesMade },
+                    { "tileMakingMs", TileGrid.TileMakingMs - tileMakingMs },
                 };
             }
         }
