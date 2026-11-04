@@ -33,6 +33,53 @@ namespace Silverdash360.Debugging
             commands.Add("cache.load", "", "Reads the library cache from storage, as at a start.", r => CacheLoad());
             commands.Add("library.profile", "[nobody]", "The read a sign-in (or with nobody, a sign-out) makes, timed step by step, without showing it.",
                          r => Library.TimeProfileRead(r.Arg(0, "") == "nobody"));
+            commands.Add("library.types", "[parallel]",
+                         "Lists the types a start lists again, one after another or all at once, timed.", Types);
+        }
+
+        // How long the console takes over the listings a start makes, and
+        // whether they overlap when made at once.
+        private JsonObject Types(DebugRequest request)
+        {
+            bool parallel = request.Arg(0, "") == "parallel";
+            XamContentSource source = new XamContentSource();
+            uint[] types = Library.StartTypes;
+            int[] counts = new int[types.Length];
+            int[] ms = new int[types.Length];
+            int start = Environment.TickCount;
+            Thread[] threads = new Thread[types.Length];
+            for (int i = 0; i < types.Length; i++)
+            {
+                int index = i;
+                ThreadStart list = delegate
+                {
+                    int at = Environment.TickCount;
+                    counts[index] = source.EnumerateType(0, types[index], 0).Count;
+                    ms[index] = Environment.TickCount - at;
+                };
+                if (parallel)
+                {
+                    threads[i] = new Thread(list) { IsBackground = true, Name = "List type" };
+                    threads[i].Start();
+                }
+                else
+                {
+                    list();
+                }
+            }
+            if (parallel)
+            {
+                foreach (Thread thread in threads)
+                {
+                    thread.Join();
+                }
+            }
+            List<object> each = new List<object>();
+            for (int i = 0; i < types.Length; i++)
+            {
+                each.Add(new JsonObject { { "type", types[i].ToString("X8") }, { "packages", counts[i] }, { "ms", ms[i] } });
+            }
+            return new JsonObject { { "parallel", parallel }, { "ms", Environment.TickCount - start }, { "types", each } };
         }
 
         private JsonObject Status()
@@ -150,15 +197,24 @@ namespace Silverdash360.Debugging
             return status;
         }
 
-        private static object CacheLoad()
+        // The console's packages, and the signed-in profile's own, which are
+        // kept in a file of their own: together what the library shows.
+        private object CacheLoad()
         {
             int start = Environment.TickCount;
             LibraryCache.Contents contents = new LibraryCache().Load(null);
+            List<ContentItem> content = new List<ContentItem>(contents.Content);
+            Gamer gamer = Library.Gamer;
+            if (gamer != null)
+            {
+                content.AddRange(LibraryCache.ForProfile(gamer.OfflineXuid).Load(null).Content);
+            }
             return new JsonObject
             {
                 { "loadMs", Environment.TickCount - start },
-                { "content", contents.Content.Count },
-                { "withMetadata", contents.Content.Count(c => c.Metadata != null) },
+                { "content", content.Count },
+                { "shared", contents.Content.Count },
+                { "withMetadata", content.Count(c => c.Metadata != null) },
                 { "executables", contents.Executables.Count },
             };
         }

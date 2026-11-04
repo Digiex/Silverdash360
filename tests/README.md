@@ -111,10 +111,11 @@ python tests/debugclient.py 192.168.1.20
 |---|---|
 | `info`, `memory [collect]`, `log [count]` | The console, memory (managed and the kernel's counts), the latest log lines. |
 | `library`, `library.titles`, `library.title`, `library.content`, `library.search` | What the library holds. |
-| `library.refresh [full]`, `library.wait`, `cache.load` | Refreshing, and reading the cache. |
+| `library.refresh [full]`, `library.wait`, `cache.load` | Refreshing, and reading the cache: the console's packages and the signed-in profile's. |
+| `library.types [parallel]` | The listings a start makes, one after another or at once, timed. |
 | `xam.*`, `net.address`, `fs.*` | The console's functions, called directly. Only reads. |
 | `ui.state`, `ui.section`, `ui.navigate`, `ui.back`, `ui.press` | What's on screen, and driving it. |
-| `ui.fps`, `ui.scroll` | Frame rate when idle, and while moving a grid's selection a step per frame. |
+| `ui.fps`, `ui.scroll` | Frame rate when idle, and while moving a grid's selection a step per frame, with the steps' own work and the tiles made. |
 | `bench.list`, `bench <name> [iterations]` | Timed runs of the dashboard's work. |
 | `ui.timeline <button> [ms]`, `ui.motion [name value]...` | What a press costs: its own work, the first frame after it, a page's arrival and readiness, the frame gaps; and the animation settings, changed live. |
 | `media.sources`, `media.search`, `media.add <url>`, `media.list`, `media.play`, `media.state`, `media.next` | The media section: sources, media servers, folders, playing and what the player is doing. |
