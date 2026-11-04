@@ -33,6 +33,7 @@ namespace Silverdash360.Debugging
         {
             commands.Add("app.location", "", "Where the dashboard runs from, where it's kept otherwise, and the build's deploy ID.", r => Location());
             commands.Add("app.launch", "[path]", "Starts the default.xex in a folder (this one by default), ending this run.", Launch);
+            commands.Add("xex.probe", "<name or path> [flags]", "XexGetModuleHandle of a module, then XexLoadImage of it (unloaded again if this loaded it).", Probe);
             commands.Add("net.offline", "[off|dns|noroute]",
                          "Makes requests to the internet fail as on a console without it (see Http.OfflineMode); with nothing, says which.", r =>
             {
@@ -57,6 +58,47 @@ namespace Silverdash360.Debugging
                 context.Ftp.Stop();
                 return null;
             });
+        }
+
+        // 0x195: NTSTATUS XexGetModuleHandle(PCSTR name, PHANDLE)
+        [System.Runtime.InteropServices.DllImport("xboxkrnl.exe", EntryPoint = "#405")]
+        private static extern int XexGetModuleHandle(uint name, uint handle);
+
+        // 0x199: NTSTATUS XexLoadImage(PCSTR path, DWORD flags, DWORD minimumVersion, PHANDLE)
+        [System.Runtime.InteropServices.DllImport("xboxkrnl.exe", EntryPoint = "#409")]
+        private static extern int XexLoadImage(uint path, uint flags, uint minimumVersion, uint handle);
+
+        // 0x1A1: NTSTATUS XexUnloadImage(HANDLE)
+        [System.Runtime.InteropServices.DllImport("xboxkrnl.exe", EntryPoint = "#417")]
+        private static extern int XexUnloadImage(uint handle);
+
+        private JsonObject Probe(DebugRequest r)
+        {
+            string target = r.Args[0];
+            uint flags = r.Args.Count > 1 ? Convert.ToUInt32(r.Args[1], 16) : 8;
+            string name = target.Substring(target.LastIndexOf('\\') + 1);
+            using (NativeBuffer text = new NativeBuffer(Encoding.UTF8.GetBytes(name + "\0")))
+            using (NativeBuffer path = new NativeBuffer(Encoding.UTF8.GetBytes(target + "\0")))
+            using (NativeBuffer handle = new NativeBuffer(8))
+            {
+                int found = XexGetModuleHandle(text.Address, handle.Address);
+                uint before = handle.U32(0);
+                handle.SetU32(4, 0);
+                int loaded = XexLoadImage(path.Address, flags, 0, handle.Address + 4);
+                uint after = handle.U32(4);
+                if (loaded >= 0 && before == 0 && after != 0)
+                {
+                    XexUnloadImage(after);
+                }
+                return new JsonObject
+                {
+                    { "name", name },
+                    { "getModuleHandle", found.ToString("X8") },
+                    { "handleBefore", before.ToString("X8") },
+                    { "loadImage", loaded.ToString("X8") },
+                    { "handle", after.ToString("X8") },
+                };
+            }
         }
 
         private JsonObject Location()
