@@ -51,6 +51,11 @@ committing, pushing or publishing.
 .\tools\Release.ps1 -Bump Minor
 
 .EXAMPLE
+.\tools\Release.ps1 -Highlight 'Huge performance improvements'
+
+Puts the line at the top of the notes, which the update screen shows first.
+
+.EXAMPLE
 .\tools\Release.ps1 -Console
 
 Makes the zip to copy to your own console, runtime and all.
@@ -68,7 +73,10 @@ param(
     # releases nothing.
     [switch]$Console,
     # Without the native image: no xenia-edge needed.
-    [switch]$NoNGen
+    [switch]$NoNGen,
+    # Lines for the top of the notes, above the commits, such as what's
+    # biggest in the release: the update screen shows the notes' first lines.
+    [string[]]$Highlight = @()
 )
 
 $ErrorActionPreference = 'Stop'
@@ -296,6 +304,10 @@ foreach ($candidate in ($released | Sort-Object Version -Descending)) {
 }
 $range = if ($previous) { "$previous..$commit" } else { $commit }
 $notes = @()
+if ($Highlight) {
+    $notes += $Highlight
+    $notes += ''
+}
 $notes += if ($previous) { "## Changes since $previous" } else { '## Changes' }
 $notes += ''
 $notes += Invoke-Git log $range --no-merges -E --invert-grep '--grep=^Version [0-9]+\.[0-9]+\.[0-9]+$' --format='- %s (%h)'
