@@ -401,16 +401,12 @@ namespace Silverdash360.Services
             }
         }
 
-        // Pixels looked at by the blank check: one in this many. An icon with
-        // something to show has more of it than a few pixels, and the check
-        // is interpreted, on the UI thread.
-        private const int BlankStride = 7;
-
-        // No pixel looked at that isn't fully transparent.
+        // No pixel that isn't fully transparent. Every pixel is looked at, so
+        // an icon with only a little drawn on it isn't taken for blank.
         private static bool IsBlank(BitmapSource bitmap)
         {
             int[] pixels = new WriteableBitmap(bitmap).Pixels;
-            for (int i = 0; i < pixels.Length; i += BlankStride)
+            for (int i = 0; i < pixels.Length; i++)
             {
                 if ((pixels[i] & unchecked((int)0xFF000000)) != 0)
                 {
