@@ -37,9 +37,13 @@ namespace Silverdash360.Model
             get { return string.Equals(Collection, "Apps", StringComparison.OrdinalIgnoreCase); }
         }
 
+        private string location;
+
+        /// <summary>Where it is, such as "Hdd1 Apps", unless something else is said.</summary>
         public string Location
         {
-            get { return Drive + " " + Collection; }
+            get { return location ?? Drive + " " + Collection; }
+            set { location = value; }
         }
 
         public override string ToString()

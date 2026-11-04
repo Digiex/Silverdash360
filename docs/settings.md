@@ -19,7 +19,7 @@
 | **Version** | Silverdash360's version, build and commit |
 | **Check for updates** | Looks for a new version: see [Updating](updating.md) |
 | **XboxNGen** | Shown when Silverdash360's code runs compiled, as native code [XboxNGen](https://github.com/Digiex/Silverlight360-XboxNGen) made |
-| **Return to the Xbox Dashboard** | Leaves Silverdash360 |
+| **Return to the Xbox Dashboard** | Leaves Silverdash360 for the console's own dashboard, as **Xbox Dashboard** in apps does, even where Silverdash360 is the default dashboard |
 | **Debug server** | For testing and development, off unless you turn it on: see [Debug server](#debug-server). With it on, anyone on your network can control Silverdash360 |
 
 ## Welcome screen

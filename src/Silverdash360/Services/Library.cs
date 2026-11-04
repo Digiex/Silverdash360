@@ -816,6 +816,24 @@ namespace Silverdash360.Services
         };
 
 
+        /// <summary>
+        /// The console's own dashboard, in the flash, always among the apps.
+        /// It's started by its path: leaving for the default dashboard
+        /// starts Silverdash360 again where it's been made the default, as
+        /// with DashLaunch.
+        /// </summary>
+        public static readonly ExecutableItem XboxDashboard = new ExecutableItem
+        {
+            Path = "/Flash/dash.xex",
+            DevicePath = @"\Device\Flash\dash.xex",
+            DeviceFolder = @"\Device\Flash",
+            Name = "Xbox Dashboard",
+            Collection = "Apps",
+            Drive = "Flash",
+            Location = "Built into the console",
+            TitleId = 0xFFFE07D1,
+        };
+
         // Lists the types at once, each on a thread of its own, in the types'
         // order. A listing takes the console over two seconds however few
         // packages it finds, and listings at once overlap: on a console the
@@ -1450,6 +1468,9 @@ namespace Silverdash360.Services
             at = Environment.TickCount;
             AddHomebrewPackages(homebrew, found, all);
             SplitGames(all);
+            TitleEntry dashboard = new TitleEntry(XboxDashboard.TitleId, "xex:" + XboxDashboard.Path);
+            dashboard.Executables.Add(XboxDashboard);
+            all.Add(dashboard);
             int splitMs = Environment.TickCount - at;
             at = Environment.TickCount;
 

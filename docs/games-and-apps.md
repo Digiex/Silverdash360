@@ -2,6 +2,8 @@
 
 The **games** and **apps** sections are shelves of everything installed on the console's hard drive and USB drives. Each title has its box art from the Xbox Marketplace, where the console's own dashboard gets it, or the package's own picture.
 
+**Xbox Dashboard** is always among the apps: it starts the console's own dashboard from its flash memory. It starts that dashboard even where Silverdash360 is set up as the default one, as with DashLaunch, which leaving for the default dashboard wouldn't.
+
 | | |
 |---|---|
 | ![Games as covers](images/games-covers.png) | ![Games as a list](images/games-list.png) |

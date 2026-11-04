@@ -47,8 +47,10 @@ namespace Silverdash360.Services
         /// <summary>Returns to the console's own dashboard.</summary>
         public void ExitToDashboard()
         {
+            // By its path in the flash: leaving for the default dashboard
+            // starts Silverdash360 again where it's been made the default.
             Log.Write("Returning to the console's dashboard");
-            Xam.XamLoaderLaunchTitle(null, 0);
+            Launch(Library.XboxDashboard);
         }
 
         public string SystemVersion
