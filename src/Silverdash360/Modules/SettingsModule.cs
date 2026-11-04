@@ -3,9 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using Silverdash360.Controls;
-#if DEBUG_SERVER
 using Silverdash360.Debugging;
-#endif
 using Silverdash360.Model;
 using Silverdash360.Services;
 using Silverdash360.Services.Ftp;
@@ -93,6 +91,7 @@ namespace Silverdash360.Modules
                 new Entry { Title = "Digiex", Detail = "digiex.net" },
                 new Entry { Title = "Built with Silverlight360", Detail = "github.com/Digiex/Silverlight360" },
                 new Entry { Title = "Return to the Xbox Dashboard", Detail = "Exit Silverdash", Run = system.ExitToDashboard },
+                new Entry { Title = "Debug server", Detail = DebugDetail(), Run = ToggleDebugServer },
             };
             // The welcome screen's settings, after the FTP server's switch.
             int basic = entries.IndexOf(entries.First(e => e.Title == "FTP server")) + 1;
@@ -106,9 +105,6 @@ namespace Silverdash360.Modules
                     Run = () => changing.Change(Refresh),
                 });
             }
-#if DEBUG_SERVER
-            entries.Insert(3, new Entry { Title = "Debug server", Detail = DebugDetail() });
-#endif
             int selected = Math.Max(0, list.SelectedIndex);
             list.Items = entries.Cast<object>().ToList();
             list.SelectedIndex = selected;
@@ -136,19 +132,29 @@ namespace Silverdash360.Modules
                                  ftp.ListeningPort, ftp.UserName, ftp.Password);
         }
 
-#if DEBUG_SERVER
+        // It takes no password, so the detail says what turning it on means;
+        // turning it on says it again in the footer.
         private string DebugDetail()
         {
             DebugServer server = DebugServer.Current;
             if (server == null || !server.IsRunning)
             {
-                return "Not running";
+                return DebugServer.Enabled ? "On, but not running: see the log" : "Off. Anyone on the network could control it";
             }
-            return string.Format("{0}:{1}, {2} connected. A development build.", Context.Ftp.Address ?? "this console",
-                                 server.ListeningPort, server.ClientCount);
+            return string.Format("On at {0}:{1}, no password", Context.Ftp.Address ?? "this console", server.ListeningPort);
         }
 
-#endif
+        private void ToggleDebugServer()
+        {
+            DebugServer.Enabled = !DebugServer.Enabled;
+            DebugServer.Apply(Context);
+            if (DebugServer.Enabled)
+            {
+                Context.ShowStatus("Debug server on: anyone on the network can control Silverdash, without a password.");
+            }
+            Refresh();
+        }
+
         private void ToggleFtp()
         {
             if (Context.Ftp.IsRunning)

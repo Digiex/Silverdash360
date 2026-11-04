@@ -3,7 +3,7 @@
     python tools/deploy.py 192.168.1.20
     python tools/deploy.py 192.168.1.20 -- --suite functional --quick
 
-With the dashboard running (a build with the debug server), it asks the
+With the dashboard running and its debug server on, it asks the
 dashboard where it runs from, starts the dashboard's FTP server, uploads the
 files that changed since the last deploy, and starts the new build; then it
 waits for the new build's debug server and checks it's the one uploaded.
@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tests'))
 
 from debugclient import DEFAULT_PORT, CommandError, DebugClient, parse_address  # noqa: E402
 
-# The Debug build, which has the debug server deploying needs.
+# The Debug build, whose debug server (which deploying needs) starts on.
 PACKAGE = os.path.join(ROOT, 'src', 'Silverdash360', 'bin', 'Debug', 'xbox')
 FALLBACK_TARGET = '/Hdd1/Apps/Silverdash360'
 STAGING = '_update'

@@ -5,9 +5,10 @@
     python tests/run_tests.py 192.168.1.20 --suite performance --save-baseline perf-console.json
     python tests/run_tests.py 192.168.1.20 --baseline perf-console.json --json results.json
 
-The dashboard has to be built with the debug server (the default for now) and
-running. Tests live in tests/suites/: each module's functions marked with
-@test are run in the order they're written. See tests/README.md.
+The dashboard has to be running with its debug server on (the default in Debug
+builds; Settings > Debug server in Release ones). Tests live in tests/suites/:
+each module's functions marked with @test are run in the order they're
+written. See tests/README.md.
 """
 
 import argparse

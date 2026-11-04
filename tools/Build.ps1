@@ -5,11 +5,12 @@ Builds Silverdash360 into an Xbox 360 package.
 .DESCRIPTION
 Runs the Silverlight360 SDK's Build-XboxApp.ps1 on the dashboard, as one of:
 
--Debug    with the debug server (a TCP port for testing on a console, see
+-Debug    with the debug server on (a TCP port for testing on a console, see
           tests\README.md), into src\Silverdash360\bin\Debug\xbox\. What
           tools\deploy.py, tools\Run.ps1 and the tests use.
--Release  without it, into src\Silverdash360\bin\Release\xbox\. For builds
-          that go to others: the debug server listens without a password.
+-Release  with it off until Settings > Debug server turns it on, into
+          src\Silverdash360\bin\Release\xbox\. For builds that go to others:
+          the debug server listens without a password.
 
 -AppOnly writes the dashboard's own files alone, without the runtime, into
 bin\<Debug|Release>\app\ (see tools\Release.ps1).
@@ -24,9 +25,9 @@ variable, else a Silverlight360 clone next to this repository.
 .\tools\Build.ps1 -Release
 #>
 param(
-    # With the debug server, for testing.
+    # With the debug server on, for testing.
     [switch]$Debug,
-    # Without the debug server, for others.
+    # With the debug server off, for others.
     [switch]$Release,
     # The dashboard's own files alone, without the runtime.
     [switch]$AppOnly,
@@ -35,7 +36,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 if ($Debug -eq $Release) {
-    throw 'Say which build: -Debug (with the debug server, for testing) or -Release (without it, for others).'
+    throw 'Say which build: -Debug (with the debug server on, for testing) or -Release (with it off, for others).'
 }
 $configuration = if ($Debug) { 'Debug' } else { 'Release' }
 $root = Split-Path -Parent $PSScriptRoot
@@ -49,6 +50,7 @@ if (-not (Test-Path -LiteralPath $buildScript)) {
 
 # The project finds the SDK through the same variable.
 $env:SILVERLIGHT360 = (Resolve-Path -LiteralPath $Sdk).Path
-# MSBuild reads environment variables as properties.
+# MSBuild reads environment variables as properties. DebugServer is whether
+# the debug server's setting starts on.
 $env:DebugServer = if ($Debug) { 'true' } else { 'false' }
 & $buildScript -Project (Join-Path $root 'src\Silverdash360\Silverdash360.csproj') -Configuration $configuration -AppOnly:$AppOnly

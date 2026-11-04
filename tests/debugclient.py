@@ -1,8 +1,9 @@
 """A client for Silverdash360's debug server.
 
-The dashboard listens on TCP port 4601 when it's built with the debug server
-(the default for now). Each line sent is a command; each reply is one line of
-JSON. Run this file for an interactive shell, or with a command to run one:
+The dashboard listens on TCP port 4601 while its debug server is on (from the
+start in Debug builds; Settings > Debug server in Release ones). Each line sent
+is a command; each reply is one line of JSON. Run this file for an interactive
+shell, or with a command to run one:
 
     python tests/debugclient.py 192.168.1.20
     python tests/debugclient.py 192.168.1.20 library

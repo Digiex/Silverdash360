@@ -133,15 +133,17 @@
     <Compile Include="Services\Media\MediaService.cs" />
   </ItemGroup>
   <!-- The debug server (Debugging\): commands over TCP for testing on a
-       console. In Debug builds and not in Release ones, which go to others,
-       as it listens without a password; the DebugServer property or
-       environment variable says otherwise. -->
+       console, in every build, running while its setting is on. The setting
+       is on by default in Debug builds and off in Release ones, which go to
+       others, as it listens without a password; the DebugServer property or
+       environment variable says otherwise. DEBUG_SERVER marks a development
+       build. -->
   <PropertyGroup>
     <DebugServer Condition="'$(DebugServer)' == '' And '$(Configuration)' == 'Debug'">true</DebugServer>
     <DebugServer Condition="'$(DebugServer)' == ''">false</DebugServer>
     <DefineConstants Condition="'$(DebugServer)' == 'true'">$(DefineConstants);DEBUG_SERVER</DefineConstants>
   </PropertyGroup>
-  <ItemGroup Condition="'$(DebugServer)' == 'true'">
+  <ItemGroup>
     <Compile Include="Debugging\*.cs" />
   </ItemGroup>
   <ItemGroup>

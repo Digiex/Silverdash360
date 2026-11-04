@@ -12,12 +12,12 @@ You need what Silverlight360 needs (see its [getting started guide](https://gith
 
 Every build is one of two:
 
-- `-Debug` has the debug server (see below) and lands in `src\Silverdash360\bin\Debug\xbox\`. `tools\deploy.py`, `tools\Run.ps1` and the tests use it.
-- `-Release` leaves the debug server out and lands in `src\Silverdash360\bin\Release\xbox\`. Builds for others are these.
+- `-Debug` starts with the debug server on (see below) and lands in `src\Silverdash360\bin\Debug\xbox\`. `tools\deploy.py`, `tools\Run.ps1` and the tests use it.
+- `-Release` starts with the debug server off, until Settings > **Debug server** turns it on, and lands in `src\Silverdash360\bin\Release\xbox\`. Builds for others are these. `tools\Run.ps1 -Release` runs it.
 
 `-AppOnly` writes Silverdash360's own files alone, without the runtime, into `bin\<Debug|Release>\app\`. `-Sdk` can be left out when the `SILVERLIGHT360` environment variable points to the SDK, or when it's cloned next to this repository as `Silverlight360`.
 
-The package runs as the title the SDK's runtime profile came from (Plex by default), so it's started like that app. The debug server listens on port 4601 without a password, which is why it's only in Debug builds.
+The package runs as the title the SDK's runtime profile came from (Plex by default), so it's started like that app. The debug server listens on port 4601 without a password, which is why Release builds leave it off: turning it on lets anyone on the network control the dashboard.
 
 ## The runtime
 
@@ -53,7 +53,7 @@ python -m mkdocs serve
 
 ## Debug server and tests
 
-While a Debug build runs, the debug server takes commands on TCP port 4601, one line each, and answers with a line of JSON: what the library holds, the console's functions called directly, memory, the log, what's on screen, button presses, frame rates and benchmarks of the dashboard's own work. Settings shows its address.
+While the debug server is on (from the start in a Debug build; in a Release build once Settings > **Debug server** turns it on), it takes commands on TCP port 4601, one line each, and answers with a line of JSON: what the library holds, the console's functions called directly, memory, the log, what's on screen, button presses, frame rates and benchmarks of the dashboard's own work. Settings shows its address. The setting is kept, so a build deployed over one with it on starts with it on; it has no password, so anyone on the network can control the dashboard while it's on.
 
 ```bash
 python tests/run_tests.py 192.168.1.20
@@ -110,7 +110,7 @@ src/Silverdash360/
   Controls/   TileGrid (the virtualized grid), tile templates, OnScreenKeyboard, Theme
   Modules/    The hub's sections and the registry they're listed in
   Pages/      Hub, title details, search, storage, media, the player, pictures, files, themes, updates
-  Debugging/  The debug server and its commands, in Debug builds
+  Debugging/  The debug server and its commands, on by default in Debug builds
 tests/        The tests that run over the debug server, and a client for it
 ```
 

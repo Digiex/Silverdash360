@@ -13,6 +13,9 @@ as an install on the console's hard drive: xenia's hard drive has only its
 Content folder, so that's where the dashboard can save its library and art
 (in Silverdash360\Data). -Fresh deletes that first, as a new install.
 
+It runs the Debug build; -Release runs the Release one, whose debug server is
+off until Settings > Debug server turns it on.
+
 .EXAMPLE
 .\tools\Run.ps1 -ContentRoot $env:TEMP\testcontent -Steps '15:shot','16:RightShoulder','18:shot'
 
@@ -32,7 +35,9 @@ param(
     # Runs the build from <ContentRoot>\Silverdash360, where it can save.
     [switch]$Install,
     # With -Install: without what an earlier run saved.
-    [switch]$Fresh
+    [switch]$Fresh,
+    # The Release build instead of the Debug one.
+    [switch]$Release
 )
 
 $ErrorActionPreference = 'Stop'
@@ -44,9 +49,10 @@ $testScript = Join-Path $Sdk 'tools\Test-XboxApp.ps1'
 if (-not (Test-Path -LiteralPath $testScript)) {
     throw "Silverlight360 not found at $Sdk. Pass -Sdk or set SILVERLIGHT360."
 }
-$xex = Join-Path $root 'src\Silverdash360\bin\Debug\xbox\default.xex'
+$configuration = if ($Release) { 'Release' } else { 'Debug' }
+$xex = Join-Path $root "src\Silverdash360\bin\$configuration\xbox\default.xex"
 if (-not (Test-Path -LiteralPath $xex)) {
-    throw "Build the dashboard first: .\tools\Build.ps1 -Debug"
+    throw "Build the dashboard first: .\tools\Build.ps1 -$configuration"
 }
 
 $extra = @($ExtraArgs)

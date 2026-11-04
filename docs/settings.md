@@ -19,6 +19,7 @@
 | **Version** | Silverdash360's version, build and commit |
 | **Check for updates** | Looks for a new version: see [Updating](updating.md) |
 | **Return to the Xbox Dashboard** | Leaves Silverdash360 |
+| **Debug server** | For testing and development, off unless you turn it on: see [Debug server](#debug-server). With it on, anyone on your network can control Silverdash360 |
 
 ## Welcome screen
 
@@ -66,3 +67,9 @@ The user name is `xbox` and the password six digits made up at the first start; 
 - Each drive is a folder: `Hdd1`, `Usb0` to `Usb2`, `Mu0`, `Mu1` and `Dvd` (read only).
 - You can download, upload, rename and delete, and make and remove folders.
 - FTP sends the password unencrypted, so use it on a network you trust.
+
+## Debug server
+
+**Debug server**, the last setting, turns on a TCP port (4601) that takes commands from a PC: what tests, `tools\deploy.py` and the other tools in the [repository](https://github.com/Digiex/Silverdash360) use (see [Debug server and tests](development.md#debug-server-and-tests)). A turns it on and off at once, and it stays as you left it the next time Silverdash360 starts. It's off unless you turn it on; builds made for testing have it on.
+
+**It has no password.** While it's on, anyone on your network can control Silverdash360, read the files on the console's drives and start programs. Leave it off unless you're testing or developing, and then use it on a network you trust.

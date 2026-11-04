@@ -8,9 +8,7 @@ using System.Windows.Media;
 using Microsoft.Xbox.Controls;
 using Silverdash360.Controls;
 using Silverdash360.Core;
-#if DEBUG_SERVER
 using Silverdash360.Debugging;
-#endif
 using Silverdash360.Modules;
 using Silverdash360.Services;
 using Silverdash360.Services.Files;
@@ -39,12 +37,10 @@ namespace Silverdash360
         {
             LogFile.Start();
             Log.Write("Starting Silverdash360 {0}", SettingsModule.VersionDetail());
-#if DEBUG_SERVER
             if (StartPendingInstall())
             {
                 return;
             }
-#endif
             StartDashboard(null);
         }
 
@@ -100,7 +96,7 @@ namespace Silverdash360
                 RootVisual = frame;
             }
             // The FTP server's user and password are settings, and it can
-            // start with the dashboard.
+            // start with the dashboard; so can the debug server.
             Settings.Loaded += delegate
             {
                 Context.Ftp.LoadSettings();
@@ -108,17 +104,15 @@ namespace Silverdash360
                 {
                     BasicSettings.StartFtp(Context);
                 }
+                DebugServer.Apply(Context);
             };
             Settings.Load();
             Context.Library.Refresh();
 #if DEBUG_SERVER
-            // On by default for now; see the DebugServer build property.
-            DebugServer.StartDefault(Context);
             Heartbeat.Start();
 #endif
         }
 
-#if DEBUG_SERVER
         // A build tools/deploy.py staged: copies it into the app's folder and
         // starts it from there. On a failure the dashboard starts here, so
         // the debug server can tell what went wrong.
@@ -159,7 +153,6 @@ namespace Silverdash360
             return true;
         }
 
-#endif
         private void Application_UnhandledException(object sender, ApplicationUnhandledExceptionEventArgs e)
         {
             // A dashboard keeps running: log it and show it in the footer.

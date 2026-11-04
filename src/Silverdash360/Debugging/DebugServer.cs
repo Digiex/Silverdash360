@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using Silverdash360.Core;
 using Silverdash360.Modules;
 using Silverdash360.Native;
+using Silverdash360.Services;
 using Silverdash360.Services.Ftp;
 
 namespace Silverdash360.Debugging
@@ -15,9 +17,10 @@ namespace Silverdash360.Debugging
     /// of JSON: {"ok":true,"command":...,"ms":...,"result":...} or
     /// {"ok":false,...,"error":...}. "help" lists the commands.
     ///
-    /// It's built in only with the DEBUG_SERVER symbol (the DebugServer
-    /// build property) and takes no password: anyone on the network can
-    /// read what the dashboard knows and drive it.
+    /// It runs while the "Debug server" setting is on: by default in
+    /// development builds (the DEBUG_SERVER symbol, from the DebugServer build
+    /// property) and not in others. It takes no password: anyone on the
+    /// network can read what the dashboard knows and drive it.
     /// </summary>
     public sealed class DebugServer
     {
@@ -26,7 +29,15 @@ namespace Silverdash360.Debugging
         public const int PortsTried = 10;
         public const int ProtocolVersion = 1;
 
+        private const string EnabledSetting = "debugServer.on";
+#if DEBUG_SERVER
+        private const bool EnabledByDefault = true;
+#else
+        private const bool EnabledByDefault = false;
+#endif
+
         private readonly object sync = new object();
+        private readonly List<NativeSocket> open = new List<NativeSocket>();
         private NativeSocket listener;
         private int clients;
 
@@ -49,8 +60,40 @@ namespace Silverdash360.Debugging
         public bool IsRunning { get { return listener != null; } }
         public int ClientCount { get { return clients; } }
 
-        /// <summary>Starts the server with the standard commands; a failure is logged, not thrown.</summary>
-        public static void StartDefault(DashboardContext context)
+        /// <summary>Whether the server runs: a setting, on by default in development builds.</summary>
+        public static bool Enabled
+        {
+            get { return Settings.GetBool(EnabledSetting, EnabledByDefault); }
+            set { Settings.SetBool(EnabledSetting, value); }
+        }
+
+        /// <summary>Starts or stops the server to match <see cref="Enabled"/>; a failure is logged, not thrown.</summary>
+        public static void Apply(DashboardContext context)
+        {
+            if (!Enabled)
+            {
+                if (Current != null)
+                {
+                    Current.Stop();
+                }
+                return;
+            }
+            if (Current == null)
+            {
+                Current = CreateDefault(context);
+            }
+            try
+            {
+                Current.Start();
+            }
+            catch (Exception e)
+            {
+                Log.Write("Debug server didn't start: {0}", e.Message);
+            }
+        }
+
+        /// <summary>A server with the standard commands.</summary>
+        private static DebugServer CreateDefault(DashboardContext context)
         {
             DebugServer server = new DebugServer(context);
             foreach (IDebugCommands group in new IDebugCommands[]
@@ -62,15 +105,7 @@ namespace Silverdash360.Debugging
             {
                 group.Register(server.Commands);
             }
-            Current = server;
-            try
-            {
-                server.Start();
-            }
-            catch (Exception e)
-            {
-                Log.Write("Debug server didn't start: {0}", e.Message);
-            }
+            return server;
         }
 
         public void Start()
@@ -110,6 +145,30 @@ namespace Silverdash360.Debugging
             Log.Write("Debug server listening on port {0}", ListeningPort);
         }
 
+        /// <summary>Stops listening and drops the clients connected.</summary>
+        public void Stop()
+        {
+            NativeSocket closing;
+            List<NativeSocket> connected;
+            lock (sync)
+            {
+                closing = listener;
+                listener = null;
+                connected = new List<NativeSocket>(open);
+            }
+            if (closing == null)
+            {
+                return;
+            }
+            // Closing the socket ends the accept loop.
+            closing.Dispose();
+            foreach (NativeSocket client in connected)
+            {
+                client.Dispose();
+            }
+            Log.Write("Debug server stopped");
+        }
+
         private void AcceptLoop(object state)
         {
             NativeSocket socket = (NativeSocket)state;
@@ -122,8 +181,15 @@ namespace Silverdash360.Debugging
                 }
                 catch (Exception e)
                 {
-                    Log.Write("Debug server stopped accepting: {0}", e.Message);
+                    if (IsRunning)
+                    {
+                        Log.Write("Debug server stopped accepting: {0}", e.Message);
+                    }
                     return;
+                }
+                lock (sync)
+                {
+                    open.Add(client);
                 }
                 new Thread(Serve) { IsBackground = true, Name = "Debug client" }.Start(client);
             }
@@ -177,6 +243,10 @@ namespace Silverdash360.Debugging
                 }
                 finally
                 {
+                    lock (sync)
+                    {
+                        open.Remove(client);
+                    }
                     client.Dispose();
                     Interlocked.Decrement(ref clients);
                     Log.Write("Debug client disconnected");

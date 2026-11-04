@@ -2,9 +2,9 @@
 
 The dashboard has a debug server: a TCP port that takes commands while it runs, for testing and debugging on a console that has no development kit. The tests here drive it from a PC.
 
-The server is in Debug builds (`.\tools\Build.ps1 -Debug`) and not in Release ones (the `DebugServer` build property, which defines `DEBUG_SERVER` and compiles `src\Silverdash360\Debugging\`).
+Every build has the server (`src\Silverdash360\Debugging\`); Settings > **Debug server**, the last setting, turns it on and off at once, and the choice is kept. It's on by default in Debug builds (`.\tools\Build.ps1 -Debug`) and off in Release ones (the `DebugServer` build property, which defines `DEBUG_SERVER` and sets the default).
 
-**It takes no password.** Anyone on the network can read what the dashboard knows, read files on its drives and drive its UI. Use it on a network you trust, and leave it out of builds for others.
+**It takes no password.** While it's on, anyone on the network can read what the dashboard knows, read files on its drives and drive its UI. Use it on a network you trust, and leave it off on builds for others.
 
 ## Deploying a build
 
@@ -27,7 +27,7 @@ A running dashboard's files aren't overwritten. When the target is where it runs
 
 When the dashboard isn't running, give another FTP server with `--ftp host:port --user ... --password ...` (a homebrew dashboard's, for one); the files go straight into the target, and you start it yourself. `--no-launch` uploads without starting anything, and `--full` uploads every file.
 
-Staging needs a build with the debug server, since that build does the install.
+A Release build can be deployed to as well once its debug server is on (Settings > **Debug server**); pass `--package src/Silverdash360/bin/Release/xbox` to deploy a Release build. The setting is kept, so the new build starts with the server on. Staging needs the running build's debug server, since that build does the install.
 
 `tools/screenshot.py` saves what the dashboard shows as a PNG: the dashboard draws its screen into a file (`ui.screenshot`), and the script copies it off over the dashboard's FTP server.
 
