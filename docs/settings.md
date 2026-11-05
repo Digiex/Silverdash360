@@ -36,7 +36,7 @@
 | **Startup and Shutdown** | Startup, Auto-Off, Background Downloads |
 | **Auto-Play**, **Auto-Downloads**, **Remote Control** | On or off, and which remotes |
 
-Only what your cable, TV and region have is shown, as in the Xbox Dashboard: TV Size, for one, only with a TV that says its size, and PAL Settings only on a PAL console. Most changes take effect at once.
+Only what your cable, TV and region have is shown, as in the Xbox Dashboard: PAL Settings, for one, only on a PAL console. TV Size is shown for a TV that gives its size; the Xbox Dashboard shows it only for a 3D TV, as 3D games use it. Most changes take effect at once.
 
 - **HDTV Settings** and **PAL Settings**: Silverdash360 starts again in the new setting and asks whether to keep it. If you don't say yes within 10 seconds, as when the TV shows nothing, it goes back to the old setting and starts again.
 - **Screen Format**, **Reference Levels** and **HDMI Color Space**: Silverdash360 starts again to use them.

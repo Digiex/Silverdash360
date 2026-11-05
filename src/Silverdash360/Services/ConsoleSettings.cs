@@ -260,7 +260,11 @@ namespace Silverdash360.Services
             bool hdmi = pack == PackHdmi || pack == PackHdmiAudio;
             bool digital = hdmi || pack == PackVga;
             byte[] discovery = XConfig.DisplayDiscovery();
-            bool tvTells = discovery != null && (BigEndian.U32(discovery, 4) & 1) != 0;
+            // The Xbox Dashboard shows TV Size, with 3D TV, only for a TV that
+            // takes 3D: bit 0 at 4 is the 3D_present bit of the TV's HDMI
+            // vendor block (kernel 17559, 0x800C3D40), and the size is for
+            // 3D. It's here for any TV that gives its size too.
+            bool tvTells = discovery != null && ((BigEndian.U32(discovery, 4) & 1) != 0 || DetectedTvSize(discovery) != 0);
             bool colorSpaces = discovery != null && BigEndian.U32(discovery, 0x1D) == 3;
             // The AV region: 1 NTSC-M, 2 NTSC-J, 3 PAL.
             uint region = (XConfig.GetU32(XConfig.ConsoleCategory, 2) >> 8) & 0xFF;
