@@ -61,6 +61,7 @@ namespace Silverdash360.Pages
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
+            NetworkSettings.Changed += OnNetworkChanged;
             if (NavigationContext.QueryString.ContainsKey("trial"))
             {
                 ShowTrial();
@@ -81,6 +82,7 @@ namespace Silverdash360.Pages
         protected override void OnNavigatedFrom(NavigationEventArgs e)
         {
             base.OnNavigatedFrom(e);
+            NetworkSettings.Changed -= OnNetworkChanged;
             if (countdown != null)
             {
                 countdown.Stop();
@@ -390,6 +392,27 @@ namespace Silverdash360.Pages
         public void Status(string text)
         {
             Context.ShowStatus(text);
+        }
+
+        public void Confirm(string title, string text, Action yes)
+        {
+            TitleText.Text = title;
+            IntroText.Text = text;
+            Rows.Items = new List<object>
+            {
+                new Answer { Title = "Yes", Do = yes },
+                new Answer { Title = "No", Do = Show },
+            };
+            Rows.SelectedIndex = 1;
+        }
+
+        private void OnNetworkChanged()
+        {
+            // Not while a question is up: it would go.
+            if (!(Rows.SelectedItem is Answer))
+            {
+                Refresh();
+            }
         }
 
         public void Back()

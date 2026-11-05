@@ -50,6 +50,8 @@ namespace Silverdash360.Services
         /// <summary>Shows the settings again, as they are now.</summary>
         void Refresh();
         void Back();
+        /// <summary>The Xbox Dashboard's message box: yes is called on Yes, nothing on No.</summary>
+        void Confirm(string title, string text, Action yes);
     }
 
     /// <summary>
@@ -200,6 +202,7 @@ namespace Silverdash360.Services
             new KeyValuePair<string, string>(AutoDownloadsPage, "Choose whether updates download by themselves."),
             new KeyValuePair<string, string>(RemoteControl, "Choose which remotes control the console."),
             new KeyValuePair<string, string>(ConsoleNamePage, "Name this console, as it shows on your network."),
+            new KeyValuePair<string, string>(NetworkSettings.Page, "Set up and test your network connection."),
         };
 
         // The Xbox Dashboard's names, in its order (dashSysCslSetConsoleName.xur).
@@ -297,6 +300,7 @@ namespace Silverdash360.Services
                 },
                 Write = v => XConfig.SetConsoleName(ConsoleNames[v]),
             });
+            NetworkSettings.Add(all);
             return all;
         }
 

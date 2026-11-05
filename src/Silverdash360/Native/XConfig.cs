@@ -268,6 +268,12 @@ namespace Silverdash360.Native
             return (result & 0x80000000) == 0 && result != 0x001510F1;
         }
 
+        /// <summary>The Xbox Live logon's status as the Xbox Dashboard asks it: 0x001510F0 when connected.</summary>
+        public static uint LiveStatus()
+        {
+            return XMsgInProcessCall(0xFC, 0x00058003, 0, 0);
+        }
+
         /// <summary>Tells the network stack the clock was set, as the Xbox Dashboard does after setting it.</summary>
         public static void NoteSystemTime()
         {

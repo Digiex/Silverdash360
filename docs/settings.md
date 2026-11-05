@@ -25,26 +25,31 @@
 
 ## System settings
 
-**System settings** has the Xbox Dashboard's Console Settings, page by page in its order, with its choices, and changes them as it does:
+**System settings** has the Xbox Dashboard's Console Settings and Network Settings, page by page in its order, with its choices, and changes them as it does:
 
 | Page | Settings |
 |---|---|
-| **Display** | HDTV Settings (or Screen Resolution on VGA), Screen Format, Reference Levels (or Black Level), PAL Settings, HDMI Color Space, Display Discovery, Screen Saver, TV Size |
+| **Display** | HDTV Settings (or Screen Resolution), Screen Format, Reference Levels (or Black Level), PAL Settings, HDMI Color Space, Display Discovery, Screen Saver, 3D TV, TV Size |
 | **Audio** | Digital Output, Sound Effects, Ratings Collection Sound |
 | **Language and Locale** | Language, Locale |
 | **Clock** | Date and Time, Time Format, Time Zone, Daylight Saving |
 | **Startup and Shutdown** | Startup, Auto-Off, Background Downloads |
 | **Auto-Play**, **Auto-Downloads**, **Remote Control** | On or off, and which remotes |
+| **Console Name** | Xbox 360, Living Room, Family Room, Game Room, Bedroom, or a name of your own (Custom...) |
+| **Network Settings** | Configure Network (IP Settings, DNS Settings, Wireless, PPPoE Settings, Advanced Settings, Restore to Factory Defaults), Test Xbox Live Connection, and the address, mask, gateway and DNS servers in use |
 
 Only what your cable, TV and region have is shown, as in the Xbox Dashboard: PAL Settings, for one, only on a PAL console. TV Size is shown for a TV that gives its size; the Xbox Dashboard shows it only for a 3D TV, as 3D games use it. Most changes take effect at once.
 
-- **HDTV Settings** and **PAL Settings**: Silverdash360 starts again in the new setting and asks whether to keep it. If you don't say yes within 10 seconds, as when the TV shows nothing, it goes back to the old setting and starts again.
+- **HDTV Settings** lists what your display takes, as the Xbox Dashboard does: its best resolution first as **Optimal Resolution**, 480p, 720p, 1080i and 1080p (greyed when an HDMI TV doesn't take them), then the others it takes. Silverdash360 starts again in the one chosen and asks whether to keep it. If you don't say yes within 10 seconds, as when the TV shows nothing, it tries the console's next timing for that resolution (HDMI, DVI and VGA), and when there's none, goes back to the old resolution.
+- **PAL Settings**: kept only if you say yes within 10 seconds too.
 - **Screen Format**, **Reference Levels** and **HDMI Color Space**: Silverdash360 starts again to use them.
-- **Display Discovery**: the console restarts. Turning it off goes to 640 x 480, normal screen format and digital stereo, as the Xbox Dashboard does.
+- **Display Discovery** and **3D TV**: the console restarts, once you say yes to restarting now. Turning Display Discovery off goes to 640 x 480, normal screen format and digital stereo, as the Xbox Dashboard does.
 - **Time Zone** and **Daylight Saving** keep the clock at the same local time, unless Xbox Live sets the clock; **Date and Time** can't be changed then either.
 - **Startup**: from the next start. A dashboard set up with DashLaunch starts in place of the Xbox Dashboard.
 
-Connected Devices, System Info, Console Name and 3D TV aren't here yet.
+- **Network Settings**: each page's **Done** saves its settings, and the network uses them at once. **Wireless** lists the networks found, strongest first; choosing one asks for its key. **Test Xbox Live Connection** checks the network, the Internet and Xbox Live.
+
+Connected Devices and System Info aren't here yet, nor Network Settings' statistics, PC and Windows Media Center tests, ad-hoc networks and wireless bridges.
 
 ## Welcome screen
 
