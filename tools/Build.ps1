@@ -13,7 +13,7 @@ Runs the Silverlight360 SDK's Build-XboxApp.ps1 on the dashboard, as one of:
           the debug server listens without a password.
 
 Both then compile Silverdash360.dll to a native image (Silverdash360.ni.dll)
-with XboxNGen, through the SDK's -NGen (see its docs\native-images.md), so
+with XboxNGen, as the SDK's Build-XboxApp.ps1 does (see its docs\native-images.md), so
 the dashboard's code runs compiled instead of through the runtime's IL
 interpreter. That runs xenia-edge (from the silverlight-build branch of
 jessenic/xenia-edge) for a minute or two, and fails while another xenia-edge
@@ -21,9 +21,11 @@ is running. -NoNGen leaves the image out; the package then runs interpreted.
 The image is unsigned: it runs in xenia-edge and on consoles that run
 unsigned code, as Silverdash360 needs anyway.
 
--AppOnly writes the dashboard's own files alone, without the runtime and
-without a native image, into bin\<Debug|Release>\app\ (see
-tools\Release.ps1).
+-AppOnly writes the dashboard's own files alone, without the runtime but
+with the native image, into bin\<Debug|Release>\app\ (see
+tools\Release.ps1). The image is made in the whole package first, which
+stays in bin\<Debug|Release>\xbox\, and fits only a runtime made from the
+same donor app (Plex's, as the base package's is).
 
 The SDK is the one given with -Sdk, else the SILVERLIGHT360 environment
 variable, else a Silverlight360 clone next to this repository.
@@ -68,8 +70,8 @@ $env:SILVERLIGHT360 = (Resolve-Path -LiteralPath $Sdk).Path
 # MSBuild reads environment variables as properties. DebugServer is whether
 # the debug server's setting starts on.
 $env:DebugServer = if ($Debug) { 'true' } else { 'false' }
-# The runtime has to run the whole package to make the image, so not with -AppOnly.
-$ngen = -not ($NoNGen -or $AppOnly)
+# With -AppOnly too: the SDK makes the image in the whole package, then puts it with the app's files.
+$ngen = -not $NoNGen
 & $buildScript -Project (Join-Path $root 'src\Silverdash360\Silverdash360.csproj') -Configuration $configuration -AppOnly:$AppOnly -NGen:$ngen
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE

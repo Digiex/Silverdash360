@@ -7,16 +7,15 @@ Makes a Release build of the dashboard's own files, zips them and
 publishes the zip as a GitHub release, with the commits since the last
 release as its notes.
 
-The zip has only what this repository makes: Silverdash360.dll, the app
-manifests and the splash screens, the files the SDK's app-only build
-(Build.ps1 -Release -AppOnly) lists, with the debug server off. They're
-taken from a whole Release package (Build.ps1 -Release), with the native
-image XboxNGen makes of Silverdash360.dll there, Silverdash360.ni.dll: an
-image fits only the Silverdash360.dll it was made from, and only the runtime
-it was made against, which NativeImage.txt in the zip records (each of the
-runtime's native images and xcoreclr.dll, with its size). An update
-installs the image only over a runtime that matches. -NoNGen leaves the
-image out. The package's other files, default.xex and the Silverlight
+The zip has only what this repository makes: Silverdash360.dll, its
+native image Silverdash360.ni.dll, the app manifests and the splash
+screens, from the SDK's app-only build (Build.ps1 -Release -AppOnly), with
+the debug server off. That build always makes the image, in the whole
+Release package first: an image fits only the Silverdash360.dll it was made
+from, and only the runtime it was made against, which NativeImage.txt in the
+zip records (each of the runtime's native images and xcoreclr.dll, with its
+size). An update installs the image only over a runtime that matches. No
+donor or platform assembly, nor an image of one, goes in. The package's other files, default.xex and the Silverlight
 platform, are the runtime profile's: Microsoft's and the donor app's
 binaries, which aren't ours to hand out. Whoever installs it lays the zip
 over the base package from the Digiex thread, which has the same runtime
@@ -72,8 +71,6 @@ param(
     # Zips the whole package, runtime included, for your own console, and
     # releases nothing.
     [switch]$Console,
-    # Without the native image: no xenia-edge needed.
-    [switch]$NoNGen,
     # Lines for the top of the notes, above the commits, such as what's
     # biggest in the release: the update screen shows the notes' first lines.
     [string[]]$Highlight = @()
@@ -104,7 +101,7 @@ if ($Console) {
     if (Invoke-Git status --porcelain --untracked-files=no) {
         Write-Warning 'There are changes not committed: settings will say the build has changes.'
     }
-    & (Join-Path $PSScriptRoot 'Build.ps1') -Release -NoNGen:$NoNGen -Sdk $Sdk
+    & (Join-Path $PSScriptRoot 'Build.ps1') -Release -Sdk $Sdk
     if ($LASTEXITCODE -ne 0) {
         throw 'The build failed.'
     }
@@ -188,15 +185,11 @@ if ($version -ne "$projectVersion") {
     }
 }
 
-# A Release build, its debug server (which listens without a password)
-# off: the app-only build says which files are the dashboard's own, and the
-# whole package, built after it, has them with the native image of its
-# Silverdash360.dll.
+# A Release build of the dashboard's own files, its debug server (which
+# listens without a password) off, with the native image of its
+# Silverdash360.dll: the SDK makes it in the whole package (bin\Release\xbox,
+# which stays) and puts it with the app's files.
 & (Join-Path $PSScriptRoot 'Build.ps1') -Release -AppOnly -Sdk $Sdk
-if ($LASTEXITCODE -ne 0) {
-    throw 'The build failed.'
-}
-& (Join-Path $PSScriptRoot 'Build.ps1') -Release -NoNGen:$NoNGen -Sdk $Sdk
 if ($LASTEXITCODE -ne 0) {
     throw 'The build failed.'
 }
@@ -212,17 +205,21 @@ if ([regex]::Match($buildInfo, 'Changed = (\w+)').Groups[1].Value -ne 'false') {
 }
 $name = "Silverdash360 $version (build $number)"
 
-# Nothing of the runtime's: the app-only build leaves it out.
+# Nothing of the runtime's or the donor's: the app-only build leaves it out,
+# and an image goes in only beside the assembly of ours it was made from.
 $appFiles = Join-Path $project 'bin\Release\app'
 $ours = @(Get-ChildItem -LiteralPath $appFiles -Recurse -File | ForEach-Object { $_.FullName.Substring($appFiles.Length + 1) })
 foreach ($relative in $ours) {
-    if ($relative -eq 'default.xex' -or $relative -like '*.ni.dll' -or $relative -like 'Microsoft.*' -or
-        $relative -like 'System.*' -or $relative -like 'mscorlib*') {
-        throw "$relative is the platform's, which isn't released."
+    if ($relative -eq 'default.xex' -or $relative -like 'Microsoft.*' -or $relative -like 'System.*' -or
+        $relative -like 'MWM.*' -or $relative -like 'SW.*' -or $relative -like 'mscorlib*' -or $relative -like 'xcoreclr*' -or
+        ($relative -like '*.ni.dll' -and $ours -notcontains ($relative -replace '\.ni\.dll$', '.dll'))) {
+        throw "$relative is the platform's or the donor app's, which isn't released."
     }
 }
-if ($ours -notcontains 'Silverdash360.dll') {
-    throw "Silverdash360.dll isn't in the app files at $appFiles."
+foreach ($required in 'Silverdash360.dll', 'Silverdash360.ni.dll') {
+    if ($ours -notcontains $required) {
+        throw "$required isn't in the app files at $appFiles."
+    }
 }
 
 $out = Join-Path $project 'bin\Release\release'
@@ -231,30 +228,18 @@ if (Test-Path -LiteralPath $out) {
     Remove-Item -LiteralPath $out -Recurse -Force
 }
 New-Item -ItemType Directory -Path $staging | Out-Null
-$package = Join-Path $project 'bin\Release\xbox'
-foreach ($relative in $ours) {
-    $destination = Join-Path $staging $relative
-    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destination) | Out-Null
-    Copy-Item -LiteralPath (Join-Path $package $relative) -Destination $destination
-}
+Copy-Item -Path (Join-Path $appFiles '*') -Destination $staging -Recurse
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE.md') -Destination $staging
-$image = Join-Path $package 'Silverdash360.ni.dll'
-if (-not $NoNGen) {
-    if (-not (Test-Path -LiteralPath $image)) {
-        throw "There's no Silverdash360.ni.dll in $package."
-    }
-    Copy-Item -LiteralPath $image -Destination $staging
-    $ours += 'Silverdash360.ni.dll'
-    # The runtime the image was made against, which an update checks the
-    # console's against (UpdateService): the runtime's native images and
-    # xcoreclr.dll, by size.
-    $record = @('# Silverdash360.ni.dll was compiled against this runtime: its files and their sizes in bytes.',
-                '# Silverdash360 installs the image as an update only over a runtime that matches.')
-    $record += Get-ChildItem -LiteralPath $package -File |
-        Where-Object { ($_.Name -like '*.ni.dll' -and $_.Name -ne 'Silverdash360.ni.dll') -or $_.Name -eq 'xcoreclr.dll' } |
-        Sort-Object Name | ForEach-Object { "$($_.Name) $($_.Length)" }
-    Write-Utf8 (Join-Path $staging 'NativeImage.txt') $record
-}
+# The runtime the image was made against, the whole package's, which an
+# update checks the console's against (UpdateService): the runtime's native
+# images and xcoreclr.dll, by size.
+$package = Join-Path $project 'bin\Release\xbox'
+$record = @('# Silverdash360.ni.dll was compiled against this runtime: its files and their sizes in bytes.',
+            '# Silverdash360 installs the image as an update only over a runtime that matches.')
+$record += Get-ChildItem -LiteralPath $package -File |
+    Where-Object { ($_.Name -like '*.ni.dll' -and $ours -notcontains $_.Name) -or $_.Name -eq 'xcoreclr.dll' } |
+    Sort-Object Name | ForEach-Object { "$($_.Name) $($_.Length)" }
+Write-Utf8 (Join-Path $staging 'NativeImage.txt') $record
 $install = @"
 $name
 https://github.com/Digiex/Silverdash360
@@ -274,8 +259,7 @@ over the files in its folder instead.
 
 Silverdash360 keeps its settings and cache in the Data folder next to it.
 "@
-if (-not $NoNGen) {
-    $install += @"
+$install += @"
 
 
 Silverdash360.ni.dll is Silverdash360's code compiled to native code with
@@ -287,7 +271,6 @@ start with it there, and without it Silverdash360 runs as it is, only
 slower. An update from settings checks the runtime and leaves it out
 itself.
 "@
-}
 Write-Utf8 (Join-Path $staging 'INSTALL.txt') ($install -split "`r?`n")
 $zip = Join-Path $out "Silverdash360-$version.zip"
 Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $zip
@@ -317,7 +300,7 @@ $notesFile = Join-Path $out 'notes.md'
 Write-Utf8 $notesFile $notes
 
 Write-Host "$name ($tag)"
-Write-Host "Files: $($ours -join ', '), LICENSE.md, INSTALL.txt$(if (-not $NoNGen) { ', NativeImage.txt' })"
+Write-Host "Files: $($ours -join ', '), LICENSE.md, INSTALL.txt, NativeImage.txt"
 Write-Host "Zip: $zip"
 Write-Host ''
 Get-Content -LiteralPath $notesFile | Write-Host
