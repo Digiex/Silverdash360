@@ -32,7 +32,7 @@ namespace Silverdash360.Pages
         {
             public string Title;
             public string Detail;
-            public bool Keep;
+            public Action Do;
         }
 
         private List<ConsoleSetting> settings;
@@ -216,7 +216,12 @@ namespace Silverdash360.Pages
             if (choice != null)
             {
                 SettingChoice current = Safe(() => chosen.Current());
-                return new RowData { Title = choice.Name, Detail = current != null && current.Value == choice.Value ? "Current" : "" };
+                return new RowData
+                {
+                    Title = choice.Name,
+                    Detail = current == choice ? "Current" : choice.Label ?? "",
+                    Dimmed = choice.Unavailable,
+                };
             }
             Answer answer = (Answer)item;
             return new RowData { Title = answer.Title, Detail = answer.Detail };
@@ -272,7 +277,7 @@ namespace Silverdash360.Pages
             Answer answer = item as Answer;
             if (answer != null)
             {
-                EndTrial(answer.Keep);
+                answer.Do();
             }
         }
 
@@ -281,20 +286,50 @@ namespace Silverdash360.Pages
             Context.Navigate(new Uri("/Pages/SystemSettingsPage.xaml?" + query, UriKind.Relative));
         }
 
-        // Takes the choice and does what it needs to take it into use.
+        // Takes the choice and does what it needs to take it into use, once
+        // its question, if it has one, is answered yes.
         private void Choose(SettingChoice choice)
         {
+            if (choice.Unavailable)
+            {
+                Context.ShowStatus("Your display doesn't take " + choice.Name + ".");
+                return;
+            }
+            if (choice.Run != null)
+            {
+                choice.Run(this);
+                return;
+            }
             SettingChoice current = Safe(() => chosen.Current());
             if (current != null && current.Value == choice.Value)
             {
                 Back();
                 return;
             }
+            if (chosen.Confirm != null)
+            {
+                // The Xbox Dashboard's message box: Yes and No, No first in
+                // focus, and nothing written on No.
+                TitleText.Text = chosen.Title;
+                IntroText.Text = chosen.Confirm;
+                Rows.Items = new List<object>
+                {
+                    new Answer { Title = "Yes", Do = () => Take(choice) },
+                    new Answer { Title = "No", Do = Back },
+                };
+                Rows.SelectedIndex = 1;
+                return;
+            }
+            Take(choice);
+        }
+
+        private void Take(SettingChoice choice)
+        {
             try
             {
                 if (chosen.Effect == SettingEffect.TestDisplay)
                 {
-                    ConsoleSettings.StartTrial(chosen, choice.Value);
+                    ConsoleSettings.StartTrial(chosen, choice);
                 }
                 else
                 {
@@ -382,8 +417,8 @@ namespace Silverdash360.Pages
             Legend.Text = "A select";
             Rows.Items = new List<object>
             {
-                new Answer { Title = "Yes, keep the new settings", Detail = now != null ? now.Name : "", Keep = true },
-                new Answer { Title = "No, go back", Detail = before != null ? before.Name : "", Keep = false },
+                new Answer { Title = "Yes, keep the new settings", Detail = now != null ? now.Name : "", Do = () => EndTrial(true) },
+                new Answer { Title = "No, go back", Detail = before != null ? before.Name : "", Do = () => EndTrial(false) },
             };
             Rows.SelectedIndex = 0;
             secondsLeft = ConsoleSettings.TrialSeconds;
@@ -416,21 +451,30 @@ namespace Silverdash360.Pages
             countdown.Stop();
             if (keep)
             {
-                ConsoleSettings.KeepTrial();
+                try
+                {
+                    ConsoleSettings.KeepTrial(trial);
+                }
+                catch (Exception e)
+                {
+                    Log.Write("Console setting {0}: the timing wasn't kept: {1}", trial.Setting.Title, e);
+                }
                 Context.ShowStatus(trial.Setting.Title + " kept.");
                 trial = null;
                 Back();
                 return;
             }
+            bool retrying = false;
             try
             {
-                ConsoleSettings.RevertTrial(trial);
+                retrying = ConsoleSettings.RevertTrial(trial);
             }
             catch (Exception e)
             {
                 Log.Write("Console setting {0} wasn't put back: {1}", trial.Setting.Title, e);
             }
-            Restart("Going back and starting Silverdash360 again...", SystemService.RestartDashboard);
+            Restart(retrying ? "Trying another way to show it, starting Silverdash360 again..."
+                             : "Going back and starting Silverdash360 again...", SystemService.RestartDashboard);
         }
     }
 }

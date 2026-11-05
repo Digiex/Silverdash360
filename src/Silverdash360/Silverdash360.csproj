@@ -5,6 +5,8 @@
     <ProjectGuid>{5D1A3C2E-7B64-4E0F-9A8D-36C1B2E4F750}</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>Silverdash360</RootNamespace>
+    <!-- For reading what the kernel hands a callback by pointer (XConfig.VideoModes). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>Silverdash360</AssemblyName>
     <SilverlightAppEntry>Silverdash360.App</SilverlightAppEntry>
     <OutputPath>bin\$(Configuration)\</OutputPath>

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 namespace Silverdash360.Native
@@ -78,6 +79,29 @@ namespace Silverdash360.Native
         // xam 0x3CC: DWORD XGetGameRegion()
         [DllImport("xam.xex", EntryPoint = "#972")]
         private static extern uint XGetGameRegion();
+
+        // 0x270: VOID VdEnumerateVideoModes(BOOL (*callback)(const VD_ENUM_MODE*, PVOID), PVOID context):
+        // calls back with each mode the display takes, until the callback returns 0.
+        private delegate int ModeCallback(uint mode, uint context);
+
+        [DllImport("xboxkrnl.exe", EntryPoint = "#624")]
+        private static extern void VdEnumerateVideoModes(ModeCallback callback, uint context);
+
+        // 0x1D4: BOOL VdSetDisplayModeOverride(DWORD width, DWORD height, FLOAT refresh,
+        //   DWORD scan /* 1 interlaced, 2 progressive */, const OVERRIDE* options):
+        // records a mode for the display's next start (it doesn't change the
+        // picture by itself); FALSE when the kernel has no timing for it.
+        // Width 0 clears it.
+        [DllImport("xboxkrnl.exe", EntryPoint = "#468")]
+        private static extern int VdSetDisplayModeOverride(uint width, uint height, float refresh, uint scan, uint options);
+
+        // xam 0x50B: XamGetConsoleFriendlyName(WCHAR name[24])
+        [DllImport("xam.xex", EntryPoint = "#1291")]
+        private static extern uint XamGetConsoleFriendlyName(uint name);
+
+        // xam 0x50C: XamSetConsoleFriendlyName(const WCHAR* name): 23 characters at most.
+        [DllImport("xam.xex", EntryPoint = "#1292")]
+        private static extern uint XamSetConsoleFriendlyName(uint name);
 
         // xam 0x1CA: VOID XamMuteSound(BOOL)
         [DllImport("xam.xex", EntryPoint = "#458")]
@@ -264,6 +288,100 @@ namespace Silverdash360.Native
         public static uint GameRegion()
         {
             return XGetGameRegion();
+        }
+
+        /// <summary>A mode the display takes, as VdEnumerateVideoModes gives it.</summary>
+        public sealed class VideoMode
+        {
+            public int Width;
+            public int Height;
+            public float Refresh;
+            public bool Interlaced;
+            public bool Widescreen;
+            /// <summary>The display's own best mode (byte 7 is 3), which the Xbox Dashboard calls Optimal Resolution.</summary>
+            public bool Preferred;
+        }
+
+        /// <summary>The modes the display takes, in the kernel's order.</summary>
+        public static List<VideoMode> VideoModes()
+        {
+            List<VideoMode> modes = new List<VideoMode>();
+            ModeCallback callback = delegate(uint mode, uint context)
+            {
+                modes.Add(ReadMode(mode));
+                return 1;
+            };
+            VdEnumerateVideoModes(callback, 0);
+            GC.KeepAlive(callback);
+            return modes;
+        }
+
+        // VD_ENUM_MODE (kernel 17559, 0x800C39A8): u16 size at 0, u16 width
+        // at 2, u16 height at 4, u8 at 7 (3 for the preferred mode), float
+        // refresh at 8, flags at 0xC (bit 1 4:3, bit 2 interlaced).
+        private static unsafe VideoMode ReadMode(uint address)
+        {
+            byte* mode = (byte*)address;
+            uint flags = *(uint*)(mode + 0xC);
+            return new VideoMode
+            {
+                Width = *(ushort*)(mode + 2),
+                Height = *(ushort*)(mode + 4),
+                Preferred = mode[7] == 3,
+                Refresh = *(float*)(mode + 8),
+                Widescreen = (flags & 2) == 0,
+                Interlaced = (flags & 4) != 0,
+            };
+        }
+
+        /// <summary>
+        /// Records a mode for the display's next start, at one of the
+        /// kernel's timings for it (the Xbox Dashboard's 59.94 Hz); false when
+        /// it has no such timing.
+        /// </summary>
+        public static bool OverrideDisplayMode(int width, int height, bool interlaced, int timing)
+        {
+            using (NativeBuffer options = new NativeBuffer(16))
+            {
+                options.SetU32(0, 0x10);
+                options.Bytes[0x0C] = (byte)timing;
+                return VdSetDisplayModeOverride((uint)width, (uint)height, 59.94f, interlaced ? 1u : 2u, options.Address) != 0;
+            }
+        }
+
+        public static void ClearDisplayModeOverride()
+        {
+            VdSetDisplayModeOverride(0, 0, 0f, 0, 0);
+        }
+
+        public static string ConsoleName()
+        {
+            using (NativeBuffer name = new NativeBuffer(48))
+            {
+                XamGetConsoleFriendlyName(name.Address);
+                return name.Utf16(0, 24);
+            }
+        }
+
+        /// <summary>Names the console, 23 characters at most.</summary>
+        public static void SetConsoleName(string name)
+        {
+            if (name.Length > 23)
+            {
+                name = name.Substring(0, 23);
+            }
+            using (NativeBuffer buffer = new NativeBuffer(48))
+            {
+                for (int i = 0; i < name.Length; i++)
+                {
+                    buffer.SetU16(i * 2, name[i]);
+                }
+                uint result = XamSetConsoleFriendlyName(buffer.Address);
+                if (result != 0)
+                {
+                    throw new InvalidOperationException(string.Format("The console wasn't named ({0:X8}).", result));
+                }
+            }
         }
 
         /// <summary>Restarts the console.</summary>

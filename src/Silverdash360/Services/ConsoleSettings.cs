@@ -31,6 +31,14 @@ namespace Silverdash360.Services
     {
         public string Name;
         public uint Value;
+        /// <summary>Shown greyed and not taken, as a resolution the display doesn't take.</summary>
+        public bool Unavailable;
+        /// <summary>The text beside the setting when this is chosen, if not its name.</summary>
+        public string Label;
+        /// <summary>What A does in place of taking the value, as Custom... asks for a name.</summary>
+        public Action<ISettingHost> Run;
+        /// <summary>For a resolution: interlaced, as 1080i.</summary>
+        public bool Interlaced;
     }
 
     /// <summary>What a setting's action asks of the page showing it.</summary>
@@ -71,6 +79,8 @@ namespace Silverdash360.Services
         public Action OnOpen;
         /// <summary>What A does, for an item that isn't a choice.</summary>
         public Action<ISettingHost> Run;
+        /// <summary>A question asked before a choice is taken, as the Xbox Dashboard's restart questions.</summary>
+        public string Confirm;
 
         public SettingChoice Current()
         {
@@ -93,8 +103,11 @@ namespace Silverdash360.Services
                 return "";
             }
             SettingChoice current = Current();
-            return current != null ? current.Name : "Other";
+            return current == null ? "Other" : current.Label ?? current.Name;
         }
+
+        /// <summary>For HDTV Settings: the AV pack and its screen size setting, which a trial tries timings for.</summary>
+        public uint ResolutionPack = uint.MaxValue;
     }
 
     /// <summary>
@@ -173,6 +186,7 @@ namespace Silverdash360.Services
         public const string RemoteControl = "Remote Control";
         public const string DateAndTime = "Date and Time";
         public const string TvSizePage = "TV Size";
+        public const string ConsoleNamePage = "Console Name";
 
         /// <summary>The top of Console Settings, in the Xbox Dashboard's order (0x9201EDB8), with what each is for.</summary>
         public static readonly KeyValuePair<string, string>[] Categories =
@@ -185,13 +199,18 @@ namespace Silverdash360.Services
             new KeyValuePair<string, string>(AutoPlayPage, "Choose whether discs and media start when they're put in."),
             new KeyValuePair<string, string>(AutoDownloadsPage, "Choose whether updates download by themselves."),
             new KeyValuePair<string, string>(RemoteControl, "Choose which remotes control the console."),
+            new KeyValuePair<string, string>(ConsoleNamePage, "Name this console, as it shows on your network."),
         };
+
+        // The Xbox Dashboard's names, in its order (dashSysCslSetConsoleName.xur).
+        private static readonly string[] ConsoleNames = { "Xbox 360", "Living Room", "Family Room", "Game Room", "Bedroom" };
+        private const uint CustomName = 0xFF;
 
         // The Xbox Dashboard's resolution tables (dash 17559, 0x92020164 and
         // 0x920201C0): width and height, a negative height for 1080p.
         private static readonly SettingChoice[] HdtvModes =
         {
-            Mode("480p", 640, 480), Mode("720p", 1280, 720), Mode("1080i", 1920, 1080), Mode("1080p", 1920, -1080),
+            Mode("480p", 640, 480), Mode("720p", 1280, 720), Mode("1080i", 1920, 1080, true), Mode("1080p", 1920, -1080),
         };
 
         private static readonly SettingChoice[] VgaModes =
@@ -202,9 +221,9 @@ namespace Silverdash360.Services
             Mode("1920 x 1080", 1920, 1080),
         };
 
-        private static SettingChoice Mode(string name, int width, int height)
+        private static SettingChoice Mode(string name, int width, int height, bool interlaced = false)
         {
-            return new SettingChoice { Name = name, Value = ((uint)width << 16) | (ushort)(short)height };
+            return new SettingChoice { Name = name, Value = ((uint)width << 16) | (ushort)(short)height, Interlaced = interlaced };
         }
 
         private static SettingChoice Choice(string name, uint value)
@@ -251,6 +270,33 @@ namespace Silverdash360.Services
                 Read = () => (uint)(XConfig.Smc(0x16)[1] & 0xF),
                 Write = v => XConfig.Smc(0x95, (byte)v),
             });
+            // XamGet/SetConsoleFriendlyName, 23 characters at most; a name
+            // that's none of the list is Custom... (dash 17559, 0x92280558).
+            List<SettingChoice> names = ConsoleNames.Select((n, i) => Choice(n, (uint)i)).ToList();
+            names.Add(new SettingChoice
+            {
+                Name = "Custom...", Value = CustomName,
+                Run = host => host.Ask("Console Name", "Enter a name for this console.", XConfig.ConsoleName(), typed =>
+                {
+                    XConfig.SetConsoleName(typed);
+                    Log.Write("Console named {0}", typed);
+                    host.Status("Console Name: " + typed + ".");
+                    host.Back();
+                }),
+            });
+            all.Add(new ConsoleSetting
+            {
+                Group = ConsoleNamePage, Title = "Console Name",
+                Description = "The console's name, as it shows on your network",
+                Choices = names,
+                Value = XConfig.ConsoleName,
+                Read = () =>
+                {
+                    int preset = Array.IndexOf(ConsoleNames, XConfig.ConsoleName());
+                    return preset >= 0 ? (uint)preset : CustomName;
+                },
+                Write = v => XConfig.SetConsoleName(ConsoleNames[v]),
+            });
             return all;
         }
 
@@ -264,7 +310,8 @@ namespace Silverdash360.Services
             // takes 3D: bit 0 at 4 is the 3D_present bit of the TV's HDMI
             // vendor block (kernel 17559, 0x800C3D40), and the size is for
             // 3D. It's here for any TV that gives its size too.
-            bool tvTells = discovery != null && ((BigEndian.U32(discovery, 4) & 1) != 0 || DetectedTvSize(discovery) != 0);
+            bool takes3D = discovery != null && (BigEndian.U32(discovery, 4) & 1) != 0;
+            bool tvTells = takes3D || (discovery != null && DetectedTvSize(discovery) != 0);
             bool colorSpaces = discovery != null && BigEndian.U32(discovery, 0x1D) == 3;
             // The AV region: 1 NTSC-M, 2 NTSC-J, 3 PAL.
             uint region = (XConfig.GetU32(XConfig.ConsoleCategory, 2) >> 8) & 0xFF;
@@ -273,14 +320,18 @@ namespace Silverdash360.Services
                 : pack == PackComponent || pack == PackComponentSd ? ComponentSize : (ushort)0;
             if (sizeSetting != 0)
             {
+                bool hdtv;
+                List<SettingChoice> modes = Resolutions(pack, discovery, out hdtv);
                 all.Add(new ConsoleSetting
                 {
-                    Group = Display, Title = pack == PackVga ? "Screen Resolution" : "HDTV Settings",
-                    Description = "If the picture doesn't appear within 10 seconds, the console goes back to its old setting",
+                    Group = Display, Title = hdtv ? "HDTV Settings" : "Screen Resolution",
+                    Description = "Select a high definition output setting. When you change it, you'll be asked if you can " +
+                                  "see a picture. If you don't answer within 10 seconds, the console goes back to its original setting",
                     Effect = SettingEffect.TestDisplay,
-                    Choices = (pack == PackVga ? VgaModes : HdtvModes).ToList(),
+                    Choices = modes,
                     Read = () => XConfig.GetU32(User, sizeSetting),
                     Write = v => XConfig.SetU32(User, sizeSetting, v),
+                    ResolutionPack = pack,
                 });
             }
             all.Add(new ConsoleSetting
@@ -341,9 +392,10 @@ namespace Silverdash360.Services
                 all.Add(new ConsoleSetting
                 {
                     Group = Display, Title = "Display Discovery",
-                    Description = "Your console needs to restart to use the new display discovery setting. After it " +
-                                  "restarts, you can choose your new digital audio and HDTV settings",
+                    Description = "The console asks the display what it can show",
                     Effect = SettingEffect.RestartConsole,
+                    Confirm = "Your console needs to restart to use the new display discovery setting. After your console " +
+                              "restarts, you can choose your new digital audio and HDTV settings.",
                     Choices = Choices(Choice("Display Discovery Enabled", 0), Choice("Display Discovery Disabled", 1)),
                     Read = () => (XConfig.GetU32(User, VideoOptions) >> 3) & 1,
                     Write = v =>
@@ -372,10 +424,98 @@ namespace Silverdash360.Services
                     XConfig.ApplyInactivityTime(false);
                 },
             });
+            if (takes3D)
+            {
+                all.Add(new ConsoleSetting
+                {
+                    Group = Display, Title = "3D TV",
+                    Description = "Let games show 3D on your 3D TV",
+                    Effect = SettingEffect.RestartConsole,
+                    Confirm = "Your console needs to restart to use the new 3D TV setting.\n\nRestart now?",
+                    Choices = Choices(Choice("3D Enabled", 0), Choice("3D Disabled", 1)),
+                    // Video option 5, bit 21 of user setting 0x2C: 1 is off.
+                    Read = () => (XConfig.GetU32(User, VideoOptions) >> 21) & 1,
+                    Write = v => XConfig.SetVideoOption(5, v),
+                });
+            }
             if (tvTells)
             {
                 AddTvSize(all, discovery);
             }
+        }
+
+        // The resolutions the Xbox Dashboard offers for the cable and display
+        // (dash 17559, 0x9227F858, 0x9227EF18 and the VdEnumerateVideoModes
+        // callback 0x9227E398). Component: the HDTV list, all of it. HDMI,
+        // DVI and VGA by what the display says (the word at 0x1D): a PC
+        // monitor, the VGA list, all of it; an HDMI TV, the HDTV list, with
+        // what the display takes not greyed; a DVI one, only what it takes.
+        // The display's own best mode heads it as Optimal Resolution, and
+        // others it takes, at 60 Hz and in the VGA list's sizes, follow by
+        // width.
+        private static List<SettingChoice> Resolutions(uint pack, byte[] discovery, out bool hdtv)
+        {
+            hdtv = true;
+            if (pack == PackComponent || pack == PackComponentSd)
+            {
+                return HdtvModes.ToList();
+            }
+            uint sink = discovery != null ? BigEndian.U32(discovery, 0x1D) : 0;
+            bool hdmiSink = discovery != null && (BigEndian.U32(discovery, 4) & 0x100) != 0;
+            if (sink == 1 || (pack == PackVga && sink != 2 && sink != 3))
+            {
+                hdtv = false;
+                return VgaModes.ToList();
+            }
+            if (sink != 2 && sink != 3)
+            {
+                // The display said nothing: the HDTV list as for component.
+                return HdtvModes.ToList();
+            }
+            hdtv = hdmiSink;
+            List<SettingChoice> list = hdmiSink
+                ? HdtvModes.Select(m => new SettingChoice { Name = m.Name, Value = m.Value, Interlaced = m.Interlaced, Unavailable = true }).ToList()
+                : new List<SettingChoice>();
+            int fixedCount = list.Count;
+            foreach (XConfig.VideoMode mode in XConfig.VideoModes())
+            {
+                if (list.Count >= 20)
+                {
+                    break;
+                }
+                if (Math.Abs((int)mode.Refresh - 60) > 1 || (mode.Interlaced && !hdmiSink) ||
+                    !VgaModes.Any(m => (m.Value >> 16) == mode.Width && (short)m.Value == mode.Height))
+                {
+                    continue;
+                }
+                int height = mode.Height == 1080 && !mode.Interlaced ? -1080 : mode.Height;
+                uint value = ((uint)mode.Width << 16) | (ushort)(short)height;
+                if (mode.Preferred)
+                {
+                    list.Insert(0, new SettingChoice
+                    {
+                        Name = "Optimal Resolution", Value = value, Label = string.Format("{0} x {1}", mode.Width, mode.Height),
+                        Interlaced = mode.Interlaced,
+                    });
+                    fixedCount++;
+                }
+                SettingChoice same = list.Skip(mode.Preferred ? 1 : 0).FirstOrDefault(c => c.Value == value);
+                if (same != null)
+                {
+                    same.Unavailable = false;
+                    continue;
+                }
+                int at = fixedCount;
+                while (at < list.Count && (list[at].Value >> 16) <= (uint)mode.Width)
+                {
+                    at++;
+                }
+                list.Insert(at, new SettingChoice
+                {
+                    Name = string.Format("{0} x {1}", mode.Width, mode.Height), Value = value, Interlaced = mode.Interlaced,
+                });
+            }
+            return list;
         }
 
         private static bool IsWideOnly(uint mode)
@@ -847,19 +987,43 @@ namespace Silverdash360.Services
 
         // A display setting on trial: kept in a file of the dashboard's,
         // written before it starts again, so the start in the new setting can
-        // put the old one back if nobody confirms it.
+        // put the old one back if nobody confirms it. A resolution is tried as
+        // the Xbox Dashboard tries it (dash 17559, 0x92280238): recorded with
+        // VdSetDisplayModeOverride at timing 0, which the display takes up at
+        // its next start (the Xbox Dashboard resets its display; Silverdash360
+        // starts again); kept, the timing goes into the cable's two bits of
+        // user setting 0x2B; turned down on HDMI, DVI or VGA, the next timing
+        // is tried, until the kernel has none.
         private const string TrialFile = "display-trial.txt";
+        private const ushort Timings = 0x2B;
 
         /// <summary>How long the start in a new display setting waits to be told to keep it.</summary>
         public const int TrialSeconds = 10;
 
         /// <summary>Changes a display setting on trial: the old value is kept to put back.</summary>
-        public static void StartTrial(ConsoleSetting setting, uint value)
+        public static void StartTrial(ConsoleSetting setting, SettingChoice choice)
         {
             uint old = setting.Read();
-            AppStorage.WriteText(TrialFile, setting.Title + "\n" + old.ToString("X8") + "\n" + value.ToString("X8"));
-            setting.Write(value);
-            Log.Write("Console setting {0} on trial: {1:X8}, was {2:X8}", setting.Title, value, old);
+            if (setting.ResolutionPack != uint.MaxValue && !Override(choice.Value, choice.Interlaced, 0))
+            {
+                XConfig.ClearDisplayModeOverride();
+                throw new InvalidOperationException("The console has no way to show " + choice.Name + ".");
+            }
+            setting.Write(choice.Value);
+            SaveTrial(new Trial { Setting = setting, Old = old, New = choice.Value, Interlaced = choice.Interlaced, Timing = 0 });
+            Log.Write("Console setting {0} on trial: {1:X8}, was {2:X8}", setting.Title, choice.Value, old);
+        }
+
+        private static bool Override(uint mode, bool interlaced, int timing)
+        {
+            int height = Math.Abs((short)mode);
+            return XConfig.OverrideDisplayMode((int)(mode >> 16), height, interlaced, timing);
+        }
+
+        private static void SaveTrial(Trial trial)
+        {
+            AppStorage.WriteText(TrialFile, trial.Setting.Title + "\n" + trial.Old.ToString("X8") + "\n" + trial.New.ToString("X8") +
+                                            "\n" + trial.Timing + "\n" + (trial.Interlaced ? 1 : 0));
         }
 
         /// <summary>The setting on trial and its old value, or null.</summary>
@@ -871,27 +1035,58 @@ namespace Silverdash360.Services
                 return null;
             }
             string[] lines = text.Split('\n');
-            ConsoleSetting setting = lines.Length >= 3 ? All().FirstOrDefault(s => s.Title == lines[0]) : null;
+            ConsoleSetting setting = lines.Length >= 5 ? All().FirstOrDefault(s => s.Title == lines[0]) : null;
             if (setting == null)
             {
                 AppStorage.Delete(TrialFile);
                 return null;
             }
-            return new Trial { Setting = setting, Old = Convert.ToUInt32(lines[1], 16), New = Convert.ToUInt32(lines[2], 16) };
+            return new Trial
+            {
+                Setting = setting, Old = Convert.ToUInt32(lines[1], 16), New = Convert.ToUInt32(lines[2], 16),
+                Timing = int.Parse(lines[3]), Interlaced = lines[4].Trim() == "1",
+            };
         }
 
-        /// <summary>Keeps the setting on trial.</summary>
-        public static void KeepTrial()
+        /// <summary>Keeps the setting on trial, and for a resolution the timing it was shown at.</summary>
+        public static void KeepTrial(Trial trial)
         {
+            uint pack = trial.Setting.ResolutionPack;
+            if (pack != uint.MaxValue)
+            {
+                // Two bits a cable, HDMI's in the fifth pair (0x9227E858).
+                int shift = 2 * (int)(pack == PackHdmi ? 4 : pack);
+                XConfig.SetBits(User, Timings, 3u << shift, (uint)trial.Timing << shift);
+            }
             AppStorage.Delete(TrialFile);
         }
 
-        /// <summary>Puts the old value back; Silverdash360 is then started again.</summary>
-        public static void RevertTrial(Trial trial)
+        /// <summary>
+        /// Turns the setting on trial down: the old value back, or for a
+        /// resolution on HDMI, DVI or VGA the next timing to try, which is
+        /// then on trial (true). Silverdash360 is then started again.
+        /// </summary>
+        public static bool RevertTrial(Trial trial)
         {
             trial.Setting.Write(trial.Old);
+            uint pack = trial.Setting.ResolutionPack;
+            if (pack != uint.MaxValue)
+            {
+                XConfig.ClearDisplayModeOverride();
+                bool timings = pack == PackHdmi || pack == PackHdmiAudio || pack == PackVga;
+                if (timings && Override(trial.New, trial.Interlaced, trial.Timing + 1))
+                {
+                    trial.Timing++;
+                    trial.Setting.Write(trial.New);
+                    SaveTrial(trial);
+                    Log.Write("Console setting {0}: trying timing {1}", trial.Setting.Title, trial.Timing);
+                    return true;
+                }
+                XConfig.ClearDisplayModeOverride();
+            }
             AppStorage.Delete(TrialFile);
             Log.Write("Console setting {0} put back: {1:X8}", trial.Setting.Title, trial.Old);
+            return false;
         }
 
         public sealed class Trial
@@ -899,6 +1094,8 @@ namespace Silverdash360.Services
             public ConsoleSetting Setting;
             public uint Old;
             public uint New;
+            public bool Interlaced;
+            public int Timing;
         }
     }
 }
