@@ -189,6 +189,7 @@ namespace Silverdash360.Services
         public const string DateAndTime = "Date and Time";
         public const string TvSizePage = "TV Size";
         public const string ConsoleNamePage = "Console Name";
+        public const string SystemInfoPage = "System Info";
 
         /// <summary>The top of Console Settings, in the Xbox Dashboard's order (0x9201EDB8), with what each is for.</summary>
         public static readonly KeyValuePair<string, string>[] Categories =
@@ -201,6 +202,7 @@ namespace Silverdash360.Services
             new KeyValuePair<string, string>(AutoPlayPage, "Choose whether discs and media start when they're put in."),
             new KeyValuePair<string, string>(AutoDownloadsPage, "Choose whether updates download by themselves."),
             new KeyValuePair<string, string>(RemoteControl, "Choose which remotes control the console."),
+            new KeyValuePair<string, string>(SystemInfoPage, "View your console's system information."),
             new KeyValuePair<string, string>(ConsoleNamePage, "Name this console, as it shows on your network."),
             new KeyValuePair<string, string>(NetworkSettings.Page, "Set up and test your network connection."),
         };
@@ -300,6 +302,11 @@ namespace Silverdash360.Services
                 },
                 Write = v => XConfig.SetConsoleName(ConsoleNames[v]),
             });
+            foreach (KeyValuePair<string, string> line in SystemInfo.Lines())
+            {
+                string value = line.Value;
+                all.Add(new ConsoleSetting { Group = SystemInfoPage, Title = line.Key, Value = () => value, Run = host => { } });
+            }
             NetworkSettings.Add(all);
             return all;
         }

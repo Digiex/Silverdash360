@@ -395,5 +395,11 @@ namespace Silverdash360.Native
         {
             HalReturnToFirmware(1);
         }
+
+        /// <summary>HalReturnToFirmware: 1 restarts, 6 restarts as after a factory reset.</summary>
+        public static void ReturnToFirmware(uint routine)
+        {
+            HalReturnToFirmware(routine);
+        }
     }
 }

@@ -7,18 +7,19 @@ using System.Text;
 using System.Threading;
 using Silverdash360.Core;
 using Silverdash360.Native;
+using Silverdash360.Services.Ftp;
 
 namespace Silverdash360.Services
 {
     /// <summary>
     /// The Xbox Dashboard's Network Settings (dash 2.0.17559), its pages and
     /// items in its order: Configure Network (IP, DNS, wireless, PPPoE,
-    /// advanced settings, factory defaults), Test Xbox Live Connection and
-    /// the network's status. The wired settings are xam's configuration
-    /// (<see cref="XNet.LoadParameters"/>), edited in a copy that a page's
-    /// Done saves and takes into use at once, as the Xbox Dashboard does; the
-    /// wireless network is the adapter's, set through its options. Its
-    /// statistics, PC and Windows Media Center tests, ad-hoc networks and
+    /// advanced settings, factory defaults), Test Xbox Live Connection,
+    /// Network Statistics and the network's status. The wired settings are
+    /// xam's configuration (<see cref="XNet.LoadParameters"/>), edited in a
+    /// copy that a page's Done saves and takes into use at once, as the Xbox
+    /// Dashboard does; the wireless network is the adapter's, set through its
+    /// options. Its PC and Windows Media Center tests, ad-hoc networks and
     /// wireless bridges aren't here.
     /// </summary>
     public static class NetworkSettings
@@ -31,6 +32,7 @@ namespace Silverdash360.Services
         public const string PppoePage = "PPPoE Settings";
         public const string AdvancedPage = "Advanced Settings";
         public const string TestPage = "Test Xbox Live Connection";
+        public const string StatisticsPage = "Network Statistics";
 
         /// <summary>Something shown changed in the background: a scan or a test moved on.</summary>
         public static event Action Changed;
@@ -101,7 +103,12 @@ namespace Silverdash360.Services
             all.Add(new ConsoleSetting
             {
                 Group = Page, Title = TestPage, Description = "See whether the console reaches the Internet and Xbox Live",
-                Opens = TestPage, OnOpen = StartTest,
+                Opens = TestPage, OnOpen = () => StartTest(TestPage),
+            });
+            all.Add(new ConsoleSetting
+            {
+                Group = Page, Title = StatisticsPage, Description = "Measure the connection's latency, packet loss and speeds",
+                Opens = StatisticsPage, OnOpen = () => StartTest(StatisticsPage),
             });
             AddStatus(all);
             AddConfigure(all);
@@ -110,7 +117,8 @@ namespace Silverdash360.Services
             AddWireless(all);
             AddPppoe(all);
             AddAdvanced(all);
-            AddTest(all);
+            AddTest(all, TestPage);
+            AddTest(all, StatisticsPage);
         }
 
         // The status the Xbox Dashboard shows with Y: what the network uses now.
@@ -404,6 +412,8 @@ namespace Silverdash360.Services
         private const uint OptBssidList = 0x0D010217;
         private const uint OptAdapterStatus = 0x2AF9;
         private const uint OptSecurity = 0x2AFA;
+        private const uint OptRssi = 0x0D010206;
+        private const uint OptLinkSpeed = 0x2B00;
 
         public sealed class Network
         {
@@ -648,51 +658,72 @@ namespace Silverdash360.Services
             return bytes;
         }
 
-        // Test Xbox Live Connection: the Xbox Dashboard's steps to the Live
-        // logon (0x922D8B90), each row Testing..., Connected or Failed.
+        // Test Xbox Live Connection and Network Statistics: the Xbox
+        // Dashboard's steps to the Live logon (0x922D8B90), each row
+        // Testing..., Connected or Failed, and for the statistics then its
+        // latency, upload and download tests (0x922F27E8). Rows a failed step
+        // keeps from running show Blocked.
         private static readonly Dictionary<string, string> results = new Dictionary<string, string>();
         private static bool testing;
+        private static string tested;
         private static readonly string[] TestRows = { "Network", "Internet", "Xbox Live" };
-
-        private static void AddTest(List<ConsoleSetting> all)
+        private static readonly string[] StatisticsRows =
         {
-            foreach (string row in TestRows)
+            "Network", "Internet", "Xbox Live", "Latency", "Packet loss", "Upload speed", "Download speed",
+        };
+
+        private static void AddTest(List<ConsoleSetting> all, string page)
+        {
+            List<string> rows = Rows(page).ToList();
+            if (page == StatisticsPage && WirelessAdapter())
+            {
+                rows.Add("Signal strength");
+                rows.Add("Wi-Fi speed");
+            }
+            foreach (string row in rows)
             {
                 string name = row;
-                all.Add(Info(TestPage, name, () =>
+                all.Add(Info(page, name, () =>
                 {
                     string result;
-                    return results.TryGetValue(name, out result) ? result : "Unknown";
+                    return tested == page && results.TryGetValue(name, out result) ? result : "Unknown";
                 }));
             }
             all.Add(new ConsoleSetting
             {
-                Group = TestPage, Title = testing ? "Testing..." : "Test Again", Description = "Run the test again",
+                Group = page, Title = testing ? "Testing..." : "Test Again", Description = "Run the test again",
                 Run = host =>
                 {
-                    StartTest();
+                    StartTest(page);
                     host.Refresh();
                 },
             });
         }
 
-        private static void StartTest()
+        private static string[] Rows(string page)
+        {
+            return page == StatisticsPage ? StatisticsRows : TestRows;
+        }
+
+        private static void StartTest(string page)
         {
             if (testing)
             {
                 return;
             }
             testing = true;
+            tested = page;
             results.Clear();
-            foreach (string row in TestRows)
+            foreach (string row in Rows(page))
             {
-                results[row] = "Testing...";
+                results[row] = "Blocked";
             }
+            results["Network"] = results["Internet"] = results["Xbox Live"] = "Testing...";
             RaiseChanged();
-            new Thread(RunTest) { IsBackground = true, Name = "Network test" }.Start();
+            new Thread(() => RunTest(page)) { IsBackground = true, Name = "Network test" }.Start();
         }
 
-        private static void RunTest()
+        private static void RunTest(string page)
         {
             try
             {
@@ -713,12 +744,21 @@ namespace Silverdash360.Services
                 }
                 Pass("Internet");
                 // Xbox Live: the logon's status, 0x001510F0 for connected.
-                results["Xbox Live"] = XConfig.LiveStatus() == 0x001510F0 ? "Connected" : "Failed";
+                if (XConfig.LiveStatus() != 0x001510F0)
+                {
+                    Fail("Xbox Live");
+                    return;
+                }
+                Pass("Xbox Live");
+                if (page == StatisticsPage)
+                {
+                    RunStatistics();
+                }
             }
             catch (Exception e)
             {
                 Log.Write("Network test failed: {0}", e);
-                foreach (string row in TestRows.Where(r => results[r] == "Testing..."))
+                foreach (string row in Rows(page).Where(r => results[r] == "Testing..."))
                 {
                     results[row] = "Failed";
                 }
@@ -736,11 +776,12 @@ namespace Silverdash360.Services
             RaiseChanged();
         }
 
-        // A row failed, and the ones after it can't be tested.
+        // A row failed; the Live test's later rows can't be tested, and the
+        // statistics' stay Blocked.
         private static void Fail(string row)
         {
             bool after = false;
-            foreach (string name in TestRows)
+            foreach (string name in Rows(tested))
             {
                 if (name == row)
                 {
@@ -749,8 +790,236 @@ namespace Silverdash360.Services
                 }
                 else if (after)
                 {
-                    results[name] = "Unknown";
+                    results[name] = tested == StatisticsPage ? "Blocked" : "Unknown";
                 }
+            }
+        }
+
+        // Network Statistics' measurements, in the Xbox Dashboard's order and
+        // formats; each test has 10 s, as the Xbox Dashboard gives it.
+        private static void RunStatistics()
+        {
+            results["Latency"] = results["Packet loss"] = "Testing...";
+            RaiseChanged();
+            int latency, loss;
+            if (!Measure("latency", MeasureLatency, out latency, out loss))
+            {
+                results["Latency"] = results["Packet loss"] = "Failed";
+                return;
+            }
+            results["Latency"] = latency + " ms";
+            results["Packet loss"] = loss + "%";
+            results["Upload speed"] = "Testing...";
+            RaiseChanged();
+            results["Upload speed"] = Speed("upload", MeasureUpload);
+            if (results["Upload speed"] == "Failed")
+            {
+                return;
+            }
+            results["Download speed"] = "Testing...";
+            RaiseChanged();
+            results["Download speed"] = Speed("download", MeasureDownload);
+            if (WirelessAdapter())
+            {
+                byte[] rssi = XNet.GetOption(OptRssi, 4);
+                byte[] speed = XNet.GetOption(OptLinkSpeed, 4);
+                results["Signal strength"] = rssi == null ? "Unknown"
+                    : Math.Max(0, Math.Min(100, ((int)BigEndian.U32(rssi, 0) + 100) * 2)) + "%";
+                results["Wi-Fi speed"] = speed == null ? "Unknown" : BigEndian.U32(speed, 0) / 1000000 + " Mbps";
+            }
+        }
+
+        private delegate bool Latency(out int latency, out int loss);
+
+        private static bool Measure(string name, Latency test, out int latency, out int loss)
+        {
+            latency = loss = 0;
+            try
+            {
+                return test(out latency, out loss);
+            }
+            catch (Exception e)
+            {
+                Log.Write("Network statistics: the {0} test failed: {1}", name, e.Message);
+                return false;
+            }
+        }
+
+        // A rate in bits/s as the Xbox Dashboard shows it, or Failed for none.
+        private static string Speed(string name, Func<double> test)
+        {
+            double bitsPerSecond;
+            try
+            {
+                bitsPerSecond = test();
+            }
+            catch (Exception e)
+            {
+                Log.Write("Network statistics: the {0} test failed: {1}", name, e.Message);
+                return "Failed";
+            }
+            return bitsPerSecond <= 0 ? "Failed" : ((bitsPerSecond + 5000) * 1e-6).ToString("0.00") + " Mbps";
+        }
+
+        private const int EchoCount = 250;
+        private const int TestMilliseconds = 10000;
+        private static readonly byte[] EchoText = Encoding.UTF8.GetBytes("Xbox One Echo Test\0");
+
+        // Latency and packet loss: 250 UDP echoes to x1ds.xboxlive.com:3074,
+        // one every 10 ms, then the replies until the deadline. A request is
+        // four little-endian u16s (1, 0, 59, 23), its sequence number and the
+        // text; a 59-byte reply from the server that echoes both counts once.
+        private static bool MeasureLatency(out int latency, out int loss)
+        {
+            latency = loss = 0;
+            uint server = NativeSocket.Resolve("x1ds.xboxlive.com");
+            int[] sent = new int[EchoCount];
+            bool[] answered = new bool[EchoCount];
+            int accepted = 0;
+            long total = 0;
+            using (NativeSocket socket = NativeSocket.Udp())
+            using (NativeBuffer reply = new NativeBuffer(256))
+            {
+                byte[] request = new byte[12 + EchoText.Length];
+                ushort[] header = { 1, 0, 59, 23 };
+                for (int i = 0; i < header.Length; i++)
+                {
+                    request[i * 2] = (byte)header[i];
+                    request[i * 2 + 1] = (byte)(header[i] >> 8);
+                }
+                Array.Copy(EchoText, 0, request, 12, EchoText.Length);
+                int deadline = Environment.TickCount + TestMilliseconds + 1000;
+                int next = 0;
+                while (Environment.TickCount - deadline < 0 && accepted < EchoCount)
+                {
+                    if (next < EchoCount)
+                    {
+                        request[8] = (byte)next;
+                        request[9] = (byte)(next >> 8);
+                        request[10] = request[11] = 0;
+                        sent[next] = Environment.TickCount;
+                        socket.SendTo(request, server, 3074);
+                        next++;
+                    }
+                    while (socket.WaitReadable(10))
+                    {
+                        uint from;
+                        int port;
+                        int length = socket.ReceiveFrom(reply, out from, out port);
+                        int now = Environment.TickCount;
+                        int sequence = EchoSequence(reply.Bytes, length);
+                        if (length != 59 || from != server || sequence < 0 || sequence >= next || answered[sequence])
+                        {
+                            continue;
+                        }
+                        answered[sequence] = true;
+                        accepted++;
+                        total += now - sent[sequence];
+                    }
+                }
+            }
+            loss = 100 - accepted * 100 / EchoCount;
+            if (accepted == 0)
+            {
+                return false;
+            }
+            latency = (int)(total / accepted);
+            return true;
+        }
+
+        // The sequence number before the echoed text in a reply, or -1.
+        private static int EchoSequence(byte[] reply, int length)
+        {
+            for (int at = 4; at + EchoText.Length - 1 <= length; at++)
+            {
+                int i = 0;
+                while (i < EchoText.Length - 1 && reply[at + i] == EchoText[i])
+                {
+                    i++;
+                }
+                if (i == EchoText.Length - 1)
+                {
+                    return reply[at - 4] | reply[at - 3] << 8 | reply[at - 2] << 16 | reply[at - 1] << 24;
+                }
+            }
+            return -1;
+        }
+
+        // Upload: networktest.xboxlive.com:80 takes a 5-byte preamble, then
+        // 16358-byte chunks for 10 s or 100 MB.
+        private static double MeasureUpload()
+        {
+            using (NativeSocket socket = NativeSocket.Connect(NativeSocket.Resolve("networktest.xboxlive.com"), 80))
+            using (NativeBuffer chunk = new NativeBuffer(16358))
+            {
+                using (NativeBuffer preamble = new NativeBuffer(new byte[] { 0x02, 0x2C, 0x6E, 0x15, 0x42 }))
+                {
+                    socket.Send(preamble, preamble.Length);
+                }
+                long bytes = 0;
+                int start = Environment.TickCount;
+                int elapsed = 0;
+                while (elapsed < TestMilliseconds && bytes < 100000000)
+                {
+                    socket.Send(chunk, chunk.Length);
+                    bytes += chunk.Length;
+                    elapsed = Environment.TickCount - start;
+                }
+                return elapsed <= 0 ? 0 : bytes * 8 * 1000.0 / elapsed;
+            }
+        }
+
+        // Download: an HTTP GET of the Xbox Dashboard's speed test file, read
+        // for 10 s or until it ends. Raw HTTP, since the browser stack would
+        // buffer the whole file before handing any of it over.
+        private static double MeasureDownload()
+        {
+            const string host = "speedtest.xboxlive.com";
+            using (NativeSocket socket = NativeSocket.Connect(NativeSocket.Resolve(host), 80))
+            using (NativeBuffer buffer = new NativeBuffer(16358))
+            {
+                socket.Send("GET /speedtest/extraextralarge.txt HTTP/1.1\r\nHost: " + host +
+                            "\r\nUser-Agent: Xbox 360 Network Statistics\r\nConnection: close\r\n\r\n");
+                long bytes = 0;
+                int start = Environment.TickCount;
+                int elapsed = 0;
+                bool header = true;
+                StringBuilder head = new StringBuilder();
+                while (elapsed < TestMilliseconds)
+                {
+                    if (!socket.WaitReadable(Math.Max(1, TestMilliseconds - elapsed)))
+                    {
+                        break;
+                    }
+                    int received = socket.Receive(buffer, buffer.Length);
+                    if (received == 0)
+                    {
+                        break;
+                    }
+                    elapsed = Environment.TickCount - start;
+                    if (!header)
+                    {
+                        bytes += received;
+                        continue;
+                    }
+                    head.Append(Encoding.UTF8.GetString(buffer.Bytes, 0, received));
+                    string text = head.ToString();
+                    int end = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+                    if (end < 0)
+                    {
+                        continue;
+                    }
+                    if (!text.StartsWith("HTTP/1.1 2", StringComparison.Ordinal) &&
+                        !text.StartsWith("HTTP/1.0 2", StringComparison.Ordinal))
+                    {
+                        throw new IOException("the server answered " + text.Substring(0, text.IndexOf('\r')) + ".");
+                    }
+                    header = false;
+                    // What came after the header, counted as the bytes of
+                    // the reply; the file is ASCII text, so UTF-8 keeps them.
+                    bytes += Encoding.UTF8.GetByteCount(text.Substring(end + 4));
+                }
+                return elapsed <= 0 ? 0 : bytes * 8 * 1000.0 / elapsed;
             }
         }
 

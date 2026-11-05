@@ -35,8 +35,9 @@
 | **Clock** | Date and Time, Time Format, Time Zone, Daylight Saving |
 | **Startup and Shutdown** | Startup, Auto-Off, Background Downloads |
 | **Auto-Play**, **Auto-Downloads**, **Remote Control** | On or off, and which remotes |
+| **System Info** | The console's serial number and ID, the versions, and the codes support asks for |
 | **Console Name** | Xbox 360, Living Room, Family Room, Game Room, Bedroom, or a name of your own (Custom...) |
-| **Network Settings** | Configure Network (IP Settings, DNS Settings, Wireless, PPPoE Settings, Advanced Settings, Restore to Factory Defaults), Test Xbox Live Connection, and the address, mask, gateway and DNS servers in use |
+| **Network Settings** | Configure Network (IP Settings, DNS Settings, Wireless, PPPoE Settings, Advanced Settings, Restore to Factory Defaults), Test Xbox Live Connection, Network Statistics, and the address, mask, gateway and DNS servers in use |
 
 Only what your cable, TV and region have is shown, as in the Xbox Dashboard: PAL Settings, for one, only on a PAL console. TV Size is shown for a TV that gives its size; the Xbox Dashboard shows it only for a 3D TV, as 3D games use it. Most changes take effect at once.
 
@@ -47,9 +48,11 @@ Only what your cable, TV and region have is shown, as in the Xbox Dashboard: PAL
 - **Time Zone** and **Daylight Saving** keep the clock at the same local time, unless Xbox Live sets the clock; **Date and Time** can't be changed then either.
 - **Startup**: from the next start. A dashboard set up with DashLaunch starts in place of the Xbox Dashboard.
 
-- **Network Settings**: each page's **Done** saves its settings, and the network uses them at once. **Wireless** lists the networks found, strongest first; choosing one asks for its key. **Test Xbox Live Connection** checks the network, the Internet and Xbox Live.
+- **Network Settings**: each page's **Done** saves its settings, and the network uses them at once. **Wireless** lists the networks found, strongest first; choosing one asks for its key. **Test Xbox Live Connection** checks the network, the Internet and Xbox Live. **Network Statistics** does too, then measures latency and packet loss, upload and download speeds against Xbox Live's test servers, and on wireless the signal strength and Wi-Fi speed. Each test takes about 10 seconds.
 
-Connected Devices and System Info aren't here yet, nor Network Settings' statistics, PC and Windows Media Center tests, ad-hoc networks and wireless bridges.
+- **System Info**: the Xbox Dashboard's hidden **Reset System Settings** is here too. On the System Info page, press the Xbox Dashboard's button sequence (LT, RT, X, Y, LB, RB); after you say yes, the console's settings go back to the factory's and it restarts. Your games, profiles and saves stay.
+
+Connected Devices isn't here yet, nor Network Settings' PC and Windows Media Center tests, ad-hoc networks and wireless bridges.
 
 ## Welcome screen
 

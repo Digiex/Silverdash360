@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Windows.Input;
 using System.Windows.Navigation;
 using System.Windows.Threading;
 using Microsoft.Xbox.Controls;
@@ -62,6 +63,8 @@ namespace Silverdash360.Pages
         {
             base.OnNavigatedTo(e);
             NetworkSettings.Changed += OnNetworkChanged;
+            Rows.GamePadButtonDown += OnResetButton;
+            Rows.GamePadTriggerMoved += OnResetTrigger;
             if (NavigationContext.QueryString.ContainsKey("trial"))
             {
                 ShowTrial();
@@ -83,6 +86,8 @@ namespace Silverdash360.Pages
         {
             base.OnNavigatedFrom(e);
             NetworkSettings.Changed -= OnNetworkChanged;
+            Rows.GamePadButtonDown -= OnResetButton;
+            Rows.GamePadTriggerMoved -= OnResetTrigger;
             if (countdown != null)
             {
                 countdown.Stop();
@@ -198,8 +203,10 @@ namespace Silverdash360.Pages
             if (category != null)
             {
                 // What the Xbox Dashboard shows beside it: the values of its items.
-                string values = string.Join(", ", settings.Where(s => s.Group == category.Name && s.Opens == null)
-                                                          .Take(2).Select(s => Safe(() => s.ValueText())).Where(v => !string.IsNullOrEmpty(v)).ToArray());
+                string values = category.Name == ConsoleSettings.SystemInfoPage
+                    ? SystemInfo.Summary()
+                    : string.Join(", ", settings.Where(s => s.Group == category.Name && s.Opens == null)
+                                                .Take(2).Select(s => Safe(() => s.ValueText())).Where(v => !string.IsNullOrEmpty(v)).ToArray());
                 return new RowData { Title = category.Name, Subtitle = category.Description, Detail = values };
             }
             ConsoleSetting setting = item as ConsoleSetting;
@@ -404,6 +411,101 @@ namespace Silverdash360.Pages
                 new Answer { Title = "No", Do = Show },
             };
             Rows.SelectedIndex = 1;
+        }
+
+        // System Info's hidden Reset System Settings: its button sequence,
+        // then the Xbox Dashboard's question (dash 17559, 0x92280E68).
+        private List<string> resetSequence;
+        private int resetAt;
+        private bool resetWrong;
+        private readonly bool[] triggerPulled = new bool[2];
+
+        private void OnResetButton(object sender, GamePadButtonEventArgs e)
+        {
+            string name;
+            switch (e.Button)
+            {
+                case GamePadButton.A: name = "A"; break;
+                case GamePadButton.X: name = "X"; break;
+                case GamePadButton.Y: name = "Y"; break;
+                case GamePadButton.LeftShoulder: name = "LB"; break;
+                case GamePadButton.RightShoulder: name = "RB"; break;
+                case GamePadButton.DPadUp: name = "Up"; break;
+                case GamePadButton.DPadDown: name = "Down"; break;
+                case GamePadButton.DPadLeft: name = "Left"; break;
+                case GamePadButton.DPadRight: name = "Right"; break;
+                default: return;
+            }
+            ResetPress(name);
+        }
+
+        private void OnResetTrigger(object sender, GamePadTriggerMovedEventArgs e)
+        {
+            int side = e.Side == GamePadSide.Left ? 0 : 1;
+            if (e.Position >= 0.5 && !triggerPulled[side])
+            {
+                triggerPulled[side] = true;
+                ResetPress(side == 0 ? SystemInfo.LeftTrigger : SystemInfo.RightTrigger);
+            }
+            else if (e.Position < 0.3)
+            {
+                triggerPulled[side] = false;
+            }
+        }
+
+        private void ResetPress(string button)
+        {
+            if (group != ConsoleSettings.SystemInfoPage || chosen != null || Rows.SelectedItem is Answer)
+            {
+                return;
+            }
+            if (resetSequence == null)
+            {
+                resetSequence = Safe(() => SystemInfo.ResetSequence()) ?? new List<string>();
+            }
+            if (resetSequence.Count == 0)
+            {
+                return;
+            }
+            if (button != resetSequence[resetAt])
+            {
+                if (resetAt < 6)
+                {
+                    // A wrong one among the first six starts it over.
+                    resetAt = button == resetSequence[0] ? 1 : 0;
+                    resetWrong = false;
+                    return;
+                }
+                resetWrong = true;
+            }
+            resetAt++;
+            if (resetAt < resetSequence.Count)
+            {
+                return;
+            }
+            bool wrong = resetWrong;
+            resetAt = 0;
+            resetWrong = false;
+            if (wrong)
+            {
+                Back();
+                return;
+            }
+            Confirm(SystemInfo.ResetTitle, SystemInfo.ResetQuestion, delegate
+            {
+                busy = true;
+                IntroText.Text = "Resetting your system settings and restarting the console...";
+                try
+                {
+                    SystemInfo.ResetSystemSettings();
+                }
+                catch (Exception error)
+                {
+                    busy = false;
+                    Log.Write("System settings weren't reset: {0}", error);
+                    Context.ShowStatus("Your system settings weren't reset: " + error.Message);
+                }
+            });
         }
 
         private void OnNetworkChanged()
