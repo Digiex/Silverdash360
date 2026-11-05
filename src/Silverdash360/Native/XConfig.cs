@@ -1,0 +1,275 @@
+using System;
+using System.Runtime.InteropServices;
+
+namespace Silverdash360.Native
+{
+    /// <summary>
+    /// The console's settings store (XConfig): settings by category and
+    /// number, as the Xbox Dashboard's Console Settings read and write them
+    /// (dash 17559), and the calls that apply some of them at once.
+    /// </summary>
+    public static class XConfig
+    {
+        public const ushort ConsoleCategory = 2;
+        public const ushort UserCategory = 3;
+        public const ushort XboxCategory = 7;
+
+        // 0x10: NTSTATUS ExGetXConfigSetting(WORD category, WORD setting,
+        //   PVOID buffer, WORD size, PWORD sizeRead)
+        [DllImport("xboxkrnl.exe", EntryPoint = "#16")]
+        private static extern int ExGetXConfigSetting(ushort category, ushort setting, uint buffer, ushort size, uint sizeRead);
+
+        // 0x18: NTSTATUS ExSetXConfigSetting(WORD category, WORD setting, PVOID buffer, WORD size)
+        [DllImport("xboxkrnl.exe", EntryPoint = "#24")]
+        private static extern int ExSetXConfigSetting(ushort category, ushort setting, uint buffer, ushort size);
+
+        // 0x2BC: NTSTATUS ExReadModifyWriteXConfigSettingUlong(WORD category,
+        //   WORD setting, DWORD andMask, DWORD orMask): (old & and) | or.
+        [DllImport("xboxkrnl.exe", EntryPoint = "#700")]
+        private static extern int ExReadModifyWriteXConfigSettingUlong(ushort category, ushort setting, uint andMask, uint orMask);
+
+        // 0x2DA: NTSTATUS VdSetOption(DWORD option, DWORD value, DWORD): views
+        // of user setting 0x2C that the video driver takes at once.
+        [DllImport("xboxkrnl.exe", EntryPoint = "#730")]
+        private static extern int VdSetOption(uint option, uint value, uint unused);
+
+        // 0x22: BYTE HalGetCurrentAVPack()
+        [DllImport("xboxkrnl.exe", EntryPoint = "#34")]
+        private static extern uint HalGetCurrentAVPack();
+
+        // 0x27E: BOOL VdGetDisplayDiscoveryData(PVOID data): the display's
+        // answers, its first word the size (0x23).
+        [DllImport("xboxkrnl.exe", EntryPoint = "#638")]
+        private static extern uint VdGetDisplayDiscoveryData(uint data);
+
+        // 0x200: NTSTATUS XAudioSetSpeakerConfig(DWORD flags)
+        [DllImport("xboxkrnl.exe", EntryPoint = "#512")]
+        private static extern int XAudioSetSpeakerConfig(uint flags);
+
+        // 0x29: VOID HalSendSMCMessage(PBYTE request, PBYTE reply): 16 bytes each.
+        [DllImport("xboxkrnl.exe", EntryPoint = "#41")]
+        private static extern void HalSendSMCMessage(uint request, uint reply);
+
+        // 0x28: VOID HalReturnToFirmware(DWORD routine): 1 restarts the console.
+        [DllImport("xboxkrnl.exe", EntryPoint = "#40")]
+        private static extern void HalReturnToFirmware(uint routine);
+
+        // 0xF9: NTSTATUS NtSetSystemTime(PLARGE_INTEGER time, PLARGE_INTEGER previous)
+        [DllImport("xboxkrnl.exe", EntryPoint = "#249")]
+        private static extern int NtSetSystemTime(uint time, uint previous);
+
+        // xam 0xB43: XamSetCountry(BYTE): checks it, writes user setting 0xE
+        // and turns the 24-hour clock on for most countries.
+        [DllImport("xam.xex", EntryPoint = "#2883")]
+        private static extern uint XamSetCountry(uint country);
+
+        // xam 0x1F4: DWORD XMsgInProcessCall(DWORD app, DWORD message, PVOID, PVOID)
+        [DllImport("xam.xex", EntryPoint = "#500")]
+        private static extern uint XMsgInProcessCall(uint app, uint message, uint param1, uint param2);
+
+        // xam 0x1F6: DWORD XMsgSystemProcessCall(DWORD app, DWORD message, PVOID, DWORD)
+        [DllImport("xam.xex", EntryPoint = "#502")]
+        private static extern uint XMsgSystemProcessCall(uint app, uint message, uint param1, uint param2);
+
+        // xam 0x7B: NetDll_XnpNoteSystemTime(DWORD)
+        [DllImport("xam.xex", EntryPoint = "#123")]
+        private static extern void NetDll_XnpNoteSystemTime(uint caller);
+
+        // xam 0x3CC: DWORD XGetGameRegion()
+        [DllImport("xam.xex", EntryPoint = "#972")]
+        private static extern uint XGetGameRegion();
+
+        // xam 0x1CA: VOID XamMuteSound(BOOL)
+        [DllImport("xam.xex", EntryPoint = "#458")]
+        private static extern void XamMuteSound(uint mute);
+
+        // xam 0x1A2: VOID XamSetInactivityTimeFromConfig(BOOL)
+        [DllImport("xam.xex", EntryPoint = "#418")]
+        private static extern void XamSetInactivityTimeFromConfig(uint autoOff);
+
+        /// <summary>A setting's bytes, or null when it can't be read.</summary>
+        public static byte[] Get(ushort category, ushort setting, int size)
+        {
+            using (NativeBuffer buffer = new NativeBuffer(size + 4))
+            {
+                int status = ExGetXConfigSetting(category, setting, buffer.Address, (ushort)size, buffer.Address + (uint)size);
+                return status < 0 ? null : buffer.Slice(0, size);
+            }
+        }
+
+        public static void Set(ushort category, ushort setting, byte[] value)
+        {
+            using (NativeBuffer buffer = new NativeBuffer(value))
+            {
+                Check(ExSetXConfigSetting(category, setting, buffer.Address, (ushort)value.Length), category, setting);
+            }
+        }
+
+        public static uint GetU32(ushort category, ushort setting)
+        {
+            byte[] value = Get(category, setting, 4);
+            if (value == null)
+            {
+                throw new InvalidOperationException(string.Format("Setting {0}/{1:X} can't be read.", category, setting));
+            }
+            return BigEndian.U32(value, 0);
+        }
+
+        public static void SetU32(ushort category, ushort setting, uint value)
+        {
+            byte[] bytes = new byte[4];
+            BigEndian.SetU32(bytes, 0, value);
+            Set(category, setting, bytes);
+        }
+
+        public static ushort GetU16(ushort category, ushort setting)
+        {
+            byte[] value = Get(category, setting, 2);
+            if (value == null)
+            {
+                throw new InvalidOperationException(string.Format("Setting {0}/{1:X} can't be read.", category, setting));
+            }
+            return (ushort)((value[0] << 8) | value[1]);
+        }
+
+        public static void SetU16(ushort category, ushort setting, ushort value)
+        {
+            Set(category, setting, new[] { (byte)(value >> 8), (byte)value });
+        }
+
+        /// <summary>Changes the bits of a 4-byte setting in one step: (old &amp; ~mask) | value.</summary>
+        public static void SetBits(ushort category, ushort setting, uint mask, uint value)
+        {
+            ReadModifyWrite(category, setting, ~mask, value & mask);
+        }
+
+        /// <summary>A 4-byte setting changed in one step: (old &amp; andMask) | orMask.</summary>
+        public static void ReadModifyWrite(ushort category, ushort setting, uint andMask, uint orMask)
+        {
+            Check(ExReadModifyWriteXConfigSettingUlong(category, setting, andMask, orMask), category, setting);
+        }
+
+        private static void Check(int status, ushort category, ushort setting)
+        {
+            if (status < 0)
+            {
+                throw new InvalidOperationException(string.Format("Setting {0}/{1:X} wasn't written ({2:X8}).", category, setting, status));
+            }
+        }
+
+        public static void SetVideoOption(uint option, uint value)
+        {
+            int status = VdSetOption(option, value, 0);
+            if (status < 0)
+            {
+                throw new InvalidOperationException(string.Format("Video option {0} wasn't set ({1:X8}).", option, status));
+            }
+        }
+
+        /// <summary>The AV cable: 3 component HD, 4 HDMI with audio, 6 VGA, 8 HDMI or DVI, and so on.</summary>
+        public static uint AVPack()
+        {
+            return HalGetCurrentAVPack() & 0xFF;
+        }
+
+        /// <summary>
+        /// What the display told the console, 0x24 bytes, or null when it
+        /// says nothing. The Xbox Dashboard reads 4 (bit 0: a TV that takes
+        /// 3D and tells its size), 0x15 and 0x16 (its width and height in
+        /// cm) and 0x1D, unaligned (3 for a display with color spaces).
+        /// </summary>
+        public static byte[] DisplayDiscovery()
+        {
+            using (NativeBuffer buffer = new NativeBuffer(0x40))
+            {
+                buffer.SetU32(0, 0x23);
+                return VdGetDisplayDiscoveryData(buffer.Address) != 0 ? buffer.Slice(0, 0x24) : null;
+            }
+        }
+
+        public static void SetSpeakerConfig(uint flags)
+        {
+            int status = XAudioSetSpeakerConfig(flags);
+            if (status < 0)
+            {
+                throw new InvalidOperationException(string.Format("The speakers weren't set ({0:X8}).", status));
+            }
+        }
+
+        /// <summary>A message to the system controller, 16 bytes; its reply, 16 bytes.</summary>
+        public static byte[] Smc(params byte[] message)
+        {
+            using (NativeBuffer request = new NativeBuffer(16))
+            using (NativeBuffer reply = new NativeBuffer(16))
+            {
+                Buffer.BlockCopy(message, 0, request.Bytes, 0, message.Length);
+                HalSendSMCMessage(request.Address, reply.Address);
+                return reply.Slice(0, 16);
+            }
+        }
+
+        public static void MuteSound(bool mute)
+        {
+            XamMuteSound(mute ? 1u : 0u);
+        }
+
+        public static void ApplyInactivityTime(bool autoOff)
+        {
+            XamSetInactivityTimeFromConfig(autoOff ? 1u : 0u);
+        }
+
+        /// <summary>Sets the system clock, in UTC.</summary>
+        public static void SetSystemTime(DateTime utc)
+        {
+            long fileTime = utc.Ticks - new DateTime(1601, 1, 1).Ticks;
+            using (NativeBuffer time = new NativeBuffer(8))
+            {
+                time.SetU64(0, (ulong)fileTime);
+                int status = NtSetSystemTime(time.Address, 0);
+                if (status < 0)
+                {
+                    throw new InvalidOperationException(string.Format("The clock wasn't set ({0:X8}).", status));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether Xbox Live sets the clock, so it can't be changed: the
+        /// Xbox Dashboard's test (dash 17559), which takes a failure or
+        /// 0x001510F1 for no.
+        /// </summary>
+        public static bool ClockSetByLive()
+        {
+            uint result = XMsgInProcessCall(0xFC, 0x00058003, 0, 0);
+            return (result & 0x80000000) == 0 && result != 0x001510F1;
+        }
+
+        /// <summary>Tells the network stack the clock was set, as the Xbox Dashboard does after setting it.</summary>
+        public static void NoteSystemTime()
+        {
+            NetDll_XnpNoteSystemTime(1);
+        }
+
+        public static void SetCountry(uint country)
+        {
+            XamSetCountry(country);
+        }
+
+        /// <summary>Tells the system the language or locale changed, as the Xbox Dashboard does.</summary>
+        public static void NotifyLanguageChanged()
+        {
+            XMsgSystemProcessCall(0xFE, 0x8000000D, 0, 0);
+        }
+
+        public static uint GameRegion()
+        {
+            return XGetGameRegion();
+        }
+
+        /// <summary>Restarts the console.</summary>
+        public static void Restart()
+        {
+            HalReturnToFirmware(1);
+        }
+    }
+}

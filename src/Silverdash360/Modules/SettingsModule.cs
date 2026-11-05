@@ -75,6 +75,7 @@ namespace Silverdash360.Modules
             List<Entry> entries = new List<Entry>
             {
                 new Entry { Title = "Theme", Detail = Context.Themes.Describe(), Run = Context.OpenThemes },
+                new Entry { Title = "System settings", Detail = "Display, audio, clock, startup and more", Run = Context.OpenSystemSettings },
                 new Entry { Title = "Storage", Detail = SystemService.FormatSize(content.Sum(c => c.BestSize)) + " in " + content.Count + " items", Run = Context.OpenStorage },
                 new Entry { Title = "Search", Detail = "Find a game or app", Run = Context.OpenSearch },
                 new Entry { Title = "File browser", Detail = "Every file on the console's drives", Run = () => Context.OpenFiles("/") },

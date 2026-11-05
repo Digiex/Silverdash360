@@ -64,6 +64,10 @@
     <Page Include="Pages\WallpaperPickerPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
     <Compile Include="Pages\WallpaperPickerPage.xaml.cs"><DependentUpon>Pages\WallpaperPickerPage.xaml</DependentUpon></Compile>
     <Compile Include="Pages\ThemeDraft.cs" />
+    <Page Include="Pages\SystemSettingsPage.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Compile Include="Pages\SystemSettingsPage.xaml.cs"><DependentUpon>Pages\SystemSettingsPage.xaml</DependentUpon></Compile>
+    <Compile Include="Services\ConsoleSettings.cs" />
+    <Compile Include="Services\ConsoleSettingsTables.cs" />
     <Page Include="Pages\WelcomePage.xaml"><Generator>MSBuild:Compile</Generator></Page>
     <Compile Include="Pages\WelcomePage.xaml.cs"><DependentUpon>Pages\WelcomePage.xaml</DependentUpon></Compile>
     <Compile Include="Modules\BasicSettings.cs" />
@@ -74,6 +78,7 @@
     <Compile Include="Native\Xam.cs" />
     <Compile Include="Native\KernelFiles.cs" />
     <Compile Include="Native\KernelModules.cs" />
+    <Compile Include="Native\XConfig.cs" />
     <Compile Include="Native\Net.cs" />
     <Compile Include="Core\Activity.cs" />
     <Compile Include="Core\Background.cs" />

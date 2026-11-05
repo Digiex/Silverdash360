@@ -5,6 +5,7 @@
 | Setting | |
 |---|---|
 | **Theme** | The wallpapers and colours: see [Themes](#themes) |
+| **System settings** | The console's own settings, as the Xbox Dashboard has them: see [System settings](#system-settings) |
 | **Storage** | Everything stored, largest first |
 | **Search** | Find a game or app |
 | **File browser** | Every file on the console's drives |
@@ -21,6 +22,29 @@
 | **XboxNGen** | Shown when Silverdash360's code runs compiled, as native code [XboxNGen](https://github.com/Digiex/Silverlight360-XboxNGen) made |
 | **Return to the Xbox Dashboard** | Leaves Silverdash360 for the console's own dashboard, as **Xbox Dashboard** in apps does, even where Silverdash360 is the default dashboard |
 | **Debug server** | For testing and development, off unless you turn it on: see [Debug server](#debug-server). With it on, anyone on your network can control Silverdash360 |
+
+## System settings
+
+**System settings** has the Xbox Dashboard's Console Settings, page by page in its order, with its choices, and changes them as it does:
+
+| Page | Settings |
+|---|---|
+| **Display** | HDTV Settings (or Screen Resolution on VGA), Screen Format, Reference Levels (or Black Level), PAL Settings, HDMI Color Space, Display Discovery, Screen Saver, TV Size |
+| **Audio** | Digital Output, Sound Effects, Ratings Collection Sound |
+| **Language and Locale** | Language, Locale |
+| **Clock** | Date and Time, Time Format, Time Zone, Daylight Saving |
+| **Startup and Shutdown** | Startup, Auto-Off, Background Downloads |
+| **Auto-Play**, **Auto-Downloads**, **Remote Control** | On or off, and which remotes |
+
+Only what your cable, TV and region have is shown, as in the Xbox Dashboard: TV Size, for one, only with a TV that says its size, and PAL Settings only on a PAL console. Most changes take effect at once.
+
+- **HDTV Settings** and **PAL Settings**: Silverdash360 starts again in the new setting and asks whether to keep it. If you don't say yes within 10 seconds, as when the TV shows nothing, it goes back to the old setting and starts again.
+- **Screen Format**, **Reference Levels** and **HDMI Color Space**: Silverdash360 starts again to use them.
+- **Display Discovery**: the console restarts. Turning it off goes to 640 x 480, normal screen format and digital stereo, as the Xbox Dashboard does.
+- **Time Zone** and **Daylight Saving** keep the clock at the same local time, unless Xbox Live sets the clock; **Date and Time** can't be changed then either.
+- **Startup**: from the next start. A dashboard set up with DashLaunch starts in place of the Xbox Dashboard.
+
+Connected Devices, System Info, Console Name and 3D TV aren't here yet.
 
 ## Welcome screen
 

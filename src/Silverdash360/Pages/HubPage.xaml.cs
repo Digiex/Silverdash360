@@ -123,6 +123,7 @@ namespace Silverdash360.Pages
             Show(current, 0);
             Settings.Loaded += OnSettingsLoaded;
             OfferWelcome();
+            CheckDisplayTrial();
             CheckForUpdate();
             if (Context.Updates.Offered != null)
             {
@@ -424,6 +425,31 @@ namespace Silverdash360.Pages
                 return false;
             }, UpdateCheckQuietMs);
 #endif
+        }
+
+        private static bool trialChecked;
+
+        // A display setting System settings has just started Silverdash360
+        // again in is asked about at once, before anything else: it's put
+        // back unless kept within seconds.
+        private static void CheckDisplayTrial()
+        {
+            if (trialChecked)
+            {
+                return;
+            }
+            trialChecked = true;
+            Core.Background.Run(() => ConsoleSettings.PendingTrial() != null, delegate(bool pending, Exception error)
+            {
+                if (error != null)
+                {
+                    Log.Write("A display setting on trial can't be read: {0}", error.Message);
+                }
+                else if (pending)
+                {
+                    Context.OpenDisplayTrial();
+                }
+            });
         }
 
         private void OnSettingsLoaded(object sender, EventArgs e)

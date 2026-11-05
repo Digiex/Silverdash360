@@ -599,15 +599,7 @@ namespace Silverdash360.Services
         // Starts the dashboard again from its folder, so the new files load.
         private static void Restart()
         {
-            string device = AppFolder.DevicePath();
-            if (device == null)
-            {
-                Log.Write("Update: where the dashboard runs from is unknown, so it isn't started again");
-                return;
-            }
-            // Let the log line and the screen out first.
-            Thread.Sleep(300);
-            Xam.XamLoaderLaunchTitleEx(device + @"\default.xex", device, null, 0);
+            SystemService.RestartDashboard();
         }
 
         // A GET through the platform's HttpWebRequest, which answers HTTPS

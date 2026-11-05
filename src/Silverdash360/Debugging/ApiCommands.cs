@@ -53,6 +53,17 @@ namespace Silverdash360.Debugging
                          r => Files.ListDevice(r.Arg(0, "devicePath", true)).Take(MaxListed).Select(e => Entry(e)).ToList());
             commands.Add("fs.stat", "<path>", "A file or folder's size, kind and time.", Stat);
             commands.Add("fs.read", "<path> [bytes] [offset]", "Bytes of a file, in hex (at most " + MaxRead + ").", Read);
+            commands.Add("xconfig.get", "<category> <setting> <size>", "An XConfig setting's bytes, in hex; numbers in hex.", r =>
+            {
+                byte[] value = XConfig.Get(Convert.ToUInt16(r.Arg(0, "category", true), 16), Convert.ToUInt16(r.Arg(1, "setting", true), 16),
+                                           Convert.ToInt32(r.Arg(2, "size", true), 16));
+                return value == null ? null : BitConverter.ToString(value).Replace("-", "");
+            });
+            commands.Add("xconfig.av", "", "The AV cable and the display's discovery data.", r => new JsonObject
+            {
+                { "avPack", XConfig.AVPack() },
+                { "discovery", XConfig.DisplayDiscovery() != null ? BitConverter.ToString(XConfig.DisplayDiscovery()).Replace("-", "") : null },
+            });
         }
 
         private object Signin()

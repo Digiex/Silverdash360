@@ -50,6 +50,20 @@ namespace Silverdash360.Services
             return "Couldn't start " + executable.Name + ".";
         }
 
+        /// <summary>Starts Silverdash360 again from its folder, as a new run; returns only when it can't.</summary>
+        public static void RestartDashboard()
+        {
+            string device = AppFolder.DevicePath();
+            if (device == null)
+            {
+                Log.Write("Where the dashboard runs from is unknown, so it isn't started again");
+                return;
+            }
+            // Let the log line and the screen out first.
+            System.Threading.Thread.Sleep(300);
+            Xam.XamLoaderLaunchTitleEx(device + @"\default.xex", device, null, 0);
+        }
+
         // How xam starts its system apps: their folder linked as XSYSLAUNCH:
         // and that given as the D: drive (xam 17559, 0x816EFED0).
         private const string SystemLaunchLink = @"\System??\XSYSLAUNCH:";
