@@ -17,9 +17,11 @@ missing, or to update XboxNGen. It:
      Silverlight 3 SDK and the runtime profile, gets XboxNGen and finds
      xenia-edge (see its help). -MsBuild, -Xenia, -DonorApp, -Tag,
      -DownloadXenia, -SkipXboxNGen and -NonInteractive go to it.
-  3. Checks what Silverdash360's own tools need:
-       Python 3.7 or later  tools\deploy.py, tools\screenshot.py and the
-                            tests (from Silverlight360's configuration)
+  3. Checks what Silverdash360's other tools need, all optional, as
+     building needs none of it:
+       Python 3.7 or later  optional: tools\deploy.py, tools\screenshot.py
+                            and the tests (from Silverlight360's
+                            configuration)
        GitHub CLI (gh)      optional: tools\Release.ps1
        MkDocs               optional: previewing the docs site
 
@@ -132,8 +134,8 @@ Write-Host ''
 Write-Host 'Silverdash360:'
 Report 'Silverlight360' $config.Sdk '' -Required
 $config.Python = if ($sdkSettings) { "$($sdkSettings.Python)" } else { '' }
-Report 'Python 3.7+' $config.Python ('install Python 3.7 or later and put python on PATH, for tools\deploy.py, ' +
-    'tools\screenshot.py and the tests') -Required
+Report 'Python 3.7+' $config.Python ('optional: install Python 3.7 or later and put python on PATH, for ' +
+    'tools\deploy.py, tools\screenshot.py and the tests')
 $gh = Get-Command gh -ErrorAction SilentlyContinue
 $config.Gh = if ($gh) { $gh.Source } else { '' }
 Report 'GitHub CLI' $config.Gh 'optional: install gh (https://cli.github.com) and sign in, for tools\Release.ps1'
@@ -152,9 +154,7 @@ Report 'xenia-edge' $xenia 'optional for Silverdash360, but builds make the nati
 
 $config | ConvertTo-Json | Set-Content -LiteralPath $jsonFile -Encoding utf8
 Write-Host ''
-if (-not $config.Python) {
-    Write-Warning 'Python is missing: get it as said above, then run .\tools\Configure.ps1 again.'
-} elseif ($sdkSettings -and -not $sdkSettings.Xenia -and -not $SkipXboxNGen) {
+if ($sdkSettings -and -not $sdkSettings.Xenia -and -not $SkipXboxNGen) {
     Write-Warning ('XboxNGen or xenia-edge is missing, so builds need -NoNGen until it''s set up: ' +
                    'run .\tools\Configure.ps1 again once it is.')
 }
