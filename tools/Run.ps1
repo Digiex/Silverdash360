@@ -43,11 +43,14 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 if (-not $Sdk) {
+    $Sdk = & (Join-Path $PSScriptRoot 'Config.ps1') Sdk
+}
+if (-not $Sdk) {
     $Sdk = Join-Path (Split-Path -Parent $root) 'Silverlight360'
 }
 $testScript = Join-Path $Sdk 'tools\Test-XboxApp.ps1'
 if (-not (Test-Path -LiteralPath $testScript)) {
-    throw "Silverlight360 not found at $Sdk. Pass -Sdk or set SILVERLIGHT360."
+    throw "Silverlight360 not found at $Sdk. Run .\tools\Configure.ps1, which finds or clones it, or pass -Sdk."
 }
 $configuration = if ($Release) { 'Release' } else { 'Debug' }
 $xex = Join-Path $root "src\Silverdash360\bin\$configuration\xbox\default.xex"

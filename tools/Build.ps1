@@ -28,7 +28,8 @@ stays in bin\<Debug|Release>\xbox\, and fits only a runtime made from the
 same donor app (Plex's, as the base package's is).
 
 The SDK is the one given with -Sdk, else the SILVERLIGHT360 environment
-variable, else a Silverlight360 clone next to this repository.
+variable, else the one tools\Configure.ps1 found, else a Silverlight360
+clone next to this repository.
 
 .EXAMPLE
 .\tools\Build.ps1 -Debug -Sdk ..\Silverlight360
@@ -58,11 +59,14 @@ if ($Debug -eq $Release) {
 $configuration = if ($Debug) { 'Debug' } else { 'Release' }
 $root = Split-Path -Parent $PSScriptRoot
 if (-not $Sdk) {
+    $Sdk = & (Join-Path $PSScriptRoot 'Config.ps1') Sdk
+}
+if (-not $Sdk) {
     $Sdk = Join-Path (Split-Path -Parent $root) 'Silverlight360'
 }
 $buildScript = Join-Path $Sdk 'tools\Build-XboxApp.ps1'
 if (-not (Test-Path -LiteralPath $buildScript)) {
-    throw "Silverlight360 not found at $Sdk. Pass -Sdk, set SILVERLIGHT360 or clone https://github.com/Digiex/Silverlight360 next to this repository."
+    throw "Silverlight360 not found at $Sdk. Run .\tools\Configure.ps1, which finds or clones it, or pass -Sdk."
 }
 
 # The project finds the SDK through the same variable.

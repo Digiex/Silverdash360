@@ -16,7 +16,7 @@ For a small fix, a pull request on its own is fine. For a new feature or a bigge
 ## Making a change
 
 1. Fork the repository and make a branch from `master`.
-2. Set up the build: the [Silverlight360](https://github.com/Digiex/Silverlight360) SDK and a runtime you made yourself (see [Development](development.md#building) and [The runtime](development.md#the-runtime)).
+2. Set up the build: run `.\tools\Configure.ps1`, which finds or clones the [Silverlight360](https://github.com/Digiex/Silverlight360) SDK and sets it up, and make a runtime yourself (see [Development](development.md#building) and [The runtime](development.md#the-runtime)).
 3. Make the change, in the style of the code around it.
 4. Try it on a console that runs homebrew, or in [xenia-edge](development.md#running-in-xenia-edge): a Debug build, `tools\deploy.py` to put it on the console, and the tests in `tests` (see [Debug server and tests](development.md#debug-server-and-tests)).
 5. Update the docs in `docs` when you change what users see or do.

@@ -4,10 +4,18 @@ Silverdash360 is C# and XAML for the Xbox 360's Silverlight platform, built with
 
 ## Building
 
-You need what Silverlight360 needs (see its [getting started guide](https://github.com/Digiex/Silverlight360/blob/master/docs/getting-started.md)), including a runtime profile (see [The runtime](#the-runtime)). Then:
+You need what Silverlight360 needs (see its [getting started guide](https://github.com/Digiex/Silverlight360/blob/master/docs/getting-started.md)), including a runtime profile (see [The runtime](#the-runtime)). First, once after cloning, in PowerShell:
 
 ```powershell
-.\tools\Build.ps1 -Debug -Sdk path\to\Silverlight360
+.\tools\Configure.ps1
+```
+
+It finds Silverlight360: `-Sdk <folder>`, the `SILVERLIGHT360` environment variable, the last configuration, or a `Silverlight360` clone next to this repository; with none, it offers to clone it there (`-CloneSdk` without asking). It then runs Silverlight360's own `tools\Configure.ps1`, which checks MSBuild, the Silverlight 3 SDK and the runtime profile, gets XboxNGen and finds xenia-edge (or offers to download it); `-MsBuild`, `-Xenia`, `-DonorApp`, `-Tag`, `-DownloadXenia`, `-SkipXboxNGen` and `-NonInteractive` go to it. Last it checks what this repository's tools need: Python 3.7 or later for `tools\deploy.py`, `tools\screenshot.py` and the tests, and, optionally, the GitHub CLI for `tools\Release.ps1` and MkDocs for the docs. What it found goes to `config.json` (git ignores it), so the other tools need no `-Sdk`; `.\tools\Configure.ps1 -Show` prints it. Run it again after installing something it reports missing, or to update XboxNGen.
+
+Then:
+
+```powershell
+.\tools\Build.ps1 -Debug
 ```
 
 Every build is one of two:
@@ -15,11 +23,11 @@ Every build is one of two:
 - `-Debug` starts with the debug server on (see below) and lands in `src\Silverdash360\bin\Debug\xbox\`. `tools\deploy.py`, `tools\Run.ps1` and the tests use it.
 - `-Release` starts with the debug server off, until Settings > **Debug server** turns it on, and lands in `src\Silverdash360\bin\Release\xbox\`. Builds for others are these. `tools\Run.ps1 -Release` runs it.
 
-Both compile `Silverdash360.dll` to a native image, `Silverdash360.ni.dll`, with [XboxNGen](https://github.com/Digiex/Silverlight360-XboxNGen) (as the SDK's `Build-XboxApp.ps1` does by default; see its [native images](https://github.com/Digiex/Silverlight360/blob/master/docs/native-images.md) page), so the dashboard's code runs compiled instead of through the runtime's IL interpreter: on a console its benchmarks run tens to hundreds of times faster. That runs xenia-edge from the `silverlight-build` branch of [jessenic/xenia-edge](https://github.com/jessenic/xenia-edge/tree/silverlight-build), the one the SDK's `tools\Configure.ps1` set up (run it once first), for a minute or so, and can't while another xenia-edge runs. `-NoNGen` builds without the image, quicker; that package runs interpreted. The image is unsigned, which the consoles Silverdash360 runs on allow.
+Both compile `Silverdash360.dll` to a native image, `Silverdash360.ni.dll`, with [XboxNGen](https://github.com/Digiex/Silverlight360-XboxNGen) (as the SDK's `Build-XboxApp.ps1` does by default; see its [native images](https://github.com/Digiex/Silverlight360/blob/master/docs/native-images.md) page), so the dashboard's code runs compiled instead of through the runtime's IL interpreter: on a console its benchmarks run tens to hundreds of times faster. That runs xenia-edge from the `silverlight-build` branch of [jessenic/xenia-edge](https://github.com/jessenic/xenia-edge/tree/silverlight-build), the one `tools\Configure.ps1` set up, for a minute or so, and can't while another xenia-edge runs. `-NoNGen` builds without the image, quicker; that package runs interpreted. The image is unsigned, which the consoles Silverdash360 runs on allow.
 
 An image is bound to the exact `Silverdash360.dll` it was made from: one left beside a newer `Silverdash360.dll` stops the runtime as it starts. A build always has a matching one or none, and `tools\deploy.py`, `tools\Run.ps1 -Install` and the in-app update rename or delete an installed image when what they put in has none. Settings lists **XboxNGen** while the image is loaded, as XboxNGen's license asks.
 
-`-AppOnly` writes Silverdash360's own files alone, without the runtime but with the native image, into `bin\<Debug|Release>\app\`. The image is made in the whole package first, which stays in `bin\<Debug|Release>\xbox\`, and fits only a runtime made from the same donor app as the SDK's profile (Plex's, as the base package's is); `-NoNGen` leaves it out. `-Sdk` can be left out when the `SILVERLIGHT360` environment variable points to the SDK, or when it's cloned next to this repository as `Silverlight360`.
+`-AppOnly` writes Silverdash360's own files alone, without the runtime but with the native image, into `bin\<Debug|Release>\app\`. The image is made in the whole package first, which stays in `bin\<Debug|Release>\xbox\`, and fits only a runtime made from the same donor app as the SDK's profile (Plex's, as the base package's is); `-NoNGen` leaves it out. `-Sdk` picks another SDK than the one `Configure.ps1` found, as the `SILVERLIGHT360` environment variable does.
 
 The package runs as the title the SDK's runtime profile came from (Plex by default), so it's started like that app. The debug server listens on port 4601 without a password, which is why Release builds leave it off: turning it on lets anyone on the network control the dashboard.
 

@@ -5,3 +5,4 @@ obj/
 __pycache__/
 site/
 tests/results/
+config.json
