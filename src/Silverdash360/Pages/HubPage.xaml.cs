@@ -70,6 +70,8 @@ namespace Silverdash360.Pages
         private static bool updateChecked;
         private int shownWallpaper = -1;
         private bool wallpaperWaiting;
+        private bool wallpapersDecoding;
+        private readonly Storyboard wallpaperFade = new Storyboard();
 
         // A wallpaper's decode waits this long after the last move, past the
         // slide and a quick run of LB and RB.
@@ -81,6 +83,7 @@ namespace Silverdash360.Pages
         public HubPage()
         {
             InitializeComponent();
+            wallpaperFade.Completed += OnWallpaperFaded;
             Motion.UsePageTransitions(this);
             clock.Tick += delegate { ShowClock(); };
             brandTimer.Tick += delegate { SwapLogo(); };
@@ -150,7 +153,7 @@ namespace Silverdash360.Pages
             Settings.Loaded -= OnSettingsLoaded;
             sliding.Stop();
             SectionHost.Content = null;
-            Wallpaper.Source = null;
+            SetWallpaper(null, false);
         }
 
         protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -610,8 +613,7 @@ namespace Silverdash360.Pages
             ThemeService themes = Context.Themes;
             if (themes.Current == null || themes.Current.Wallpapers.Count == 0)
             {
-                Wallpaper.Source = null;
-                WallpaperShade.Visibility = Visibility.Collapsed;
+                SetWallpaper(null, false);
                 shownWallpaper = -1;
                 // Without a wallpaper, a colour scheme can colour the section
                 // as a blade was; that too waits for the user to stop.
@@ -656,9 +658,62 @@ namespace Silverdash360.Pages
                 }
                 return;
             }
-            Wallpaper.Source = themes.Wallpaper(index);
-            WallpaperShade.Visibility = Wallpaper.Source != null ? Visibility.Visible : Visibility.Collapsed;
+            SetWallpaper(themes.Wallpaper(index), shownWallpaper >= 0);
             shownWallpaper = index;
+            DecodeWallpapers();
+        }
+
+        // Shows a wallpaper, fading it in over the one before when asked.
+        private void SetWallpaper(ImageSource source, bool fade)
+        {
+            // A fade under way ends at once where it was going.
+            wallpaperFade.Stop();
+            wallpaperFade.Children.Clear();
+            if (WallpaperFade.Source != null)
+            {
+                Wallpaper.Source = WallpaperFade.Source;
+            }
+            WallpaperFade.Source = null;
+            WallpaperFade.Opacity = 0;
+            WallpaperShade.Visibility = source != null ? Visibility.Visible : Visibility.Collapsed;
+            if (!fade || source == null || Wallpaper.Source == null || Motion.WallpaperFadeMs <= 0)
+            {
+                Wallpaper.Source = source;
+                return;
+            }
+            WallpaperFade.Source = source;
+            DoubleAnimation animation = new DoubleAnimation
+            {
+                From = 0,
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(Motion.WallpaperFadeMs),
+            };
+            Storyboard.SetTarget(animation, WallpaperFade);
+            Storyboard.SetTargetProperty(animation, new PropertyPath("Opacity"));
+            wallpaperFade.Children.Add(animation);
+            wallpaperFade.Begin();
+        }
+
+        private void OnWallpaperFaded(object sender, EventArgs e)
+        {
+            SetWallpaper(WallpaperFade.Source ?? Wallpaper.Source, false);
+        }
+
+        // The theme's other wallpapers decoded while the user is quiet, one a
+        // frame, so moving to their sections shows them at once.
+        private void DecodeWallpapers()
+        {
+            if (wallpapersDecoding)
+            {
+                return;
+            }
+            wallpapersDecoding = true;
+            UiIdle.Run(() =>
+            {
+                bool more = SectionHost.Content != null && Context.Themes.DecodeNext();
+                wallpapersDecoding = more;
+                return more;
+            }, WallpaperQuietMs);
         }
 
         // A slide alone by default: fading the whole section redraws all of

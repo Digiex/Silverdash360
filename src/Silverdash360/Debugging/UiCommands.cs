@@ -139,6 +139,7 @@ namespace Silverdash360.Debugging
                         case "sectionMs": Motion.SectionMs = int.Parse(value); break;
                         case "sectionDistance": Motion.SectionDistance = double.Parse(value); break;
                         case "sectionFade": Motion.SectionFade = bool.Parse(value); break;
+                        case "wallpaperFadeMs": Motion.WallpaperFadeMs = int.Parse(value); break;
                         case "pageInMs": Motion.PageInMs = int.Parse(value); break;
                         case "pageOutMs": Motion.PageOutMs = int.Parse(value); break;
                         case "pageDistance": Motion.PageDistance = double.Parse(value); break;
@@ -154,6 +155,7 @@ namespace Silverdash360.Debugging
                 { "sectionMs", Motion.SectionMs },
                 { "sectionDistance", Motion.SectionDistance },
                 { "sectionFade", Motion.SectionFade },
+                { "wallpaperFadeMs", Motion.WallpaperFadeMs },
                 { "pageInMs", Motion.PageInMs },
                 { "pageOutMs", Motion.PageOutMs },
                 { "pageDistance", Motion.PageDistance },

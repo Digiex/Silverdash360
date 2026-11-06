@@ -28,6 +28,13 @@ namespace Silverdash360.Controls
         /// <summary>Whether the section fades in as it slides; costly to draw.</summary>
         public static bool SectionFade = false;
 
+        /// <summary>
+        /// A hub section's wallpaper fading into the next one's: 0 swaps at
+        /// once. A fade redraws the whole screen each frame, but the console
+        /// keeps up with one this short.
+        /// </summary>
+        public static int WallpaperFadeMs = 300;
+
         /// <summary>A page coming in, and the one before going: 0 swaps at once.</summary>
         public static int PageInMs = 150;
         public static int PageOutMs = 0;

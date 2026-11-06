@@ -7,6 +7,9 @@
   <Grid Background="{StaticResource PageBackground}">
     <!-- The theme's wallpaper, darkened so the text over it reads. -->
     <Image x:Name="Wallpaper" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center" />
+    <!-- The next section's wallpaper, fading in over it. -->
+    <Image x:Name="WallpaperFade" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center"
+           Opacity="0" />
     <Rectangle x:Name="WallpaperShade" Visibility="Collapsed">
       <Rectangle.Fill>
         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">

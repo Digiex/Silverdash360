@@ -291,7 +291,9 @@ namespace Silverdash360.Services
 
         // Decoded wallpapers kept: the one shown and the one before, as a
         // decoded wallpaper is several megabytes.
-        private const int MaxDecoded = 2;
+        // A theme has four wallpapers at most, so all are kept: a section's
+        // is shown the moment the user moves to it.
+        private const int MaxDecoded = MaxWallpaperSlots;
 
         private readonly Library library;
         // Most recently used last. A list of a class rather than collections
@@ -607,6 +609,31 @@ namespace Silverdash360.Services
                     break;
             }
             return count > 0 ? slot % count : 0;
+        }
+
+        /// <summary>
+        /// Decodes one of the theme's wallpapers not decoded yet, ahead of the
+        /// user moving to its section; false once there are none left.
+        /// </summary>
+        public bool DecodeNext()
+        {
+            DashTheme theme = Current;
+            if (theme == null)
+            {
+                return false;
+            }
+            int count = Math.Min(theme.Wallpapers.Count, MaxDecoded);
+            for (int i = 0; i < count; i++)
+            {
+                if (FindDecoded(i) == null)
+                {
+                    WallpaperImage.Pixels pixels = theme.RawPixels != null ? theme.RawPixels[i] : null;
+                    // The one on screen stays the most recently used.
+                    decoded.Insert(0, new DecodedWallpaper { Index = i, Image = WallpaperImage.Create(theme.Wallpapers[i], pixels) });
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>Whether <see cref="Wallpaper"/> has the wallpaper decoded already.</summary>
