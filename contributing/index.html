@@ -136,7 +136,7 @@
 <h2 id="making-a-change">Making a change<a class="headerlink" href="#making-a-change" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Fork the repository and make a branch from <code>master</code>.</li>
-<li>Set up the build: the <a href="https://github.com/Digiex/Silverlight360">Silverlight360</a> SDK and a runtime you made yourself (see <a href="../development/#building">Development</a> and <a href="../development/#the-runtime">The runtime</a>).</li>
+<li>Set up the build: run <code>.\tools\Configure.ps1</code>, which finds or clones the <a href="https://github.com/Digiex/Silverlight360">Silverlight360</a> SDK and sets it up, and make a runtime yourself (see <a href="../development/#building">Development</a> and <a href="../development/#the-runtime">The runtime</a>).</li>
 <li>Make the change, in the style of the code around it.</li>
 <li>Try it on a console that runs homebrew, or in <a href="../development/#running-in-xenia-edge">xenia-edge</a>: a Debug build, <code>tools\deploy.py</code> to put it on the console, and the tests in <code>tests</code> (see <a href="../development/#debug-server-and-tests">Debug server and tests</a>).</li>
 <li>Update the docs in <code>docs</code> when you change what users see or do.</li>
