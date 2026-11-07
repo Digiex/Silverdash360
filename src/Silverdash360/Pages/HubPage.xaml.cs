@@ -432,25 +432,42 @@ namespace Silverdash360.Pages
 
         private static bool trialChecked;
 
-        // A display setting System settings has just started Silverdash360
-        // again in is asked about at once, before anything else: it's put
-        // back unless kept within seconds.
-        private static void CheckDisplayTrial()
+        // Started again from System settings, Silverdash360 goes back to the
+        // page it was on, from the Settings section, so B comes back the way
+        // it went. A display setting it was started again in is asked about
+        // at once, before anything else: it's put back unless kept within
+        // seconds.
+        private void CheckDisplayTrial()
         {
             if (trialChecked)
             {
                 return;
             }
             trialChecked = true;
-            Core.Background.Run(() => ConsoleSettings.PendingTrial() != null, delegate(bool pending, Exception error)
+            bool pending = false;
+            Core.Background.Run(() =>
+            {
+                string page = ConsoleSettings.TakeReturn();
+                ConsoleSettings.Trial trial = ConsoleSettings.PendingTrial();
+                pending = trial != null;
+                return page ?? (pending ? trial.Setting.Group : null);
+            }, delegate(string page, Exception error)
             {
                 if (error != null)
                 {
                     Log.Write("A display setting on trial can't be read: {0}", error.Message);
                 }
-                else if (pending)
+                else if (page != null)
                 {
-                    Context.OpenDisplayTrial();
+                    for (int i = 0; i < Modules.Count; i++)
+                    {
+                        if (Modules[i] is SettingsModule && i != current)
+                        {
+                            Show(i, 0);
+                        }
+                    }
+                    SystemSettingsPage.ResumeAt(page, pending);
+                    Context.OpenSystemSettings();
                 }
             });
         }

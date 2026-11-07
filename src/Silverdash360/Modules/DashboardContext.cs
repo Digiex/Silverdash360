@@ -153,12 +153,6 @@ namespace Silverdash360.Modules
             Navigate(new Uri("/Pages/SystemSettingsPage.xaml", UriKind.Relative));
         }
 
-        /// <summary>Asks whether to keep a display setting Silverdash360 has just started again in.</summary>
-        public void OpenDisplayTrial()
-        {
-            Navigate(new Uri("/Pages/SystemSettingsPage.xaml?trial=1", UriKind.Relative));
-        }
-
         /// <summary>Offers the update in <see cref="UpdateService.Offered"/>.</summary>
         public void OpenUpdate()
         {

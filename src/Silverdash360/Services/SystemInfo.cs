@@ -85,8 +85,9 @@ namespace Silverdash360.Services
                 Line("© 2015 Microsoft Corporation. All rights reserved.", ""),
                 Line("D", Safe(() => DashboardVersion() + " - K:" + KernelVersion(0x158) + " (BK:" + KernelVersion(0x157) + ")")),
             };
-            AddCode(lines, "E", () => Manifest(XamPackageManagerGetAuthoritativeManifestVersion));
-            AddCode(lines, "P", () => Manifest(XamGetCurrentSystemOnlineManifestRevision));
+            // E and P, the package manager's manifest versions, are left out:
+            // XamPackageManagerGetAuthoritativeManifestVersion takes the
+            // console down when an app calls it (xenia only stubs it).
             AddCode(lines, "X", () => Groups(SecurityCode(serial)));
             AddCode(lines, "S", SecondaryId);
             AddCode(lines, "F", Kinect);
@@ -286,7 +287,7 @@ namespace Silverdash360.Services
             {
                 XConfig.Set(7, 0x14, kept);
             }
-            XConfig.Smc(0x95, 0x01);
+            XConfig.SmcSend(0x95, 0x01);
             XConfig.ReturnToFirmware(6);
         }
 

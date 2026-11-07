@@ -86,9 +86,14 @@ namespace Silverdash360.Pages
             return title != null ? title.Kind : TitleKind.Other;
         }
 
+        private string pageKey;
+        private int backRow = -1;
+
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
+            pageKey = e.Uri.OriginalString;
+            backRow = BackSelection.Arrived(pageKey);
             // The packages as saved; a full refresh lists them all again.
             App.Context.Library.Changed += OnLibraryChanged;
             ShowFilter(lastFilter);
@@ -98,6 +103,7 @@ namespace Silverdash360.Pages
         protected override void OnNavigatedFrom(NavigationEventArgs e)
         {
             base.OnNavigatedFrom(e);
+            BackSelection.Leaving(pageKey, Items);
             App.Context.Library.Changed -= OnLibraryChanged;
         }
 
@@ -121,6 +127,7 @@ namespace Silverdash360.Pages
                                            items.Count, items.Count == 1 ? "item" : "items");
             Items.EmptyText = "Nothing here.";
             Items.Items = items.Cast<object>().ToList();
+            BackSelection.Restore(Items, ref backRow);
         }
 
         private static RowData Row(ContentItem item)

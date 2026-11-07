@@ -19,7 +19,9 @@ namespace Silverdash360.Pages
     /// (<see cref="ConsoleSettings"/>). Without a query, its categories;
     /// with ?group=, a category's items or a page an item opens; with
     /// ?setting=, a setting's choices; with ?trial=1, a display setting just
-    /// tried, kept only if A is pressed in time.
+    /// tried, kept only if A is pressed in time. After a start again from a
+    /// page of settings (<see cref="ResumeAt"/>), it goes on to that page a
+    /// page at a time, so B comes back through them, then to a trial.
     /// </summary>
     public partial class SystemSettingsPage : XboxApplicationPage, ISettingHost
     {
@@ -78,8 +80,86 @@ namespace Silverdash360.Pages
                     chosen = Load().FirstOrDefault(s => s.Title == title);
                 }
                 Show();
+                Resume();
             }
             FocusHelper.Focus(Rows);
+        }
+
+        // Each page's row last opened, by PageKey, so going back to it
+        // selects the row that was left, as the Xbox Dashboard does.
+        private static readonly Dictionary<string, int> opened = new Dictionary<string, int>();
+
+        private string PageKey
+        {
+            get { return chosen != null ? "setting=" + chosen.Title : "group=" + (group ?? ""); }
+        }
+
+        private static string resumePage;
+        private static bool resumeTrial;
+
+        /// <summary>
+        /// Has the page opened next go on to a page of settings ("" for the
+        /// categories), and then to the display setting on trial if there is one.
+        /// </summary>
+        public static void ResumeAt(string page, bool trial)
+        {
+            resumePage = page ?? "";
+            resumeTrial = trial;
+        }
+
+        // The next page on the way back to the one Silverdash360 was started
+        // again from, or the trial once there; going back later goes nowhere.
+        private void Resume()
+        {
+            if (resumePage == null)
+            {
+                return;
+            }
+            List<string> path = PathTo(resumePage);
+            int at = group == null ? 0 : path.IndexOf(group) + 1;
+            string next = at > 0 || group == null ? (at < path.Count ? path[at] : null) : null;
+            bool trialNext = false;
+            if (next == null)
+            {
+                trialNext = resumeTrial && (group == null ? path.Count == 0 : at > 0);
+                resumePage = null;
+                resumeTrial = false;
+            }
+            if (next == null && !trialNext)
+            {
+                return;
+            }
+            if (next != null)
+            {
+                object item = Rows.Items.FirstOrDefault(r =>
+                    r is Category ? ((Category)r).Name == next : r is ConsoleSetting && ((ConsoleSetting)r).Opens == next);
+                int row = item != null ? Rows.Items.IndexOf(item) : -1;
+                if (row >= 0)
+                {
+                    opened[PageKey] = row;
+                }
+            }
+            Dispatcher.BeginInvoke(delegate { Open(next != null ? "group=" + Uri.EscapeDataString(next) : "trial=1"); });
+        }
+
+        // The pages from the categories down to a page: its category, then
+        // each page an item on the one before opens.
+        private List<string> PathTo(string page)
+        {
+            List<string> path = new List<string>();
+            List<ConsoleSetting> all = settings ?? Load();
+            while (!string.IsNullOrEmpty(page) && path.Count < 8)
+            {
+                path.Insert(0, page);
+                if (ConsoleSettings.Categories.Any(c => c.Key == page))
+                {
+                    break;
+                }
+                string opens = page;
+                ConsoleSetting opener = all.FirstOrDefault(s => s.Opens == opens);
+                page = opener != null ? opener.Group : null;
+            }
+            return path;
         }
 
         protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -132,6 +212,11 @@ namespace Silverdash360.Pages
                 Load();
             }
             int selected = Rows.SelectedIndex;
+            int left;
+            if (selected < 0 && opened.TryGetValue(PageKey, out left))
+            {
+                selected = left;
+            }
             List<object> rows = new List<object>();
             if (chosen != null)
             {
@@ -242,6 +327,7 @@ namespace Silverdash360.Pages
             {
                 return;
             }
+            opened[PageKey] = Rows.SelectedIndex;
             Category category = item as Category;
             if (category != null)
             {
@@ -292,6 +378,13 @@ namespace Silverdash360.Pages
 
         private static void Open(string query)
         {
+            // A page opened afresh starts at its top, or its setting's value.
+            string page = query.Split('&')[0];
+            int equals = page.IndexOf('=');
+            if (equals > 0)
+            {
+                opened.Remove(page.Substring(0, equals + 1) + Uri.UnescapeDataString(page.Substring(equals + 1)));
+            }
             Context.Navigate(new Uri("/Pages/SystemSettingsPage.xaml?" + query, UriKind.Relative));
         }
 
@@ -359,7 +452,7 @@ namespace Silverdash360.Pages
             {
                 case SettingEffect.RestartDashboard:
                 case SettingEffect.TestDisplay:
-                    Restart("Starting Silverdash360 again...", SystemService.RestartDashboard);
+                    StartAgain("Starting Silverdash360 again...", chosen.Group);
                     break;
                 case SettingEffect.RestartConsole:
                     Restart("Restarting the console...", XConfig.Restart);
@@ -379,6 +472,20 @@ namespace Silverdash360.Pages
         }
 
         // Says so, lets the screen show it, then restarts in the background.
+        // Starts Silverdash360 again, to come back to this page of settings.
+        private void StartAgain(string text, string page)
+        {
+            try
+            {
+                ConsoleSettings.SaveReturn(page);
+            }
+            catch (Exception e)
+            {
+                Log.Write("The page to come back to wasn't saved: {0}", e.Message);
+            }
+            Restart(text, SystemService.RestartDashboard);
+        }
+
         private void Restart(string text, Action restart)
         {
             busy = true;
@@ -598,8 +705,8 @@ namespace Silverdash360.Pages
             {
                 Log.Write("Console setting {0} wasn't put back: {1}", trial.Setting.Title, e);
             }
-            Restart(retrying ? "Trying another way to show it, starting Silverdash360 again..."
-                             : "Going back and starting Silverdash360 again...", SystemService.RestartDashboard);
+            StartAgain(retrying ? "Trying another way to show it, starting Silverdash360 again..."
+                                : "Going back and starting Silverdash360 again...", trial.Setting.Group);
         }
     }
 }

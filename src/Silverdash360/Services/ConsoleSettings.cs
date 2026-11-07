@@ -273,7 +273,7 @@ namespace Silverdash360.Services
                 Choices = Choices(Choice("Both Remotes", 1), Choice("Xbox 360 Media Remote", 0xF)),
                 // Kept in the system controller: asked with 0x16, set with 0x95.
                 Read = () => (uint)(XConfig.Smc(0x16)[1] & 0xF),
-                Write = v => XConfig.Smc(0x95, (byte)v),
+                Write = v => XConfig.SmcSend(0x95, (byte)v),
             });
             // XamGet/SetConsoleFriendlyName, 23 characters at most; a name
             // that's none of the list is Custom... (dash 17559, 0x92280558).
@@ -488,7 +488,20 @@ namespace Silverdash360.Services
                 ? HdtvModes.Select(m => new SettingChoice { Name = m.Name, Value = m.Value, Interlaced = m.Interlaced, Unavailable = true }).ToList()
                 : new List<SettingChoice>();
             int fixedCount = list.Count;
-            foreach (XConfig.VideoMode mode in XConfig.VideoModes())
+            List<XConfig.VideoMode> modes;
+            try
+            {
+                modes = XConfig.VideoModes();
+            }
+            catch (Exception e)
+            {
+                // The runtime may refuse VdEnumerateVideoModes' callback:
+                // then the HDTV list, as for a display that says nothing.
+                Log.Write("Video modes can't be listed: {0}", e.Message);
+                hdtv = true;
+                return HdtvModes.ToList();
+            }
+            foreach (XConfig.VideoMode mode in modes)
             {
                 if (list.Count >= 20)
                 {
@@ -1010,6 +1023,29 @@ namespace Silverdash360.Services
 
         /// <summary>How long the start in a new display setting waits to be told to keep it.</summary>
         public const int TrialSeconds = 10;
+
+        // The page Silverdash360 was started again from, to go back to.
+        private const string ReturnFile = "settings-return.txt";
+
+        /// <summary>Notes the page of settings to open when Silverdash360 starts again.</summary>
+        public static void SaveReturn(string group)
+        {
+            AppStorage.WriteText(ReturnFile, group ?? "");
+        }
+
+        /// <summary>
+        /// The page of settings Silverdash360 was started again from ("" for
+        /// their categories), or null; it's forgotten once read.
+        /// </summary>
+        public static string TakeReturn()
+        {
+            string group = AppStorage.ReadText(ReturnFile);
+            if (group != null)
+            {
+                AppStorage.Delete(ReturnFile);
+            }
+            return group == null ? null : group.Trim();
+        }
 
         /// <summary>Changes a display setting on trial: the old value is kept to put back.</summary>
         public static void StartTrial(ConsoleSetting setting, SettingChoice choice)

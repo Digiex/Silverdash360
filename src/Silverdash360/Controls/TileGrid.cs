@@ -140,6 +140,12 @@ namespace Silverdash360.Controls
                     // Tiles as wide as the grid follow its width.
                     DropTiles();
                 }
+                // A selection made before the grid had a size, such as a row
+                // selected again on coming back to a page, is scrolled to now.
+                if (selectedIndex >= 0 && selectedIndex < items.Count)
+                {
+                    ScrollTo(selectedIndex, false);
+                }
                 Realize();
             };
             GotFocus += delegate { focused = true; RefreshSelection(); };

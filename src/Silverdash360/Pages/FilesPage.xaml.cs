@@ -67,9 +67,14 @@ namespace Silverdash360.Pages
 
         private static XboxFileSystem Files { get { return Context.Ftp.Files; } }
 
+        private string pageKey;
+        private int backRow = -1;
+
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
+            pageKey = e.Uri.OriginalString;
+            backRow = BackSelection.Arrived(pageKey);
             string query;
             picking = NavigationContext.QueryString.TryGetValue("pick", out query) && query == "wallpaper";
             // Picked on a folder further in: back to the editor, once this
@@ -98,7 +103,14 @@ namespace Silverdash360.Pages
                 }
                 Items.EmptyText = "This folder is empty.";
                 Items.Items = result.Cast<object>().ToList();
+                BackSelection.Restore(Items, ref backRow);
             });
+        }
+
+        protected override void OnNavigatedFrom(NavigationEventArgs e)
+        {
+            base.OnNavigatedFrom(e);
+            BackSelection.Leaving(pageKey, Items);
         }
 
         // On a background thread: the folder's entries, folders first, with

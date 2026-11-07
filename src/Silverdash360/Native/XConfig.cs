@@ -232,6 +232,21 @@ namespace Silverdash360.Native
             }
         }
 
+        /// <summary>
+        /// A command to the system controller that sends no reply, as the
+        /// set commands (0x8x, 0x9x) are: given a reply buffer,
+        /// HalSendSMCMessage waits for one with the kernel held, and the
+        /// console stops (kernel 17559, 0x80067FCC skips the wait for none).
+        /// </summary>
+        public static void SmcSend(params byte[] message)
+        {
+            using (NativeBuffer request = new NativeBuffer(16))
+            {
+                Buffer.BlockCopy(message, 0, request.Bytes, 0, message.Length);
+                HalSendSMCMessage(request.Address, 0);
+            }
+        }
+
         public static void MuteSound(bool mute)
         {
             XamMuteSound(mute ? 1u : 0u);

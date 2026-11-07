@@ -83,9 +83,14 @@ namespace Silverdash360.Pages
             }
         }
 
+        private string pageKey;
+        private int backRow = -1;
+
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
+            pageKey = e.Uri.OriginalString;
+            backRow = BackSelection.Arrived(pageKey);
             IDictionary<string, string> query = NavigationContext.QueryString;
             string key, id, name;
             query.TryGetValue("source", out key);
@@ -112,6 +117,7 @@ namespace Silverdash360.Pages
         protected override void OnNavigatedFrom(NavigationEventArgs e)
         {
             base.OnNavigatedFrom(e);
+            BackSelection.Leaving(pageKey, Items);
             App.Context.Library.Changed -= LibraryChanged;
         }
 
@@ -180,6 +186,11 @@ namespace Silverdash360.Pages
             Items.EmptyText = loading ? "Loading..."
                 : kind == null ? "No music, videos or pictures here." : "No " + filters[index].Name + " here.";
             Items.Items = shown.Cast<object>().ToList();
+            // Once the folder is listed; while loading it has no rows.
+            if (!loading)
+            {
+                BackSelection.Restore(Items, ref backRow);
+            }
         }
 
         private void Open(MediaEntry entry)

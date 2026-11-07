@@ -75,7 +75,11 @@ namespace Silverdash360
             // page transitions.
             XboxApplicationFrame frame = new XboxApplicationFrame();
             Frame = frame;
-            Context.Navigate = uri => frame.Navigate(uri);
+            Context.Navigate = uri =>
+            {
+                BackSelection.Opening(uri.OriginalString);
+                frame.Navigate(uri);
+            };
             frame.Source = new Uri("/Pages/HubPage.xaml", UriKind.Relative);
             frame.GamePadButtonDown += delegate(object s, GamePadButtonEventArgs args)
             {
