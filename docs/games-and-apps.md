@@ -20,7 +20,7 @@ The **games** and **apps** sections are shelves of everything installed on the c
 
 Silverdash360 keeps what it read, so it starts quickly. At a start it shows the library it saved and looks only for what starts games and apps, and for themes, as they come and go; a title's add-ons, updates and saves are listed again when you open its page. **Refresh library** in settings reads everything again.
 
-Box art and store details are downloaded in the background and kept in the `Data\Art` folder, so they're there without the internet afterwards. The box art, background, banner and tile come from x360db first, unless they're kept from the Marketplace already, and an original Xbox game's box art that x360db doesn't have from [xdb](https://github.com/xemu-project/xdb); screenshots and store details come from the Marketplace. A title neither knows gets a cover of its kind with its icon or its initials.
+Box art and store details are downloaded in the background and kept in the `Data\Art` folder, so they're there without the internet afterwards. The box art, background, banner and tile come from x360db first, unless they're kept from the Marketplace already, and an original Xbox game's box art that x360db doesn't have from [xdb](https://github.com/xemu-project/xdb). The store details, the description, genre, developer, publisher and release date, come from x360db too, or from the Marketplace for a title x360db hasn't got; screenshots come from the Marketplace. A title neither knows gets a cover of its kind with its icon or its initials.
 
 ## Covers and lists
 

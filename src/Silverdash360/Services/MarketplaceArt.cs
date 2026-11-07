@@ -23,7 +23,9 @@ namespace Silverdash360.Services
     /// it's kept as x360db-{file} beside the Marketplace's. An original Xbox
     /// game x360db doesn't have gets its box art from xdb
     /// (github.com/xemu-project/xdb), kept as xdb-{file}. Art already kept
-    /// from the Marketplace is shown as it is. Without them, and
+    /// from the Marketplace is shown as it is. A title's details come from
+    /// x360db's info.json too, kept as x360db-info.json, and from the
+    /// catalog only for a title x360db hasn't got. Without them, and
     /// for everything else, the Xbox Marketplace, where the console's
     /// own dashboard gets them: images from download.xbox.com, at
     /// content/images/{media ID}/{locale}/{file}, and the details from the
@@ -69,6 +71,10 @@ namespace Silverdash360.Services
         // the game's own title ID; the thumbnail, 256 by 365, is box art's size.
         private const string XdbUrl = "https://raw.githubusercontent.com/xemu-project/xdb/main/titles/{0}/{1}/cover_front_thumbnail.jpg";
         private const string XdbPrefix = "xdb-";
+        // x360db's details of a title, its name, description, genres and
+        // makers, kept as x360db-info.json.
+        private const string X360dbInfoUrl = "https://xenia-manager.github.io/x360db/titles/{0:X8}/info.json";
+        private const string X360dbInfo = X360dbPrefix + "info.json";
         private const string DetailsUrl =
             "http://catalog.xboxlive.com/Catalog/Catalog.asmx/Query?methodName=FindGames" +
             "&Names=Locale&Values=en-US&Names=LegalLocale&Values=en-US&Names=Store&Values=1" +
@@ -209,7 +215,14 @@ namespace Silverdash360.Services
             {
                 return null;
             }
+            // x360db first, as for art (an original Xbox game under its Xbox
+            // Originals release); the Marketplace's catalog without it.
             titleId = ReleaseOf(titleId);
+            TitleDetails details = FromX360dbInfo(titleId);
+            if (details != null)
+            {
+                return details;
+            }
             byte[] xml = Get(Marketplace, titleId, Details, string.Format(DetailsUrl, titleId));
             if (xml == null)
             {
@@ -222,6 +235,28 @@ namespace Silverdash360.Services
             catch (Exception e)
             {
                 Log.Write("Marketplace details for {0:X8} unreadable: {1}", titleId, e.Message);
+                return null;
+            }
+        }
+
+        // x360db's details of the title, kept or downloaded; null when it
+        // hasn't got them or they can't be read.
+        private static TitleDetails FromX360dbInfo(uint titleId)
+        {
+            byte[] json = Get(X360db, titleId, X360dbInfo, string.Format(X360dbInfoUrl, titleId));
+            if (json == null)
+            {
+                return null;
+            }
+            try
+            {
+                TitleDetails details = TitleDetails.ParseX360db(
+                    JsonReader.Parse(Encoding.UTF8.GetString(json, 0, json.Length)) as IDictionary<string, object>);
+                return details != null && details.Name.Length > 0 ? details : null;
+            }
+            catch (Exception e)
+            {
+                Log.Write("x360db details for {0:X8} unreadable: {1}", titleId, e.Message);
                 return null;
             }
         }
@@ -251,6 +286,7 @@ namespace Silverdash360.Services
                     FromXdb(game, file);
                 }
             }
+            FromX360dbInfo(titleId);
             byte[] xml = Get(Marketplace, titleId, Details, string.Format(DetailsUrl, titleId));
             if (IsOffline)
             {
@@ -619,6 +655,63 @@ namespace Silverdash360.Services
         public string Genre = "";
         /// <summary>The release date as the catalog gives it, yyyy-mm-dd, or empty.</summary>
         public string ReleaseDate = "";
+
+        /// <summary>
+        /// x360db's info.json: title.full (or reduced), description.full (or
+        /// short), the first of genre, developer, publisher and release_date
+        /// (yyyy-mm-dd); null when it isn't an object.
+        /// </summary>
+        internal static TitleDetails ParseX360db(IDictionary<string, object> info)
+        {
+            if (info == null)
+            {
+                return null;
+            }
+            IDictionary<string, object> title = Member(info, "title");
+            IDictionary<string, object> description = Member(info, "description");
+            TitleDetails details = new TitleDetails
+            {
+                Name = First(title, "full", "reduced"),
+                Description = PlainText(First(description, "full", "short")),
+                Developer = (JsonReader.String(info, "developer") ?? "").Trim(),
+                Publisher = (JsonReader.String(info, "publisher") ?? "").Trim(),
+                ReleaseDate = (JsonReader.String(info, "release_date") ?? "").Trim(),
+            };
+            object genres;
+            List<object> list = info.TryGetValue("genre", out genres) ? genres as List<object> : null;
+            if (list != null && list.Count > 0 && list[0] is string)
+            {
+                details.Genre = ((string)list[0]).Trim();
+            }
+            if (details.ReleaseDate.Length > 10)
+            {
+                details.ReleaseDate = details.ReleaseDate.Substring(0, 10);
+            }
+            return details;
+        }
+
+        private static IDictionary<string, object> Member(IDictionary<string, object> json, string name)
+        {
+            object value;
+            return json.TryGetValue(name, out value) ? value as IDictionary<string, object> : null;
+        }
+
+        // The first of the members that's a string with something in it.
+        private static string First(IDictionary<string, object> json, params string[] names)
+        {
+            if (json != null)
+            {
+                foreach (string name in names)
+                {
+                    string value = JsonReader.String(json, name);
+                    if (!string.IsNullOrEmpty(value) && value.Trim().Length > 0)
+                    {
+                        return value.Trim();
+                    }
+                }
+            }
+            return "";
+        }
 
         internal static TitleDetails Parse(XDocument feed)
         {
