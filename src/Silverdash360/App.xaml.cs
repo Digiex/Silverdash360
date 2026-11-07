@@ -14,6 +14,7 @@ using Silverdash360.Services;
 using Silverdash360.Services.Files;
 using Silverdash360.Services.Ftp;
 using Silverdash360.Services.Media;
+using Silverlight360.Https;
 
 namespace Silverdash360
 {
@@ -40,6 +41,16 @@ namespace Silverdash360
             if (StartPendingInstall())
             {
                 return;
+            }
+            // Silverlight360.Https's heap, before its first request: the
+            // dashboard's requests are small, and have peaked under 2 MB.
+            try
+            {
+                HttpsClient.Start(16u << 20);
+            }
+            catch (Exception error)
+            {
+                Log.Write("Silverlight360.Https didn't start: {0}", error.Message);
             }
             StartDashboard(null);
         }

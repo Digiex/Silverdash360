@@ -8,6 +8,7 @@ using Silverdash360.Services;
 using Silverdash360.Services.Files;
 using Silverdash360.Services.Media;
 using Silverdash360.Services.Ftp;
+using Silverlight360;
 
 namespace Silverdash360.Debugging
 {

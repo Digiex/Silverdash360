@@ -7,6 +7,7 @@ using Silverdash360.Modules;
 using Silverdash360.Native;
 using Silverdash360.Services;
 using Silverdash360.Services.Ftp;
+using Silverlight360;
 
 namespace Silverdash360.Debugging
 {

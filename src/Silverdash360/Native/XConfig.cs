@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using Silverlight360;
 
 namespace Silverdash360.Native
 {

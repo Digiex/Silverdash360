@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Silverdash360.Native;
+using Silverlight360;
 
 namespace Silverdash360.Services.Files
 {

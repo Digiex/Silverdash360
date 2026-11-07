@@ -6,3 +6,6 @@ __pycache__/
 site/
 tests/results/
 config.json
+
+# Downloaded by tools/Configure.ps1
+lib/Silverlight360.Https/

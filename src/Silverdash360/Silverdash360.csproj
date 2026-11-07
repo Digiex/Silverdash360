@@ -35,6 +35,11 @@
     <Reference Include="Microsoft.Xbox.Storage" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
+    <!-- HttpsClient and the drop-in, from Silverlight360.Https's release, which tools\Configure.ps1 downloads. -->
+    <Reference Include="Silverlight360.Https">
+      <HintPath>..\..\lib\Silverlight360.Https\Silverlight360.Https.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml"><Generator>MSBuild:Compile</Generator></ApplicationDefinition>
@@ -79,7 +84,6 @@
     <Compile Include="Services\WallpaperImage.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Native\NativeBuffer.cs" />
     <Compile Include="Native\Xam.cs" />
     <Compile Include="Native\KernelFiles.cs" />
     <Compile Include="Native\KernelModules.cs" />
@@ -161,6 +165,22 @@
   <ItemGroup>
     <Resource Include="Assets\Digiex.png" />
   </ItemGroup>
+  <!-- Silverlight360.Https (https://github.com/Digiex/Silverlight360.Https): HTTPS with
+       TLS 1.2 and 1.3 and Mozilla's root certificates, which the console's
+       own HTTPS lacks; beside default.xex, with the root certificates it
+       checks servers against. tools\Configure.ps1 downloads its release into
+       lib\Silverlight360.Https. -->
+  <ItemGroup>
+    <Content Include="..\..\lib\Silverlight360.Https\https360.xex"><Link>https360.xex</Link></Content>
+    <Content Include="..\..\lib\Silverlight360.Https\cacert.pem"><Link>cacert.pem</Link></Content>
+    <!-- Their notices go with them, as their licences ask. -->
+    <Content Include="..\..\lib\Silverlight360.Https\licenses\curl.txt"><Link>Silverlight360.Https\curl-COPYING.txt</Link></Content>
+    <Content Include="..\..\lib\Silverlight360.Https\licenses\mbedtls.txt"><Link>Silverlight360.Https\mbedtls-LICENSE.txt</Link></Content>
+  </ItemGroup>
+  <Target Name="CheckSilverlight360Https" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(MSBuildProjectDirectory)\..\..\lib\Silverlight360.Https\https360.xex')"
+           Text="Silverlight360.Https's release isn't in lib\Silverlight360.Https: run .\tools\Configure.ps1, which downloads it." />
+  </Target>
   <!-- The version, and the commit the build is made from, for the settings
        page (BuildInfo). Git's answers go through files, as MSBuild 14 can't
        read a command's output; without git the commit is unknown. -->

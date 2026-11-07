@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using Silverdash360.Core;
 using Silverdash360.Native;
+using Silverlight360;
 
 namespace Silverdash360.Services.Ftp
 {

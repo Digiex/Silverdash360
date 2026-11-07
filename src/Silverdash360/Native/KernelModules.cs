@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using Silverlight360;
 
 namespace Silverdash360.Native
 {

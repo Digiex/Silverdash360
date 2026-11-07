@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows.Media.Imaging;
 using Silverdash360.Core;
 using Silverdash360.Native;
+using Silverlight360;
 
 namespace Silverdash360.Services
 {

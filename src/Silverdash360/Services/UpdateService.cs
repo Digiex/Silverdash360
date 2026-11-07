@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -12,6 +11,8 @@ using Silverdash360.Core;
 using Silverdash360.Native;
 using Silverdash360.Services.Files;
 using Silverdash360.Services.Media;
+using Silverlight360;
+using Silverlight360.Https;
 
 namespace Silverdash360.Services
 {
@@ -94,10 +95,8 @@ namespace Silverdash360.Services
                 string why = null;
                 if (error != null)
                 {
-                    // The platform's message is a resource key with its
-                    // arguments ("[HttpWebRequest_WebException_RemoteServer]
-                    // Arguments: NotFound ..."): the log keeps it, settings
-                    // says what it most likely means.
+                    // curl's message, or GitHub's status: the log keeps it,
+                    // settings says what it most likely means.
                     Log.Write("Update check failed: {0}", error.Message);
                     why = "Couldn't reach GitHub. Check that the console is connected to the internet.";
                 }
@@ -602,52 +601,30 @@ namespace Silverdash360.Services
             SystemService.RestartDashboard();
         }
 
-        // A GET through the platform's HttpWebRequest, which answers HTTPS
-        // (this client of the dashboard's own doesn't). It's made on the UI
-        // thread, and done is called there.
+        // A GET through Silverlight360.Https on a background thread, following the
+        // release's redirect to GitHub's file storage; done is called on the
+        // UI thread. The platform's HttpWebRequest reaches api.github.com,
+        // but it knows only the console's old certificate authorities (it
+        // can't reach github.com itself), so a change of GitHub's
+        // certificates could cut updates off; Silverlight360.Https has Mozilla's roots.
         private static void Get(Uri url, string accept, Action<byte[], Exception> done)
         {
             url = Http.Offline(url);
-            Background.OnUi(delegate
+            Background.Run(() =>
             {
-                try
+                using (HttpsClient client = new HttpsClient { ConnectTimeoutSeconds = 15, TimeoutSeconds = 300 })
                 {
-                    HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-                    if (accept != null)
+                    // GitHub's API turns away a request with no User-Agent.
+                    HttpsResponse response = client.Send("GET", url.ToString(),
+                        new[] { "Accept: " + (accept ?? "application/vnd.github+json"), "User-Agent: Silverdash360/" + BuildInfo.Version },
+                        null);
+                    if (response.Status != 200)
                     {
-                        request.Accept = accept;
+                        throw new IOException("GitHub answered " + response.Status + ".");
                     }
-                    request.BeginGetResponse(answer =>
-                    {
-                        byte[] body = null;
-                        Exception error = null;
-                        try
-                        {
-                            using (WebResponse response = request.EndGetResponse(answer))
-                            using (Stream stream = response.GetResponseStream())
-                            using (MemoryStream bytes = new MemoryStream())
-                            {
-                                byte[] block = new byte[BlockSize];
-                                int read;
-                                while ((read = stream.Read(block, 0, block.Length)) > 0)
-                                {
-                                    bytes.Write(block, 0, read);
-                                }
-                                body = bytes.ToArray();
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            error = e;
-                        }
-                        Background.OnUi(() => done(body, error));
-                    }, null);
+                    return response.Body;
                 }
-                catch (Exception e)
-                {
-                    done(null, e);
-                }
-            });
+            }, done);
         }
     }
 }

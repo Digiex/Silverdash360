@@ -17,7 +17,14 @@ missing, or to update XboxNGen. It:
      Silverlight 3 SDK and the runtime profile, gets XboxNGen and finds
      xenia-edge (see its help). -MsBuild, -Xenia, -DonorApp, -Tag,
      -DownloadXenia, -SkipXboxNGen and -NonInteractive go to it.
-  3. Checks what Silverdash360's other tools need, all optional, as
+  3. Gets Silverlight360.Https's release, which the package needs for
+     HTTPS: Silverlight360.Https-<version>.zip from
+     https://github.com/Digiex/Silverlight360.Https/releases, checked
+     against the SHA-256 below and unpacked into lib\Silverlight360.Https
+     (git ignores it): Silverlight360.Https.dll, which the project
+     references, https360.xex, cacert.pem and their licenses. Another
+     release is a change of $httpsVersion and $httpsSha256.
+  4. Checks what Silverdash360's other tools need, all optional, as
      building needs none of it:
        Python 3.7 or later  optional: tools\deploy.py, tools\screenshot.py
                             and the tests (from Silverlight360's
@@ -129,10 +136,42 @@ Write-Host "Silverlight360 at $($config.Sdk). Its Configure.ps1:"
 $sdkConfig = Join-Path $config.Sdk 'config.json'
 $sdkSettings = if (Test-Path -LiteralPath $sdkConfig) { Get-Content -LiteralPath $sdkConfig -Raw | ConvertFrom-Json } else { $null }
 
-# 3. Silverdash360's own tools.
+# 3. Silverlight360.Https's release: downloaded, checked and unpacked over any other.
+$httpsVersion = '0.1.0'
+$httpsSha256 = 'c7014c7728d8ddebb97d8cb57729b2cace8e8420b614f61711640e0f48bba1d4'
+$httpsFolder = Join-Path $root 'lib\Silverlight360.Https'
+$httpsMarker = Join-Path $httpsFolder '.release'
+$httpsHave = (Test-Path -LiteralPath $httpsMarker) -and ((Get-Content -LiteralPath $httpsMarker -Raw).Trim() -eq $httpsVersion)
+if (-not $httpsHave) {
+    $zip = Join-Path ([IO.Path]::GetTempPath()) "Silverlight360.Https-$httpsVersion.zip"
+    $url = "https://github.com/Digiex/Silverlight360.Https/releases/download/v$httpsVersion/Silverlight360.Https-$httpsVersion.zip"
+    Write-Host "Downloading $url"
+    Invoke-WebRequest $url -OutFile $zip -UseBasicParsing
+    try {
+        $actual = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actual -ne $httpsSha256) {
+            throw "Silverlight360.Https-$httpsVersion.zip's SHA-256 is $actual, not ${httpsSha256}."
+        }
+        # The zip holds one folder, Silverlight360.Https, which lib\Silverlight360.Https becomes.
+        $unpack = Join-Path ([IO.Path]::GetTempPath()) "Silverlight360.Https-$httpsVersion"
+        if (Test-Path -LiteralPath $unpack) { Remove-Item -LiteralPath $unpack -Recurse -Force }
+        Expand-Archive -LiteralPath $zip -DestinationPath $unpack
+        if (Test-Path -LiteralPath $httpsFolder) { Remove-Item -LiteralPath $httpsFolder -Recurse -Force }
+        $null = New-Item -ItemType Directory (Split-Path $httpsFolder -Parent) -Force
+        Move-Item -LiteralPath (Join-Path $unpack 'Silverlight360.Https') -Destination $httpsFolder
+        Remove-Item -LiteralPath $unpack -Recurse -Force
+        Set-Content -LiteralPath $httpsMarker $httpsVersion -Encoding ascii
+    } finally {
+        Remove-Item -LiteralPath $zip -ErrorAction SilentlyContinue
+    }
+}
+
+# 4. Silverdash360's own tools.
 Write-Host ''
 Write-Host 'Silverdash360:'
 Report 'Silverlight360' $config.Sdk '' -Required
+Report 'Silverlight360.Https' $(if (Test-Path -LiteralPath (Join-Path $httpsFolder 'https360.xex')) { "$httpsVersion, lib\Silverlight360.Https" }) `
+    'run .\tools\Configure.ps1 again: the package needs it' -Required
 $config.Python = if ($sdkSettings) { "$($sdkSettings.Python)" } else { '' }
 Report 'Python 3.7+' $config.Python ('optional: install Python 3.7 or later and put python on PATH, for ' +
     'tools\deploy.py, tools\screenshot.py and the tests')

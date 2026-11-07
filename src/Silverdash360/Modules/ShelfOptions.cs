@@ -4,6 +4,7 @@ using System.Linq;
 using Silverdash360.Model;
 using Silverdash360.Native;
 using Silverdash360.Services;
+using Silverlight360;
 
 namespace Silverdash360.Modules
 {

@@ -18,7 +18,7 @@ A start looks only for new games, apps and themes. A title's add-ons, updates an
 
 ## The box art or the theme is missing
 
-- Box art comes from the Xbox Marketplace the first time a title is shown, so the console needs the internet once. A title the Marketplace doesn't have gets a cover of its kind.
+- Box art comes from x360db, or else the Xbox Marketplace, the first time a title is shown, so the console needs the internet once. A title neither has gets a cover of its kind.
 - The theme in use is kept, so it shows straight away at a start. The first time, or after picking another, it shows once its package has been found.
 - Each profile has its own theme, and so has nobody signed in: see [Themes](settings.md#themes).
 

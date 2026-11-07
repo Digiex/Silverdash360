@@ -15,7 +15,7 @@ A dashboard for the Xbox 360. It lists the games and apps on your console, with 
 
 ## Features
 
-- **Games and apps** from the hard drive and USB drives: Games on Demand, Arcade, Indie, demos, original Xbox games and homebrew in `Apps` and `Games` folders, with box art and store details from the Xbox Marketplace, kept for offline use.
+- **Games and apps** from the hard drive and USB drives: Games on Demand, Arcade, Indie, demos, original Xbox games and homebrew in `Apps` and `Games` folders, with box art from [x360db](https://github.com/xenia-manager/x360db) and the Xbox Marketplace and store details from the Marketplace, kept for offline use.
 - **Jump back in** with the titles you played last, and the disc in the drive first.
 - **Covers or a list**, sorted and filtered as you like, with letters to jump through a long shelf.
 - **Media**: music, videos and pictures from the drives, data discs and DLNA media servers such as Plex, and the videos you downloaded from Xbox LIVE.
@@ -68,7 +68,7 @@ See [Development](docs/development.md): building with Silverlight360, the debug 
 
 Silverdash360 is licensed under the PolyForm Noncommercial License 1.0.0, with an additional condition: projects made with it must reference this repository. See [LICENSE.md](LICENSE.md).
 
-It's built with [Silverlight360](https://github.com/Digiex/Silverlight360), which has its own license.
+It's built with [Silverlight360](https://github.com/Digiex/Silverlight360), which has its own license. Its HTTPS comes from [Silverlight360.Https](https://github.com/Digiex/Silverlight360.Https) (its releases, which `tools\Configure.ps1` downloads): libcurl, under curl's license, on Mbed TLS, under Apache 2.0, with Mozilla's root certificates, under MPL 2.0. Their notices go in the package beside them.
 
 ## Trademarks
 

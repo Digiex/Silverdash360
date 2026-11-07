@@ -8,6 +8,8 @@ using Silverdash360.Native;
 using Silverdash360.Services;
 using Silverdash360.Services.Files;
 using Silverdash360.Services.Ftp;
+using Silverlight360;
+using Silverlight360.Https;
 
 namespace Silverdash360.Debugging
 {
@@ -47,6 +49,10 @@ namespace Silverdash360.Debugging
             commands.Add("xam.achievements", "<titleId>", "The signed-in profile's achievements for a title.", Achievements);
             commands.Add("net.address", "", "The console's address from XNetGetTitleXnAddr.", r => Address());
             commands.Add("net.fetch", "<url> [timeoutMs] [accept]", "A GET through the platform's HttpWebRequest (HTTPS too): the status, or the error.", Fetch);
+            commands.Add("net.https", "<url> [timeoutSeconds]", "A GET through Silverlight360.Https (TLS 1.2 and 1.3): the status, TLS, size and time, or the error.", Https);
+            commands.Add("net.dropin", "[http]", "Sends the platform's https:// requests (and with http, http://) through Silverlight360.Https's HttpsWebRequest, from now until the dashboard starts again; net.fetch and net.webclient then use it.",
+                         r => HttpsRequestCreator.Register(r.Arg(0, "") == "http"));
+            commands.Add("net.webclient", "<url> [timeoutMs] [body]", "A WebClient.DownloadStringAsync, or with a body UploadStringAsync (a POST): the length, the start, or the error.", WebClientGet);
             commands.Add("fs.drives", "", "The drives the dashboard knows and which are present.", r => Drives());
             commands.Add("fs.list", "<path>", "A folder's entries, such as /Hdd1/Content.", List);
             commands.Add("fs.device", "<devicePath>", "A folder's entries by the kernel's name, such as \\Device\\Harddisk0\\SystemExtPartition.",
@@ -211,6 +217,83 @@ namespace Silverdash360.Debugging
 
         // The platform's HttpWebRequest, made and answered on the UI thread;
         // this thread polls for the answer.
+        private static object WebClientGet(DebugRequest request)
+        {
+            Uri url = new Uri(request.Arg(0, "url", true), UriKind.Absolute);
+            int timeout = request.Int(1, 20000);
+            string upload = request.Arg(2, null);
+            JsonObject result = new JsonObject { { "url", url.ToString() } };
+            System.Threading.ManualResetEvent done = new System.Threading.ManualResetEvent(false);
+            int start = Environment.TickCount;
+            UiThread.Invoke(() =>
+            {
+                System.Net.WebClient web = new System.Net.WebClient();
+                Action<Exception, string> finished = delegate(Exception error, string text)
+                {
+                    if (error != null)
+                    {
+                        result.Add("error", error.GetType().Name + ": " + error.Message);
+                        System.Net.WebException web2 = error as System.Net.WebException;
+                        System.Net.HttpWebResponse failed = web2 != null ? web2.Response as System.Net.HttpWebResponse : null;
+                        if (failed != null)
+                        {
+                            result.Add("status", (int)failed.StatusCode);
+                        }
+                    }
+                    else
+                    {
+                        result.Add("length", text.Length);
+                        result.Add("start", text.Length > 400 ? text.Substring(0, 400) : text);
+                        result.Add("contentType", web.ResponseHeaders != null ? web.ResponseHeaders["Content-Type"] : null);
+                    }
+                    result.Add("ms", Environment.TickCount - start);
+                    done.Set();
+                };
+                if (upload == null)
+                {
+                    web.DownloadStringCompleted += (sender, e) => finished(e.Error, e.Error == null ? e.Result : null);
+                    web.DownloadStringAsync(url);
+                }
+                else
+                {
+                    web.Headers["Content-Type"] = "text/plain";
+                    web.UploadStringCompleted += (sender, e) => finished(e.Error, e.Error == null ? e.Result : null);
+                    web.UploadStringAsync(url, "POST", upload);
+                }
+                return 0;
+            });
+            if (!done.WaitOne(timeout))
+            {
+                result.Add("error", "no answer in " + timeout + " ms");
+            }
+            return result;
+        }
+
+        private static object Https(DebugRequest request)
+        {
+            string url = request.Arg(0, "url", true);
+            JsonObject result = new JsonObject { { "url", url } };
+            try
+            {
+                using (HttpsClient client = new HttpsClient { TimeoutSeconds = request.Int(1, 30) })
+                {
+                    HttpsResponse response = client.Get(url);
+                    result.Add("status", response.Status);
+                    result.Add("contentType", response.Header("Content-Type"));
+                    result.Add("length", response.Body.Length);
+                    result.Add("tls", response.TlsVersion);
+                    result.Add("cipher", response.Cipher);
+                    result.Add("ms", response.ElapsedMilliseconds);
+                    result.Add("heapPeak", HttpsClient.HeapPeak);
+                }
+            }
+            catch (Exception e)
+            {
+                result.Add("error", e.GetType().Name + ": " + e.Message);
+            }
+            return result;
+        }
+
         private static object Fetch(DebugRequest request)
         {
             Uri url = new Uri(request.Arg(0, "url", true), UriKind.Absolute);
@@ -235,6 +318,8 @@ namespace Silverdash360.Debugging
                         {
                             string body = reader.ReadToEnd();
                             result.Add("status", (int)response.StatusCode);
+                            // HttpsWebResponse once net.dropin has run.
+                            result.Add("type", response.GetType().Name);
                             result.Add("contentType", response.ContentType);
                             result.Add("length", body.Length);
                             result.Add("start", body.Length > 300 ? body.Substring(0, 300) : body);

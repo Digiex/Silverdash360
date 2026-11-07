@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Silverdash360.Native;
+using Silverlight360;
 
 namespace Silverdash360.Model
 {

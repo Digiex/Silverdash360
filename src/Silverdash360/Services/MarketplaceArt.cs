@@ -10,11 +10,21 @@ using Silverdash360.Core;
 using Silverdash360.Model;
 using Silverdash360.Services.Files;
 using Silverdash360.Services.Media;
+using Silverlight360.Https;
 
 namespace Silverdash360.Services
 {
     /// <summary>
-    /// A title's art and details from the Xbox Marketplace, where the console's
+    /// A title's art and details. Box art, the background, the banner and
+    /// the tile come first from x360db (github.com/xenia-manager/x360db), an
+    /// archive of the Marketplace's art served over HTTPS, through
+    /// <see cref="HttpsClient"/>: the platform's HttpWebRequest knows only
+    /// the console's old certificate authorities and works on the UI thread;
+    /// it's kept as x360db-{file} beside the Marketplace's. An original Xbox
+    /// game x360db doesn't have gets its box art from xdb
+    /// (github.com/xemu-project/xdb), kept as xdb-{file}. Art already kept
+    /// from the Marketplace is shown as it is. Without them, and
+    /// for everything else, the Xbox Marketplace, where the console's
     /// own dashboard gets them: images from download.xbox.com, at
     /// content/images/{media ID}/{locale}/{file}, and the details from the
     /// catalog's FindGames query. A title's media ID is
@@ -47,6 +57,18 @@ namespace Silverdash360.Services
         public const string Details = "details.xml";
 
         private const string ImageUrl = "http://download.xbox.com/content/images/66acd000-77fe-1000-9115-d802{0:x8}/1033/{1}";
+        // x360db's own copies, by title ID in upper case, on GitHub Pages.
+        private const string X360dbUrl = "https://xenia-manager.github.io/x360db/titles/{0:X8}/artwork/{1}";
+        private const string X360dbPrefix = "x360db-";
+        // The Marketplace's names for the images x360db keeps, and its names for them.
+        private static readonly Dictionary<string, string> X360dbFiles = new Dictionary<string, string>
+        {
+            { BoxArt, "boxart.jpg" }, { Background, "background.jpg" }, { "banner.png", "banner.png" }, { "tile.png", "icon.png" },
+        };
+        // xdb (github.com/xemu-project/xdb): original Xbox games' covers, by
+        // the game's own title ID; the thumbnail, 256 by 365, is box art's size.
+        private const string XdbUrl = "https://raw.githubusercontent.com/xemu-project/xdb/main/titles/{0}/{1}/cover_front_thumbnail.jpg";
+        private const string XdbPrefix = "xdb-";
         private const string DetailsUrl =
             "http://catalog.xboxlive.com/Catalog/Catalog.asmx/Query?methodName=FindGames" +
             "&Names=Locale&Values=en-US&Names=LegalLocale&Values=en-US&Names=Store&Values=1" +
@@ -93,12 +115,25 @@ namespace Silverdash360.Services
         // while, so the art worker isn't held by one timeout per tile.
         private const int OfflinePauseMs = 120000;
 
+        // A server art comes from, and whether it was last found unreachable;
+        // each pauses on its own, so one being down doesn't stop the other.
+        private sealed class Source
+        {
+            public string Name;
+            public bool Offline;
+            public int OfflineSince;
+        }
+
+        private static readonly Source Marketplace = new Source { Name = "Marketplace" };
+        private static readonly Source X360db = new Source { Name = "x360db" };
+        private static readonly Source Xdb = new Source { Name = "xdb" };
+
         private static readonly object stateLock = new object();
         // One request at a time: the art worker and the cache's thread both
         // download.
         private static readonly object downloadLock = new object();
-        private static bool offline;
-        private static int offlineSince;
+        // For HTTPS, made at the first such request; one, as requests are.
+        private static HttpsClient https;
         // Original Xbox title IDs to their Xbox Originals releases' ones; null
         // until read or downloaded.
         private static readonly object originalsLock = new object();
@@ -120,8 +155,51 @@ namespace Silverdash360.Services
             {
                 return null;
             }
+            // An original Xbox game is in x360db as the Marketplace has it,
+            // under its Xbox Originals release; one that isn't has its cover
+            // from xdb, under its own ID.
+            uint game = titleId;
             titleId = ReleaseOf(titleId);
-            return Get(titleId, file, string.Format(ImageUrl, titleId, file));
+            // Art already kept from the Marketplace stays; x360db is for
+            // what isn't kept yet.
+            byte[] image = Kept(titleId, file) ?? FromX360db(titleId, file) ?? FromXdb(game, file);
+            if (image != null)
+            {
+                return image;
+            }
+            return Get(Marketplace, titleId, file, string.Format(ImageUrl, titleId, file));
+        }
+
+        // xdb's cover of an original Xbox game, as its box art; null otherwise.
+        private static byte[] FromXdb(uint titleId, string file)
+        {
+            return file == BoxArt && TitleEntry.IsOriginalXboxTitleId(titleId)
+                ? Get(Xdb, titleId.ToString("X8"), XdbPrefix + file, XdbCoverUrl(titleId))
+                : null;
+        }
+
+        // xdb's folders are the title ID's publisher letters, then its game
+        // number in decimal: 4D530002 is MS/002.
+        private static string XdbCoverUrl(uint titleId)
+        {
+            string publisher = new string(new[] { (char)(titleId >> 24), (char)((titleId >> 16) & 0xFF) });
+            return string.Format(XdbUrl, publisher, (titleId & 0xFFFF).ToString("D3"));
+        }
+
+        // The Marketplace's copy of a file, if it's kept; nothing is downloaded.
+        private static byte[] Kept(uint titleId, string file)
+        {
+            byte[] kept = AppStorage.ReadBytes(Folder + "/" + titleId.ToString("X8") + "/" + file);
+            return kept != null && kept.Length > 0 && !IsPlaceholder(kept) ? kept : null;
+        }
+
+        // x360db's copy of one of the images it keeps, under the title ID given; null otherwise.
+        private static byte[] FromX360db(uint titleId, string file)
+        {
+            string name;
+            return X360dbFiles.TryGetValue(file, out name)
+                ? Get(X360db, titleId.ToString("X8"), X360dbPrefix + file, string.Format(X360dbUrl, titleId, name))
+                : null;
         }
 
         /// <summary>The title's details, kept or downloaded; null when there are none.</summary>
@@ -132,7 +210,7 @@ namespace Silverdash360.Services
                 return null;
             }
             titleId = ReleaseOf(titleId);
-            byte[] xml = Get(titleId, Details, string.Format(DetailsUrl, titleId));
+            byte[] xml = Get(Marketplace, titleId, Details, string.Format(DetailsUrl, titleId));
             if (xml == null)
             {
                 return null;
@@ -159,13 +237,21 @@ namespace Silverdash360.Services
             {
                 return true;
             }
+            uint game = titleId;
             titleId = ReleaseOf(titleId);
             string folder = Folder + "/" + titleId.ToString("X8") + "/";
             if (AppStorage.Stat(folder + CompleteMarker) != null)
             {
                 return true;
             }
-            byte[] xml = Get(titleId, Details, string.Format(DetailsUrl, titleId));
+            foreach (string file in X360dbFiles.Keys)
+            {
+                if (Kept(titleId, file) == null && FromX360db(titleId, file) == null && file == BoxArt)
+                {
+                    FromXdb(game, file);
+                }
+            }
+            byte[] xml = Get(Marketplace, titleId, Details, string.Format(DetailsUrl, titleId));
             if (IsOffline)
             {
                 return false;
@@ -205,7 +291,7 @@ namespace Silverdash360.Services
                     continue;
                 }
                 kept[file] = true;
-                Get(titleId, file, url);
+                Get(Marketplace, titleId, file, url);
                 if (IsOffline)
                 {
                     return false;
@@ -221,7 +307,7 @@ namespace Silverdash360.Services
             {
                 lock (stateLock)
                 {
-                    return offline;
+                    return Marketplace.Offline;
                 }
             }
         }
@@ -257,7 +343,7 @@ namespace Silverdash360.Services
                     originals = ReadMap(kept);
                     return originals;
                 }
-                byte[] list = Get(OriginalsFolder, OriginalsList, OriginalsUrl);
+                byte[] list = Get(Marketplace, OriginalsFolder, OriginalsList, OriginalsUrl);
                 if (list == null)
                 {
                     return null;
@@ -357,12 +443,12 @@ namespace Silverdash360.Services
             return end < 0 ? null : text.Substring(start, end - start);
         }
 
-        private static byte[] Get(uint titleId, string file, string url)
+        private static byte[] Get(Source source, uint titleId, string file, string url)
         {
-            return Get(titleId.ToString("X8"), file, url);
+            return Get(source, titleId.ToString("X8"), file, url);
         }
 
-        private static byte[] Get(string name, string file, string url)
+        private static byte[] Get(Source source, string name, string file, string url)
         {
             string path = Folder + "/" + name + "/" + file;
             byte[] kept = AppStorage.ReadBytes(path);
@@ -393,11 +479,11 @@ namespace Silverdash360.Services
             {
                 lock (stateLock)
                 {
-                    if (offline && Environment.TickCount - offlineSince < OfflinePauseMs)
+                    if (source.Offline && Environment.TickCount - source.OfflineSince < OfflinePauseMs)
                     {
                         return null;
                     }
-                    offline = false;
+                    source.Offline = false;
                 }
                 body = Download(new Uri(url), out status);
             }
@@ -425,9 +511,9 @@ namespace Silverdash360.Services
                 }
                 else
                 {
-                    offline = true;
-                    offlineSince = Environment.TickCount;
-                    Log.Write("Marketplace: {0} for {1}; trying again in {2} s", status, url, OfflinePauseMs / 1000);
+                    source.Offline = true;
+                    source.OfflineSince = Environment.TickCount;
+                    Log.Write("{0}: {1} for {2}; trying again in {3} s", source.Name, status, url, OfflinePauseMs / 1000);
                 }
             }
             return null;
@@ -461,7 +547,8 @@ namespace Silverdash360.Services
 
         // A GET on this thread, over the dashboard's own HTTP client: the
         // platform's HttpWebRequest does its work on the UI thread, which a
-        // slow reply then holds up. One redirect is followed.
+        // slow reply then holds up. One redirect is followed. HTTPS goes
+        // through Silverlight360.Https.
         private static byte[] Download(Uri url, out int status)
         {
             lock (downloadLock)
@@ -471,6 +558,16 @@ namespace Silverdash360.Services
                 int start = Environment.TickCount;
                 try
                 {
+                    if (url.Scheme == "https")
+                    {
+                        if (https == null)
+                        {
+                            https = new HttpsClient { ConnectTimeoutSeconds = 15, TimeoutSeconds = 30 };
+                        }
+                        HttpsResponse response = https.Get(url.ToString());
+                        status = response.Status;
+                        return status == 200 ? response.Body : null;
+                    }
                     for (int redirects = 0; ; redirects++)
                     {
                         using (Http.Response response = Http.Send("GET", url, null, null))
@@ -489,7 +586,7 @@ namespace Silverdash360.Services
                 }
                 catch (Exception e)
                 {
-                    Log.Write("Marketplace: {0} failed: {1}", url, e.Message);
+                    Log.Write("Art: {0} failed: {1}", url, e.Message);
                     status = 0;
                     return null;
                 }
@@ -498,7 +595,7 @@ namespace Silverdash360.Services
                     int ms = Environment.TickCount - start;
                     if (ms > SlowMs)
                     {
-                        Log.Write("Marketplace: {0} took {1} ms", url, ms);
+                        Log.Write("Art: {0} took {1} ms", url, ms);
                     }
                     InFlight = null;
                     Activity.Art = "downloaded " + url;
