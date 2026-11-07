@@ -12,10 +12,15 @@ namespace Silverdash360.Core
     /// </summary>
     public static class JsonReader
     {
+        // Objects and arrays within each other at most this deep: each level
+        // is a call, so a document nested deeper, made to overflow the
+        // stack, is refused instead.
+        private const int MaxDepth = 64;
+
         public static object Parse(string text)
         {
             int at = 0;
-            object value = Value(text, ref at);
+            object value = Value(text, ref at, 0);
             SkipSpace(text, ref at);
             if (at != text.Length)
             {
@@ -38,7 +43,7 @@ namespace Silverdash360.Core
             return json.TryGetValue(name, out value) && value is double ? (double)value : fallback;
         }
 
-        private static object Value(string text, ref int at)
+        private static object Value(string text, ref int at, int depth)
         {
             SkipSpace(text, ref at);
             if (at >= text.Length)
@@ -48,8 +53,8 @@ namespace Silverdash360.Core
             char c = text[at];
             switch (c)
             {
-                case '{': return Object(text, ref at);
-                case '[': return Array(text, ref at);
+                case '{': return Object(text, ref at, Deeper(depth, at));
+                case '[': return Array(text, ref at, Deeper(depth, at));
                 case '"': return String(text, ref at);
                 case 't': Literal(text, ref at, "true"); return true;
                 case 'f': Literal(text, ref at, "false"); return false;
@@ -58,7 +63,7 @@ namespace Silverdash360.Core
             }
         }
 
-        private static Dictionary<string, object> Object(string text, ref int at)
+        private static Dictionary<string, object> Object(string text, ref int at, int depth)
         {
             Dictionary<string, object> members = new Dictionary<string, object>();
             at++;
@@ -74,7 +79,7 @@ namespace Silverdash360.Core
                 string name = String(text, ref at);
                 SkipSpace(text, ref at);
                 Expect(text, ref at, ':');
-                members[name] = Value(text, ref at);
+                members[name] = Value(text, ref at, depth);
                 SkipSpace(text, ref at);
                 if (at < text.Length && text[at] == ',')
                 {
@@ -86,7 +91,7 @@ namespace Silverdash360.Core
             }
         }
 
-        private static List<object> Array(string text, ref int at)
+        private static List<object> Array(string text, ref int at, int depth)
         {
             List<object> items = new List<object>();
             at++;
@@ -98,7 +103,7 @@ namespace Silverdash360.Core
             }
             while (true)
             {
-                items.Add(Value(text, ref at));
+                items.Add(Value(text, ref at, depth));
                 SkipSpace(text, ref at);
                 if (at < text.Length && text[at] == ',')
                 {
@@ -108,6 +113,15 @@ namespace Silverdash360.Core
                 Expect(text, ref at, ']');
                 return items;
             }
+        }
+
+        private static int Deeper(int depth, int at)
+        {
+            if (depth >= MaxDepth)
+            {
+                throw new FormatException("JSON is nested more than " + MaxDepth + " deep, at " + at + ".");
+            }
+            return depth + 1;
         }
 
         private static string String(string text, ref int at)
