@@ -124,6 +124,8 @@ if ($Console) {
     }
     New-Item -ItemType Directory -Path $staging | Out-Null
     Copy-Item -Path (Join-Path $project 'bin\Release\xbox\*') -Destination $staging -Recurse
+    # Its license goes with every copy, as it asks.
+    Copy-Item -LiteralPath (Join-Path $root 'LICENSE.md') -Destination $staging
     $zip = Join-Path $out "Silverdash360-$version-console.zip"
     Compress-Archive -Path $staging -DestinationPath $zip
     Write-Host "Silverdash360 $version (build $number), the base package: $zip"
