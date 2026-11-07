@@ -120,7 +120,7 @@
             <div class="section" itemprop="articleBody">
               
                 <h1 id="games-and-apps">Games and apps<a class="headerlink" href="#games-and-apps" title="Permanent link">&para;</a></h1>
-<p>The <strong>games</strong> and <strong>apps</strong> sections are shelves of everything installed on the console's hard drive and USB drives. Each title has its box art from the Xbox Marketplace, where the console's own dashboard gets it, or the package's own picture.</p>
+<p>The <strong>games</strong> and <strong>apps</strong> sections are shelves of everything installed on the console's hard drive and USB drives. Each title has its box art from <a href="https://github.com/xenia-manager/x360db">x360db</a>, an archive of the Xbox Marketplace's art, or else from the Xbox Marketplace itself, where the console's own dashboard gets it, or the package's own picture.</p>
 <p><strong>Xbox Dashboard</strong> is always among the apps: it starts the console's own dashboard from its flash memory. It starts that dashboard even where Silverdash360 is set up as the default one, as with DashLaunch, which leaving for the default dashboard wouldn't.</p>
 <table>
 <thead>
@@ -150,7 +150,7 @@
 <li><strong>Titles with nothing to start</strong>, such as a game with only saves or add-ons left, are hidden until you show them with the shelf's options.</li>
 </ul>
 <p>Silverdash360 keeps what it read, so it starts quickly. At a start it shows the library it saved and looks only for what starts games and apps, and for themes, as they come and go; a title's add-ons, updates and saves are listed again when you open its page. <strong>Refresh library</strong> in settings reads everything again.</p>
-<p>Box art and store details are downloaded in the background and kept in the <code>Data\Art</code> folder, so they're there without the internet afterwards. A title the Marketplace doesn't know gets a cover of its kind with its icon or its initials.</p>
+<p>Box art and store details are downloaded in the background and kept in the <code>Data\Art</code> folder, so they're there without the internet afterwards. The box art, background, banner and tile come from x360db first, unless they're kept from the Marketplace already, and an original Xbox game's box art that x360db doesn't have from <a href="https://github.com/xemu-project/xdb">xdb</a>. The store details, the description, genre, developer, publisher and release date, come from x360db too, or from the Marketplace for a title x360db hasn't got; screenshots come from the Marketplace. A title neither knows gets a cover of its kind with its icon or its initials.</p>
 <h2 id="covers-and-lists">Covers and lists<a class="headerlink" href="#covers-and-lists" title="Permanent link">&para;</a></h2>
 <p>Y switches a shelf between covers, two rows that scroll sideways, and a list with sizes and achievement progress. LT and RT move a screen at a time.</p>
 <p>A shelf sorted by name and long enough has a letter tile heading each letter's titles. A on a letter shows the letters alone, to jump through the shelf; A on a letter again shows everything, with that letter where it was.</p>
