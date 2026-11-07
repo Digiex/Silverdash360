@@ -155,8 +155,8 @@ namespace Silverdash360.Model
             {
                 if (!launchItemFound)
                 {
-                    // The first of the most preferred kind; a plain loop, as a
-                    // title can have hundreds of packages.
+                    // The newest of the most preferred kind; a plain loop, as
+                    // a title can have hundreds of packages.
                     int best = int.MaxValue;
                     foreach (ContentItem item in Content)
                     {
@@ -165,7 +165,7 @@ namespace Silverdash360.Model
                             // Disc 1 first among a game's discs.
                             int priority = LaunchPriority(item.Type) * 256 +
                                            (item.Metadata != null && item.Metadata.IsOneOfDiscs ? item.Metadata.DiscNumber : 0);
-                            if (priority < best)
+                            if (priority < best || (priority == best && Newer(item, launchItem)))
                             {
                                 best = priority;
                                 launchItem = item;
@@ -247,6 +247,14 @@ namespace Silverdash360.Model
         }
 
         public string TitleIdText { get { return TitleId.ToString("X8"); } }
+
+        // A package of a later version than the one picked so far, as an
+        // arcade game's newer package is.
+        private static bool Newer(ContentItem item, ContentItem picked)
+        {
+            return picked != null && item.Metadata != null && picked.Metadata != null &&
+                   item.Metadata.Version > picked.Metadata.Version;
+        }
 
         // A full game before a demo of it.
         private static int LaunchPriority(uint type)

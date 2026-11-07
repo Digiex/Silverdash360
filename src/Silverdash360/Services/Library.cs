@@ -1323,9 +1323,11 @@ namespace Silverdash360.Services
 
         // Titles whose packages are separate games under one title ID, as the
         // Lips games are, become a title each: single-disc packages with
-        // different media IDs. A game on several discs stays one title, which
-        // starts disc 1. The one the profile played (or the first by name)
-        // keeps the saves, add-ons and played stats.
+        // different media IDs and names. Versions of one game, as an arcade
+        // game and its newer package are, have the same name and stay one
+        // title. A game on several discs stays one title, which starts
+        // disc 1. The one the profile played (or the first by name) keeps
+        // the saves, add-ons and played stats.
         private static void SplitGames(List<TitleEntry> all)
         {
             int count = all.Count;
@@ -1337,14 +1339,18 @@ namespace Silverdash360.Services
                 {
                     continue;
                 }
-                // One package per media ID, of the kind that starts the title.
+                // One package per media ID and name, of the kind that starts
+                // the title.
                 Dictionary<uint, ContentItem> games = new Dictionary<uint, ContentItem>();
+                Dictionary<string, bool> names = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
                 foreach (ContentItem item in title.Content)
                 {
                     if (item.Type == launch.Type && item.IsLaunchable && !item.IsCorrupt && item.Metadata != null &&
-                        !item.Metadata.IsOneOfDiscs && !games.ContainsKey(item.Metadata.MediaId))
+                        !item.Metadata.IsOneOfDiscs && !games.ContainsKey(item.Metadata.MediaId) &&
+                        !names.ContainsKey(item.Metadata.TitleName))
                     {
                         games[item.Metadata.MediaId] = item;
+                        names[item.Metadata.TitleName] = true;
                     }
                 }
                 bool discs = title.Content.Any(c => c.Type == launch.Type && c.Metadata != null && c.Metadata.IsOneOfDiscs);
@@ -1362,10 +1368,12 @@ namespace Silverdash360.Services
                     {
                         continue;
                     }
-                    // The package and any copies of it on other drives.
+                    // The package, its other versions and any copies of them
+                    // on other drives.
                     TitleEntry own = new TitleEntry(title.TitleId, title.TitleIdText + "/" + item.Metadata.MediaId.ToString("X8"));
                     foreach (ContentItem copy in title.Content.Where(c => c.Type == launch.Type && c.Metadata != null &&
-                                                                        c.Metadata.MediaId == item.Metadata.MediaId).ToList())
+                        (c.Metadata.MediaId == item.Metadata.MediaId ||
+                         string.Equals(c.Metadata.TitleName, item.Metadata.TitleName, StringComparison.OrdinalIgnoreCase))).ToList())
                     {
                         title.Content.Remove(copy);
                         own.Content.Add(copy);
