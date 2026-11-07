@@ -55,6 +55,12 @@ committing, pushing or publishing.
 Puts the line at the top of the notes, which the update screen shows first.
 
 .EXAMPLE
+.\tools\Release.ps1 -Bump Minor -NotesFile .\notes-0.2.0.md
+
+Uses the notes in the file, written for the dashboard's users, instead of
+the commits.
+
+.EXAMPLE
 .\tools\Release.ps1 -Console
 
 Makes the zip to copy to your own console, runtime and all.
@@ -73,7 +79,10 @@ param(
     [switch]$Console,
     # Lines for the top of the notes, above the commits, such as what's
     # biggest in the release: the update screen shows the notes' first lines.
-    [string[]]$Highlight = @()
+    [string[]]$Highlight = @(),
+    # A Markdown file of notes written for the dashboard's users, used in
+    # place of the commits; the update screen shows its first 12 lines.
+    [string]$NotesFile = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -291,9 +300,14 @@ if ($Highlight) {
     $notes += $Highlight
     $notes += ''
 }
-$notes += if ($previous) { "## Changes since $previous" } else { '## Changes' }
-$notes += ''
-$notes += Invoke-Git log $range --no-merges -E --invert-grep '--grep=^Version [0-9]+\.[0-9]+\.[0-9]+$' --format='- %s (%h)'
+if ($NotesFile) {
+    # Written for the people who use the dashboard, in place of the commits.
+    $notes += Get-Content -LiteralPath $NotesFile -Encoding utf8
+} else {
+    $notes += if ($previous) { "## Changes since $previous" } else { '## Changes' }
+    $notes += ''
+    $notes += Invoke-Git log $range --no-merges -E --invert-grep '--grep=^Version [0-9]+\.[0-9]+\.[0-9]+$' --format='- %s (%h)'
+}
 $notes += ''
 $notes += "Build $number, from $($commit.Substring(0, 7)). The zip has Silverdash360's own files; see INSTALL.txt in it for putting it over the base package from Digiex."
 $notesFile = Join-Path $out 'notes.md'
