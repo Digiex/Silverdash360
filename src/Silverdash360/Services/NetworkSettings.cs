@@ -521,7 +521,7 @@ namespace Silverdash360.Services
                 {
                     Group = WirelessPage, Title = network.Ssid,
                     Description = SecurityName(network.Security),
-                    Value = () => chosen.Ssid == current ? "Connected" : Bars(chosen.Rssi),
+                    Value = () => chosen.Ssid == current ? WirelessState(chosen.Ssid) : Bars(chosen.Rssi),
                     Disabled = () => chosen.Security > 3 ? "The console can't join this kind of network." : null,
                     Run = host => Join(host, chosen),
                 });
@@ -626,13 +626,68 @@ namespace Silverdash360.Services
                 XNet.SetOption(OptSsid, Ssid(network.Ssid));
                 Log.Write("Wireless network set: {0}", network.Ssid);
                 draft = XNet.LoadParameters();
-                Save(host, "Connecting to " + network.Ssid + ". Test Xbox Live Connection shows whether it worked.");
+                Save(host, "Connecting to " + network.Ssid + "...");
+                WaitForJoin(host, network.Ssid);
             }
             catch (Exception e)
             {
                 Log.Write("Wireless network wasn't set: {0}", e);
                 host.Status("The console didn't join " + network.Ssid + ": " + e.Message);
             }
+        }
+
+        // The network being joined, until the link comes up or the wait ends.
+        private static string joining;
+        private const int JoinMilliseconds = 20000;
+
+        // The wireless link is up: bit 0 a link, 0x20 a wireless one.
+        private static bool WirelessUp()
+        {
+            return (XNet.LinkStatus() & 0x21) == 0x21;
+        }
+
+        // A plugged-in cable is used instead of the wireless network.
+        private static bool CableInUse()
+        {
+            return (XNet.LinkStatus() & 0x21) == 0x01;
+        }
+
+        // The saved network's state: the SSID being set is only the network
+        // asked for, joined once the wireless link is up with the key right.
+        private static string WirelessState(string ssid)
+        {
+            if (WirelessUp())
+            {
+                return "Connected";
+            }
+            if (CableInUse())
+            {
+                return "Saved: the network cable is in use";
+            }
+            return joining == ssid ? "Connecting..." : "Not connected";
+        }
+
+        // Says whether the network was joined: the wireless link up within
+        // the wait, or not, which is most often a wrong key.
+        private static void WaitForJoin(ISettingHost host, string ssid)
+        {
+            joining = ssid;
+            RaiseChanged();
+            new Thread(() =>
+            {
+                int start = Environment.TickCount;
+                while (Environment.TickCount - start < JoinMilliseconds && !WirelessUp() && !CableInUse())
+                {
+                    Thread.Sleep(500);
+                }
+                string result = WirelessUp() ? "Connected to " + ssid + "."
+                    : CableInUse() ? ssid + " is saved. The console uses the network cable while it's plugged in; unplug it to use " + ssid + "."
+                    : "The console couldn't connect to " + ssid + ". Check the password and try again.";
+                Log.Write("Wireless network {0}: {1}", ssid, WirelessUp() ? "connected" : CableInUse() ? "saved, the cable in use" : "not connected");
+                joining = null;
+                RaiseChanged();
+                Background.OnUi(() => host.Status(result));
+            }) { IsBackground = true, Name = "Wireless join" }.Start();
         }
 
         // An empty SSID: the network forgotten.
