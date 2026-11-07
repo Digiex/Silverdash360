@@ -243,8 +243,11 @@ namespace Silverdash360.Pages
             List<string> stats = new List<string>();
             if (title.Played != null)
             {
-                stats.Add(string.Format("{0} / {1} G", title.Played.GamerscoreEarned, title.Played.GamerscoreTotal));
-                stats.Add(string.Format("{0} of {1} achievements", title.Played.AchievementsUnlocked, title.Played.AchievementsTotal));
+                if (HasAchievements)
+                {
+                    stats.Add(string.Format("{0} / {1} G", title.Played.GamerscoreEarned, title.Played.GamerscoreTotal));
+                    stats.Add(string.Format("{0} of {1} achievements", title.Played.AchievementsUnlocked, title.Played.AchievementsTotal));
+                }
                 if (title.LastPlayed.HasValue) stats.Add("last played " + title.LastPlayed.Value.ToString("d"));
             }
             if (title.TotalSize > 0) stats.Add(SystemService.FormatSize(title.TotalSize) + " on this console");
@@ -279,7 +282,7 @@ namespace Silverdash360.Pages
                     });
                 }
             }
-            if (title.Played != null && Context.Library.Gamer != null)
+            if (HasAchievements && Context.Library.Gamer != null)
             {
                 actions.Add(new ActionEntry
                 {
@@ -297,9 +300,16 @@ namespace Silverdash360.Pages
             BuildTabs();
         }
 
+        // Played, with achievements to show: original Xbox games and apps
+        // have none.
+        private bool HasAchievements
+        {
+            get { return title.Played != null && title.Played.AchievementsTotal > 0; }
+        }
+
         private void BuildTabs()
         {
-            if (title.Played != null && Context.Library.Gamer != null)
+            if (HasAchievements && Context.Library.Gamer != null)
             {
                 List<Achievement> achievements = null;
                 tabs.Add(new Tab
