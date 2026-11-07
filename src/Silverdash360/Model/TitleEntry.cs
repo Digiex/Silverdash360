@@ -209,6 +209,36 @@ namespace Silverdash360.Model
             }
         }
 
+        /// <summary>
+        /// Older versions of the game the title starts, as an arcade game
+        /// has when an older package is kept beside a newer one: one per
+        /// media ID, newest first.
+        /// </summary>
+        public List<ContentItem> OlderVersions
+        {
+            get
+            {
+                ContentItem launch = LaunchItem;
+                if (launch == null || launch.Metadata == null || launch.Metadata.IsOneOfDiscs)
+                {
+                    return new List<ContentItem>();
+                }
+                Dictionary<uint, ContentItem> versions = new Dictionary<uint, ContentItem>();
+                foreach (ContentItem item in Content)
+                {
+                    if (item != launch && item.Type == launch.Type && item.IsLaunchable && !item.IsCorrupt &&
+                        item.Metadata != null && !item.Metadata.IsOneOfDiscs &&
+                        item.Metadata.MediaId != launch.Metadata.MediaId &&
+                        item.Metadata.Version < launch.Metadata.Version &&
+                        !versions.ContainsKey(item.Metadata.MediaId))
+                    {
+                        versions[item.Metadata.MediaId] = item;
+                    }
+                }
+                return versions.Values.OrderByDescending(c => c.Metadata.Version).ToList();
+            }
+        }
+
         /// <summary>The name, publisher and title ID in lower case, for search.</summary>
         public string SearchText
         {

@@ -269,6 +269,15 @@ namespace Silverdash360.Pages
                         Run = () => Context.ShowStatus(Context.System.Launch(start) ?? ""),
                     });
                 }
+                foreach (ContentItem version in title.OlderVersions)
+                {
+                    ContentItem start = version;
+                    actions.Add(new ActionEntry
+                    {
+                        Text = "Play version " + version.Metadata.VersionText,
+                        Run = () => Context.ShowStatus(Context.System.Launch(start) ?? ""),
+                    });
+                }
             }
             if (title.Played != null && Context.Library.Gamer != null)
             {
