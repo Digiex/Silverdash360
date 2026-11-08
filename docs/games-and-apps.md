@@ -14,13 +14,52 @@ The **games** and **apps** sections are shelves of everything installed on the c
 - **Xbox 360 games**: installed discs, Games on Demand and Arcade, Indie and XNA games and demos.
 - **Original Xbox games**, each one its own title.
 - **Apps**, such as media apps, told apart from games by their title ID.
-- **Homebrew**: a `default.xex` in each folder of a drive's `Apps` and `Games` folders (`Hdd1`, `Usb0` to `Usb2`), and `.xex` files right in `Apps`. Each is named after its folder, unless a package or your profile names it.
+- **Homebrew**: a `default.xex` in each folder of a drive's `Apps` and `Games` folders (`Hdd1`, `Usb0` to `Usb2`), and `.xex` files right in `Apps`. Each is named after its folder, unless a package or your profile names it, or you name it with [your own art](#your-own-art-and-details).
 - **QuickBoot shortcuts** show as the app or game they start; a shortcut and the folder it starts are listed once.
 - **Titles with nothing to start**, such as a game with only saves or add-ons left, are hidden until you show them with the shelf's options.
 
 Silverdash360 keeps what it read, so it starts quickly. At a start it shows the library it saved and looks only for what starts games and apps, and for themes, as they come and go; a title's add-ons, updates and saves are listed again when you open its page. **Refresh library** in settings reads everything again.
 
 Box art and store details are downloaded in the background and kept in the `Data\Art` folder, so they're there without the internet afterwards. The box art, background, banner and tile come from x360db first, unless they're kept from the Marketplace already, and an original Xbox game's box art that x360db doesn't have from [xdb](https://github.com/xemu-project/xdb). The store details, the description, genre, developer, publisher and release date, come from x360db too, or from the Marketplace for a title x360db hasn't got; screenshots come from the Marketplace. A title neither knows gets a cover of its kind with its icon or its initials.
+
+## Your own art and details
+
+A game or app kept as a folder, a `default.xex` in a folder of `Apps` or `Games`, can have art, a name and a description of your own. Make a folder named `Silverdash360Art` beside its `default.xex`, laid out as a title's folder in [x360db](https://github.com/xenia-manager/x360db/tree/main/titles) is:
+
+```
+Hdd1\Games\Some Game\
+    default.xex
+    Silverdash360Art\
+        info.json
+        artwork\
+            boxart.jpg
+            background.jpg
+            icon.png
+```
+
+| File | What it is | Size |
+|---|---|---|
+| `artwork\boxart.jpg` | The box front on the title's page | 219 by 300 (or that shape) |
+| `artwork\background.jpg` | The backdrop behind the title's page | 1280 by 720 |
+| `artwork\icon.png` | The tile on the shelves | 64 by 64 or larger, square |
+| `info.json` | The name, description, publisher, developer, genre and release date | |
+
+Every file is optional, and the images can be right in `Silverdash360Art` instead of in `artwork`. Images are JPEG or PNG, up to 8 MB each. A title's folder from x360db can be copied in as it is: its `info.json` and `artwork` folder are what Silverdash360 reads.
+
+`info.json` is x360db's: only `title` is needed, and anything else can be left out.
+
+```json
+{
+    "title": { "full": "Some Game" },
+    "description": { "full": "What the game is about." },
+    "publisher": "Someone",
+    "developer": "Someone",
+    "genre": [ "Platformer" ],
+    "release_date": "2024-05-01"
+}
+```
+
+What's in `Silverdash360Art` comes before anything downloaded and before the name and description the game's files give. Silverdash360 only reads the folder, and the game never looks in it, so it doesn't get in the way of the game's own files. A new name shows once the library is read again, at the next start or with **Refresh library**; art shows the next time the title is shown.
 
 ## Covers and lists
 

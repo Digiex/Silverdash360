@@ -1850,6 +1850,14 @@ namespace Silverdash360.Services
 
         private static string PackageNameOf(TitleEntry t)
         {
+            // A name the user gave it comes first.
+            foreach (ExecutableItem executable in t.Executables)
+            {
+                if (executable.CustomName != null)
+                {
+                    return executable.CustomName;
+                }
+            }
             if (t.Played != null && t.Played.Name.Length > 0)
             {
                 return t.Played.Name;

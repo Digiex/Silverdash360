@@ -23,11 +23,13 @@ namespace Silverdash360.Services
         private const int HeaderRead = 0x1000;
 
         private readonly XboxFileSystem files;
+        private readonly CustomArt custom;
         private Action pace;
 
         public ExecutableScanner(XboxFileSystem files)
         {
             this.files = files;
+            custom = new CustomArt(files);
             Collections = new List<string> { "Apps", "Games" };
             ExtraFolders = new List<KeyValuePair<string, string>>();
         }
@@ -121,6 +123,14 @@ namespace Silverdash360.Services
                 else
                 {
                     item.TitleId = ReadTitleId(path);
+                }
+                // A name the user gave it, read each time: it can change
+                // while the executable doesn't.
+                string art = CustomArt.FolderOf(item);
+                if (art != null && files.Stat(art) != null)
+                {
+                    TitleDetails details = custom.Details(art);
+                    item.CustomName = details != null && details.Name.Length > 0 ? details.Name : null;
                 }
                 found.Add(item);
                 if (pace != null)

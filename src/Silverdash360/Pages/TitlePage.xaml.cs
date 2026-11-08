@@ -103,7 +103,10 @@ namespace Silverdash360.Pages
         {
             ContentItem launch = title.LaunchItem;
             List<string> info = new List<string>();
-            string publisher = title.Publisher.Length > 0 ? title.Publisher : details != null ? details.Publisher : "";
+            // The user's details come before the package's, the package's
+            // before the store's.
+            string publisher = details != null && details.IsCustom && details.Publisher.Length > 0 ? details.Publisher
+                : title.Publisher.Length > 0 ? title.Publisher : details != null ? details.Publisher : "";
             if (publisher.Length > 0) info.Add(publisher);
             if (details != null && details.Developer.Length > 0 && details.Developer != publisher) info.Add(details.Developer);
             if (details != null && details.Genre.Length > 0) info.Add(details.Genre);
@@ -114,7 +117,8 @@ namespace Silverdash360.Pages
             InfoText.Text = string.Join("  ·  ", info.ToArray());
             // The Marketplace's description is the store's, usually the
             // fuller one.
-            DescriptionText.Text = details != null && details.Description.Length > title.Description.Length
+            DescriptionText.Text = details != null && details.Description.Length > 0 &&
+                                   (details.IsCustom || details.Description.Length > title.Description.Length)
                 ? details.Description : title.Description;
         }
 
@@ -232,7 +236,9 @@ namespace Silverdash360.Pages
             });
             ShowInfo(null);
             TitleEntry shown = title;
-            Core.Background.Run(() => MarketplaceArt.ReadDetails(shown.ArtTitleId), delegate(TitleDetails details, Exception error)
+            // The details the user gave it come first.
+            Core.Background.Run(() => Context.CustomArt.Details(shown) ?? MarketplaceArt.ReadDetails(shown.ArtTitleId),
+                                delegate(TitleDetails details, Exception error)
             {
                 if (details != null && title == shown)
                 {

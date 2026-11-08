@@ -29,6 +29,9 @@ namespace Silverdash360.Model
         /// <summary>From the XEX header's execution info; 0 when it has none.</summary>
         public uint TitleId { get; set; }
 
+        /// <summary>The name info.json in its Silverdash360Art folder gives, or null.</summary>
+        public string CustomName { get; set; }
+
         public long Size { get; set; }
         public DateTime Modified { get; set; }
 

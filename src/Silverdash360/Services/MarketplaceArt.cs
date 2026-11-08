@@ -655,6 +655,8 @@ namespace Silverdash360.Services
         public string Genre = "";
         /// <summary>The release date as the catalog gives it, yyyy-mm-dd, or empty.</summary>
         public string ReleaseDate = "";
+        /// <summary>From the title's own art folder, given by the user, rather than downloaded.</summary>
+        public bool IsCustom;
 
         /// <summary>
         /// x360db's info.json: title.full (or reduced), description.full (or

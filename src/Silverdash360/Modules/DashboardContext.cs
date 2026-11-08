@@ -42,6 +42,9 @@ namespace Silverdash360.Modules
             }
         }
 
+        /// <summary>Art and details the user gave titles kept as folders; set by the app.</summary>
+        public CustomArt CustomArt { get; set; }
+
         /// <summary>The disc drive; set by the app once the media service exists.</summary>
         public DiscService Discs { get; set; }
 

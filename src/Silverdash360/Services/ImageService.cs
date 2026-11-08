@@ -106,6 +106,9 @@ namespace Silverdash360.Services
             this.source = source;
         }
 
+        /// <summary>Art the user gave titles kept as folders, which comes first; set by the app.</summary>
+        public CustomArt Custom { get; set; }
+
         /// <summary>Images asked for and not shown yet; on the UI thread.</summary>
         public int Pending { get { return pending.Count; } }
 
@@ -115,18 +118,37 @@ namespace Silverdash360.Services
             Get("title:" + title.Key, () => TitlePng(title, userIndex), done);
         }
 
-        /// <summary>The Marketplace's box front for the title; the callback isn't called when there's none.</summary>
+        /// <summary>
+        /// The title's box front, the user's or the Marketplace's; the
+        /// callback isn't called when there's none.
+        /// </summary>
         public void BoxArt(TitleEntry title, Action<ImageSource> done)
         {
-            Get("boxart:" + title.ArtTitleId.ToString("X8"), () => MarketplaceArt.Image(title.ArtTitleId, MarketplaceArt.BoxArt),
-                done, online);
+            ArtImage("boxart:", title, CustomArt.BoxArt, MarketplaceArt.BoxArt, done);
         }
 
-        /// <summary>The backdrop the Marketplace has for the title; the callback isn't called when there's none.</summary>
+        /// <summary>
+        /// The title's backdrop, the user's or the Marketplace's; the
+        /// callback isn't called when there's none.
+        /// </summary>
         public void Backdrop(TitleEntry title, Action<ImageSource> done)
         {
-            Get("backdrop:" + title.ArtTitleId.ToString("X8"), () => MarketplaceArt.Image(title.ArtTitleId, MarketplaceArt.Background),
-                done, online);
+            ArtImage("backdrop:", title, CustomArt.Background, MarketplaceArt.Background, done);
+        }
+
+        // A title with an art folder of its own is kept by its key, as
+        // homebrew often shares a title ID; others by the ID their art is under.
+        private void ArtImage(string kind, TitleEntry title, string customFile, string marketplaceFile,
+                              Action<ImageSource> done)
+        {
+            uint artId = title.ArtTitleId;
+            if (Custom != null && CustomArt.FolderOf(title) != null)
+            {
+                Get(kind + title.Key, () => Custom.Image(title, customFile) ?? MarketplaceArt.Image(artId, marketplaceFile),
+                    done, online);
+                return;
+            }
+            Get(kind + artId.ToString("X8"), () => MarketplaceArt.Image(artId, marketplaceFile), done, online);
         }
 
         /// <summary>A package's own thumbnail, such as an add-on's.</summary>
@@ -158,8 +180,14 @@ namespace Silverdash360.Services
 
         private byte[] TitlePng(TitleEntry title, uint userIndex)
         {
+            // The icon the user gave it, then the package's.
+            byte[] png = Custom != null ? Custom.Image(title, CustomArt.Icon) : null;
+            if (png != null)
+            {
+                return png;
+            }
             ContentItem launch = title.LaunchItem;
-            byte[] png = launch != null ? PackagePng(launch, true) : null;
+            png = launch != null ? PackagePng(launch, true) : null;
             if (png != null)
             {
                 return png;

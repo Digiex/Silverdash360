@@ -46,9 +46,11 @@ namespace Silverdash360.Services
             return new LibraryCache(ProfileFolder + offlineXuid.ToString("X16") + ".bin");
         }
         private const uint Magic = 0x53443343; // "SD3C"
-        private const int FormatVersion = 10;
-        // As FormatVersion, from before the console's packages and each
-        // profile's had files of their own: a profile's could be in it.
+        private const int FormatVersion = 11;
+        // Without the names executables' art folders give.
+        private const int NoCustomNameVersion = 10;
+        // As NoCustomNameVersion, from before the console's packages and
+        // each profile's had files of their own: a profile's could be in it.
         private const int SharedWithProfileVersion = 9;
         // Without the packages' disc numbers.
         private const int NoDiscsVersion = 8;
@@ -128,7 +130,7 @@ namespace Silverdash360.Services
             {
                 contents.Outdated = true;
                 ReadPackages(reader, contents, false, false, false);
-                ReadExecutables(reader, contents);
+                ReadExecutables(reader, contents, false);
                 contents.Complete = true;
                 if (section != null)
                 {
@@ -136,21 +138,21 @@ namespace Silverdash360.Services
                 }
                 return contents;
             }
-            contents.ConsoleOnly = version == FormatVersion;
+            contents.ConsoleOnly = version == FormatVersion || version == NoCustomNameVersion;
             if (version == SharedWithProfileVersion)
             {
-                version = FormatVersion;
+                version = NoCustomNameVersion;
             }
-            if (version != FormatVersion && version != NoDiscsVersion && version != NoInsideVersion &&
-                version != NoAppCheckVersion)
+            if (version != FormatVersion && version != NoCustomNameVersion && version != NoDiscsVersion &&
+                version != NoInsideVersion && version != NoAppCheckVersion)
             {
                 return contents;
             }
             bool appCheck = version != NoAppCheckVersion;
-            bool inside = version == FormatVersion || version == NoDiscsVersion;
-            bool discs = version == FormatVersion;
+            bool discs = version == FormatVersion || version == NoCustomNameVersion;
+            bool inside = discs || version == NoDiscsVersion;
             contents.Outdated = !discs;
-            ReadExecutables(reader, contents);
+            ReadExecutables(reader, contents, version == FormatVersion);
             int sections = reader.ReadInt32();
             for (int s = 0; s < sections; s++)
             {
@@ -204,12 +206,12 @@ namespace Silverdash360.Services
             }
         }
 
-        private static void ReadExecutables(BinaryReader reader, Contents contents)
+        private static void ReadExecutables(BinaryReader reader, Contents contents, bool customNames)
         {
             int executables = reader.ReadInt32();
             for (int i = 0; i < executables; i++)
             {
-                contents.Executables.Add(new ExecutableItem
+                ExecutableItem item = new ExecutableItem
                 {
                     Path = reader.ReadString(),
                     DevicePath = reader.ReadString(),
@@ -220,7 +222,13 @@ namespace Silverdash360.Services
                     TitleId = reader.ReadUInt32(),
                     Size = reader.ReadInt64(),
                     Modified = new DateTime(reader.ReadInt64()),
-                });
+                };
+                if (customNames)
+                {
+                    string name = reader.ReadString();
+                    item.CustomName = name.Length > 0 ? name : null;
+                }
+                contents.Executables.Add(item);
             }
         }
 
@@ -271,6 +279,7 @@ namespace Silverdash360.Services
                 writer.Write(item.TitleId);
                 writer.Write(item.Size);
                 writer.Write(item.Modified.Ticks);
+                writer.Write(item.CustomName ?? "");
             }
             writer.Write(sections.Count);
             foreach (IList<ContentItem> section in sections)

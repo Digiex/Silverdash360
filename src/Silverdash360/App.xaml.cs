@@ -69,6 +69,8 @@ namespace Silverdash360
             media.Downloads = new DownloadedVideoSource(library, files, media.LocalServer);
             Context = new DashboardContext(library, profiles, new ImageService(content), new SystemService(),
                                            new FtpServer(files), media, new ThemeService(library));
+            Context.CustomArt = new CustomArt(files);
+            Context.Images.Custom = Context.CustomArt;
             Context.Ftp.Message += text => Background.OnUi(() => Context.ShowStatus(text));
             Context.Discs = new DiscService(files, media);
             Context.Discs.Start();
