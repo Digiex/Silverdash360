@@ -90,6 +90,8 @@ Everything stored on the console, largest first, by kind: games, apps, add-ons, 
 
 Every folder and file on the console's drives. A opens a folder, plays a song, video or picture, or starts a `.xex`. A content package shows its name and picture.
 
+Y on a `.xex` adds it to the library, wherever it is: pick **Games** or **Apps** for the shelf it's listed on. Y on one added before moves it to the other shelf, or **Remove from library** takes it out again; the file itself stays where it is. See [What's listed](games-and-apps.md#whats-listed).
+
 ## FTP server
 
 The FTP server shares the console's drives while Silverdash360 runs. **FTP server** turns it on and off with A, and shows the address, user name and password while it's on. With **Start the FTP server with Silverdash** on, it starts by itself each time.

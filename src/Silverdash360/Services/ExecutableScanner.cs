@@ -15,12 +15,16 @@ namespace Silverdash360.Services
     /// default.xex in each folder of a drive's Apps and Games folders, and
     /// .xex files directly in Apps. A folder of Apps without a default.xex
     /// is an app that starts from another, as Aurora starts from Aurora.xex:
-    /// the .xex named after the folder, or its only one. The title ID comes
-    /// from the XEX header.
+    /// the .xex named after the folder, or its only one. Executables added
+    /// from the file browser are listed wherever they are, in the collection
+    /// they were added to. The title ID comes from the XEX header.
     /// </summary>
     public sealed class ExecutableScanner
     {
         private const string DefaultExecutable = "default.xex";
+        // The executables added from the file browser: a line each, the
+        // collection, a tab and the path.
+        private const string AddedFile = "added-executables.txt";
         private const uint XexMagic = 0x58455832; // "XEX2"
         private const uint ExecutionInfoKey = 0x00040006;
         private const int HeaderRead = 0x1000;
@@ -65,6 +69,7 @@ namespace Silverdash360.Services
             {
                 ScanFolder(extra.Key, extra.Value, extra.Key.TrimStart('/').Split('/')[0], known, found);
             }
+            ScanAdded(known, found);
             return found;
         }
 
@@ -115,42 +120,132 @@ namespace Silverdash360.Services
                 {
                     continue;
                 }
-                ExecutableItem item = new ExecutableItem
-                {
-                    Path = path,
-                    DevicePath = files.DevicePath(path),
-                    DeviceFolder = files.DevicePath(path.Substring(0, path.LastIndexOf('/'))),
-                    Name = name,
-                    InFolder = entry.IsDirectory,
-                    Collection = collection,
-                    Drive = drive,
-                    Size = file.Size,
-                    Modified = file.Modified,
-                };
-                ExecutableItem before;
-                if (known != null && known.TryGetValue(path, out before) && before.Size == item.Size &&
-                    before.Modified == item.Modified)
-                {
-                    item.TitleId = before.TitleId;
-                }
-                else
-                {
-                    item.TitleId = ReadTitleId(path);
-                }
-                // A name the user gave it, read each time: it can change
-                // while the executable doesn't.
-                string art = CustomArt.FolderOf(item);
-                if (art != null && files.Stat(art) != null)
-                {
-                    TitleDetails details = custom.Details(art);
-                    item.CustomName = details != null && details.Name.Length > 0 ? details.Name : null;
-                }
-                found.Add(item);
+                found.Add(Item(path, name, entry.IsDirectory, collection, drive, file, known));
                 if (pace != null)
                 {
                     pace();
                 }
             }
+        }
+
+        // The executables added from the file browser, which are listed
+        // wherever they are; one found already moves to the collection it
+        // was added to.
+        private void ScanAdded(IDictionary<string, ExecutableItem> known, List<ExecutableItem> found)
+        {
+            Dictionary<string, ExecutableItem> listed = new Dictionary<string, ExecutableItem>(StringComparer.OrdinalIgnoreCase);
+            foreach (ExecutableItem item in found)
+            {
+                listed[item.Path] = item;
+            }
+            foreach (KeyValuePair<string, string> added in Added())
+            {
+                string path = added.Key;
+                ExecutableItem already;
+                if (listed.TryGetValue(path, out already))
+                {
+                    if (already != null)
+                    {
+                        already.Collection = added.Value;
+                    }
+                    continue;
+                }
+                listed[path] = null;
+                FileEntry file;
+                try
+                {
+                    file = files.Stat(path);
+                }
+                catch (Exception)
+                {
+                    // On a drive that isn't there now.
+                    continue;
+                }
+                if (file == null || file.IsDirectory)
+                {
+                    continue;
+                }
+                // A default.xex is named after its folder, another after itself.
+                string folder = path.Substring(0, path.LastIndexOf('/'));
+                string fileName = path.Substring(folder.Length + 1);
+                string name = string.Equals(fileName, DefaultExecutable, StringComparison.OrdinalIgnoreCase)
+                    ? folder.Substring(folder.LastIndexOf('/') + 1)
+                    : fileName.Substring(0, fileName.Length - 4);
+                found.Add(Item(path, name, true, added.Value, path.TrimStart('/').Split('/')[0], file, known));
+            }
+        }
+
+        private ExecutableItem Item(string path, string name, bool inFolder, string collection, string drive,
+                                    FileEntry file, IDictionary<string, ExecutableItem> known)
+        {
+            ExecutableItem item = new ExecutableItem
+            {
+                Path = path,
+                DevicePath = files.DevicePath(path),
+                DeviceFolder = files.DevicePath(path.Substring(0, path.LastIndexOf('/'))),
+                Name = name,
+                InFolder = inFolder,
+                Collection = collection,
+                Drive = drive,
+                Size = file.Size,
+                Modified = file.Modified,
+            };
+            ExecutableItem before;
+            if (known != null && known.TryGetValue(path, out before) && before.Size == item.Size &&
+                before.Modified == item.Modified)
+            {
+                item.TitleId = before.TitleId;
+            }
+            else
+            {
+                item.TitleId = ReadTitleId(path);
+            }
+            // A name the user gave it, read each time: it can change
+            // while the executable doesn't.
+            string art = CustomArt.FolderOf(item);
+            if (art != null && files.Stat(art) != null)
+            {
+                TitleDetails details = custom.Details(art);
+                item.CustomName = details != null && details.Name.Length > 0 ? details.Name : null;
+            }
+            return item;
+        }
+
+        /// <summary>
+        /// The executables added from the file browser: each one's path in
+        /// the file tree, and the collection (Apps or Games) it's listed in.
+        /// </summary>
+        public static List<KeyValuePair<string, string>> Added()
+        {
+            List<KeyValuePair<string, string>> added = new List<KeyValuePair<string, string>>();
+            foreach (string line in (AppStorage.ReadText(AddedFile) ?? "").Split('\n'))
+            {
+                int tab = line.IndexOf('\t');
+                if (tab > 0)
+                {
+                    added.Add(new KeyValuePair<string, string>(line.Substring(tab + 1).Trim(), line.Substring(0, tab)));
+                }
+            }
+            return added;
+        }
+
+        /// <summary>The collection an executable was added to, or null when it wasn't.</summary>
+        public static string AddedTo(string path)
+        {
+            return Added().Where(a => string.Equals(a.Key, path, StringComparison.OrdinalIgnoreCase))
+                          .Select(a => a.Value).FirstOrDefault();
+        }
+
+        /// <summary>Adds an executable to Apps or Games, or with a null collection takes it out.</summary>
+        public static void SetAdded(string path, string collection)
+        {
+            List<KeyValuePair<string, string>> added = Added().Where(
+                a => !string.Equals(a.Key, path, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (collection != null)
+            {
+                added.Add(new KeyValuePair<string, string>(path, collection));
+            }
+            AppStorage.WriteText(AddedFile, string.Join("\n", added.Select(a => a.Value + "\t" + a.Key).ToArray()));
         }
 
         // The .xex an app's folder starts from without a default.xex: the one

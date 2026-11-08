@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Windows.Input;
 using System.Windows.Navigation;
 using Microsoft.Xbox.Controls;
 using Silverdash360.Controls;
@@ -17,8 +18,9 @@ namespace Silverdash360.Pages
     /// (the drives at /). A opens a folder, plays music, videos and pictures
     /// with the rest of their kind in the folder queued after them, starts an
     /// executable with its folder as its D: drive, and starts a content
-    /// package the library knows as one that starts a title. Packages are
-    /// listed by the name and thumbnail in their header.
+    /// package the library knows as one that starts a title. Y on an
+    /// executable adds it to the library's games or apps, or takes it out.
+    /// Packages are listed by the name and thumbnail in their header.
     /// </summary>
     public partial class FilesPage : XboxApplicationPage
     {
@@ -46,9 +48,25 @@ namespace Silverdash360.Pages
             }
         }
 
+        // A choice of where to add an executable in the library.
+        private sealed class Choice
+        {
+            public string Text;
+            public string Detail;
+            // Apps or Games, or null to take it out.
+            public string Collection;
+        }
+
+        private const string FolderLegend = "A open   B back";
+        private const string ExecutableLegend = "A start   Y add to library   B back";
+        private const string ChoiceLegend = "A choose   B cancel";
+
         private string path;
         // Picking a wallpaper for the theme editor: A on a picture takes it.
         private bool picking;
+        // The executable being added to the library, while the choices show.
+        private Item adding;
+        private IList<object> folderItems;
 
         public FilesPage()
         {
@@ -59,8 +77,37 @@ namespace Silverdash360.Pages
             Items.TileWidth = 0;
             Items.TileHeight = 72;
             Items.Spacing = 8;
-            Items.TileTemplate = new RowTemplate(o => Row((Item)o)) { IconSize = 52 };
-            Items.ItemInvoked += delegate(object sender, ItemEventArgs e) { Open((Item)e.Item); };
+            Items.TileTemplate = new RowTemplate(o => o is Choice ? ChoiceRow((Choice)o) : Row((Item)o)) { IconSize = 52 };
+            Items.ItemInvoked += delegate(object sender, ItemEventArgs e)
+            {
+                if (e.Item is Choice)
+                {
+                    Add((Choice)e.Item);
+                }
+                else
+                {
+                    Open((Item)e.Item);
+                }
+            };
+            Items.ItemButton += delegate(object sender, ItemEventArgs e)
+            {
+                Item item = e.Item as Item;
+                if (e.Button == GamePadButton.Y && item != null && item.Kind == Kind.Executable && !picking)
+                {
+                    ShowChoices(item);
+                    e.Handled = true;
+                }
+            };
+            Items.SelectionChanged += delegate { ShowLegend(); };
+            GamePadButtonDown += delegate(object sender, GamePadButtonEventArgs e)
+            {
+                // B leaves the choices for the folder.
+                if (e.Button == GamePadButton.B && adding != null)
+                {
+                    EndChoices();
+                    e.Handled = true;
+                }
+            };
         }
 
         private static DashboardContext Context { get { return App.Context; } }
@@ -273,6 +320,82 @@ namespace Silverdash360.Pages
                 return;
             }
             StatusText.Text = Context.System.Launch(known) ?? "";
+        }
+
+        private void ShowLegend()
+        {
+            Item item = Items.SelectedItem as Item;
+            Legend.Text = adding != null ? ChoiceLegend
+                : item != null && item.Kind == Kind.Executable && !picking ? ExecutableLegend : FolderLegend;
+        }
+
+        // Where to add the executable: the games or the apps, or out of the
+        // library when it was added before.
+        private void ShowChoices(Item item)
+        {
+            string executable = item.Path;
+            Silverdash360.Core.Background.Run(() => ExecutableScanner.AddedTo(executable), delegate(string addedTo, Exception error)
+            {
+                if (adding != null)
+                {
+                    return;
+                }
+                adding = item;
+                folderItems = Items.Items;
+                List<object> choices = new List<object>
+                {
+                    new Choice { Text = "Games", Detail = "List it with the games", Collection = "Games" },
+                    new Choice { Text = "Apps", Detail = "List it with the apps", Collection = "Apps" },
+                };
+                if (addedTo != null)
+                {
+                    choices.Add(new Choice { Text = "Remove from library", Detail = "It's listed with the " + addedTo.ToLowerInvariant() + " now" });
+                }
+                FolderText.Text = "Add " + item.Name + " to the library";
+                Items.Items = choices;
+                if (addedTo != null)
+                {
+                    Items.SelectItem(choices.Cast<Choice>().First(c => c.Collection == addedTo));
+                }
+                ShowLegend();
+            });
+        }
+
+        private void EndChoices()
+        {
+            Item item = adding;
+            adding = null;
+            FolderText.Text = path == "/" ? "Drives" : path;
+            Items.Items = folderItems;
+            Items.SelectItem(item);
+            ShowLegend();
+        }
+
+        // Kept in the library's list of added executables, then the library
+        // is read again, which lists it.
+        private void Add(Choice choice)
+        {
+            string executable = adding.Path;
+            string name = adding.Name;
+            string collection = choice.Collection;
+            EndChoices();
+            Silverdash360.Core.Background.Run(() => { ExecutableScanner.SetAdded(executable, collection); return true; },
+                                               delegate(bool done, Exception error)
+            {
+                if (error != null)
+                {
+                    StatusText.Text = "Couldn't change the library: " + error.Message;
+                    return;
+                }
+                StatusText.Text = collection == null ? name + " is out of the library."
+                    : name + " is added to the " + collection.ToLowerInvariant() + ".";
+                Context.Library.Refresh();
+            });
+        }
+
+        private static RowData ChoiceRow(Choice choice)
+        {
+            return new RowData { Title = choice.Text, Subtitle = choice.Detail, ArtSeed = (uint)choice.Text.GetHashCode() };
         }
 
         private static RowData Row(Item item)

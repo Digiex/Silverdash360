@@ -15,6 +15,7 @@ The **games** and **apps** sections are shelves of everything installed on the c
 - **Original Xbox games**, each one its own title.
 - **Apps**, such as media apps, told apart from games by their title ID.
 - **Homebrew**: a `default.xex` in each folder of a drive's `Apps` and `Games` folders (`Hdd1`, `Usb0` to `Usb2`), and `.xex` files right in `Apps`. A folder of `Apps` without a `default.xex` starts from the `.xex` named after the folder, such as `Aurora\Aurora.xex`, or else from its only `.xex`; one with several and none named after it isn't listed. Each is named after its folder, unless a package or your profile names it, or you name it with [your own art](#your-own-art-and-details).
+- **Executables you added** in the [file browser](settings.md#file-browser) with Y, wherever they are, on the shelf you picked: **Games** or **Apps**. One already in `Apps` or `Games` moves to the shelf you picked. A `default.xex` is named after its folder, another `.xex` after itself, and either can have [your own art](#your-own-art-and-details) beside it.
 - **QuickBoot shortcuts** show as the app or game they start; a shortcut and the folder it starts are listed once.
 - **Titles with nothing to start**, such as a game with only saves or add-ons left, are hidden until you show them with the shelf's options.
 
