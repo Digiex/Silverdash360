@@ -82,7 +82,10 @@ BACK on a shelf opens its options. A changes a setting, X steps it back, and B i
 
 ## A title's details
 
-A title's page has its backdrop, the store's description, developer, genre and release date, and two lists that LB and RB switch between: **achievements**, your progress in it, when you're signed in and have played it, and **content**, what's stored for it (the game, title updates, add-ons, saves) with sizes. **Play** starts it, with **Play from disc** when its disc is in the drive and a **Play disc** for each disc of a game with several; **Achievements** and **Stored content** go to the lists.
+A title's page has its backdrop, the store's description, developer, genre and release date, and two lists that LB and RB switch between: **achievements**, your progress in it, when you're signed in and have played it, and **content**, what's stored for it (the game, title updates, add-ons, saves) with sizes. **Play** starts it, with **Play from disc** when its disc is in the drive and a **Play disc** for each disc of a game with several, and a **Play version** for each older version of a game kept beside its newest, as arcade games can have; **Achievements** and **Stored content** go to the lists. A title without achievements, such as an original Xbox game or an app, has no achievements list.
+
+**Rename** gives the title a name of your own with the console's keyboard, which the shelves, search and its page show from then on, in place of any other. **Use its own name** puts back the name it had. The names are kept in `Data
+ames.txt`.
 
 | | |
 |---|---|

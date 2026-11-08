@@ -301,9 +301,51 @@ namespace Silverdash360.Pages
                 Text = "Stored content",
                 Run = () => { ShowTab(IndexOfTab("content")); Details.Focus(); },
             });
+            actions.Add(new ActionEntry { Text = "Rename", Run = Rename });
+            renamed = TitleNames.Of(title.Key) != null;
+            if (renamed)
+            {
+                actions.Add(new ActionEntry { Text = "Use its own name", Run = () => SetName(null) });
+            }
             Actions.Items = actions.Cast<object>().ToList();
 
             BuildTabs();
+        }
+
+        // Whether the user renamed the title, read when it's shown.
+        private bool renamed;
+
+        private void Rename()
+        {
+            BasicSettings.Ask(Context, "Rename", "The name the library shows for this title.", title.Name, SetName);
+        }
+
+        // Keeps the name, or with null takes it away, and reads the library
+        // again: the shelves and search sort by name.
+        private void SetName(string name)
+        {
+            TitleEntry renaming = title;
+            string key = renaming.Key;
+            Core.Background.Run(() => { TitleNames.Set(key, name); return true; }, delegate(bool done, Exception error)
+            {
+                if (error != null)
+                {
+                    Context.ShowStatus("Couldn't rename it: " + error.Message);
+                    return;
+                }
+                if (name != null)
+                {
+                    renaming.Name = name;
+                }
+                Context.Library.Refresh();
+                if (title == renaming)
+                {
+                    ShowTitle();
+                    // The library read again has it as it's named now.
+                    waitingFor = key;
+                    Context.Library.Changed += OnLibraryChanged;
+                }
+            });
         }
 
         // Played, with achievements to show: original Xbox games and apps

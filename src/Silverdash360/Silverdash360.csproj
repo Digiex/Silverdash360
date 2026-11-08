@@ -117,6 +117,7 @@
     <Compile Include="Services\Files\PackageHeader.cs" />
     <Compile Include="Services\CustomArt.cs" />
     <Compile Include="Services\MarketplaceArt.cs" />
+    <Compile Include="Services\TitleNames.cs" />
     <Compile Include="Services\MarketplaceArtCache.cs" />
     <Compile Include="Services\LogFile.cs" />
     <Compile Include="Services\TitleClassifier.cs" />

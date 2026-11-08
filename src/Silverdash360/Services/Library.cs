@@ -1830,7 +1830,13 @@ namespace Silverdash360.Services
         // The name the title gives itself, from the profile or a package.
         private static string NameOf(TitleEntry t)
         {
-            string name = PackageNameOf(t);
+            // A name the user renamed it to comes before any other.
+            string name = TitleNames.Of(t.Key);
+            if (name != null)
+            {
+                return name;
+            }
+            name = PackageNameOf(t);
             ContentItem launch = t.LaunchItem;
             return launch != null && launch.Metadata != null && launch.Metadata.IsOneOfDiscs ? WithoutDisc(name) : name;
         }
