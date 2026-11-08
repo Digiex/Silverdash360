@@ -47,7 +47,8 @@ namespace Silverdash360.Services
         }
         private const uint Magic = 0x53443343; // "SD3C"
         private const int FormatVersion = 11;
-        // Without the names executables' art folders give.
+        // Without the names executables' art folders give, or whether each
+        // is in a folder of its own.
         private const int NoCustomNameVersion = 10;
         // As NoCustomNameVersion, from before the console's packages and
         // each profile's had files of their own: a profile's could be in it.
@@ -227,6 +228,12 @@ namespace Silverdash360.Services
                 {
                     string name = reader.ReadString();
                     item.CustomName = name.Length > 0 ? name : null;
+                    item.InFolder = reader.ReadBoolean();
+                }
+                else
+                {
+                    // Only a default.xex was found in a folder then.
+                    item.InFolder = item.Path.EndsWith("/default.xex", StringComparison.OrdinalIgnoreCase);
                 }
                 contents.Executables.Add(item);
             }
@@ -280,6 +287,7 @@ namespace Silverdash360.Services
                 writer.Write(item.Size);
                 writer.Write(item.Modified.Ticks);
                 writer.Write(item.CustomName ?? "");
+                writer.Write(item.InFolder);
             }
             writer.Write(sections.Count);
             foreach (IList<ContentItem> section in sections)

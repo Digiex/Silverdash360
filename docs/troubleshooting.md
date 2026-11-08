@@ -10,7 +10,7 @@
 
 - The shelves show installed titles only. BACK on the shelf, **Show**, **Everything** shows the rest too.
 - **Refresh library** in settings reads every package again.
-- Homebrew is looked for in the `Apps` and `Games` folders of `Hdd1` and `Usb0` to `Usb2`, a folder each with a `default.xex` in it.
+- Homebrew is looked for in the `Apps` and `Games` folders of `Hdd1` and `Usb0` to `Usb2`, a folder each with a `default.xex` in it. An app's folder in `Apps` without one needs a `.xex` named after the folder (`Aurora\Aurora.xex`), or only one `.xex`.
 
 ## An add-on, save or downloaded video is missing
 

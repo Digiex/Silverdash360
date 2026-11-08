@@ -11,9 +11,9 @@ using Silverlight360;
 namespace Silverdash360.Services
 {
     /// <summary>
-    /// Art and details the user gives a title kept as a folder, a
-    /// default.xex in a folder of a drive's Apps or Games folder: a
-    /// Silverdash360Art folder beside the default.xex, laid out as an x360db
+    /// Art and details the user gives a title kept as a folder, an
+    /// executable in a folder of a drive's Apps or Games folder: a
+    /// Silverdash360Art folder beside the executable, laid out as an x360db
     /// title's folder is, so one can be copied in as it is. info.json has the
     /// name, description and the rest in x360db's form; artwork/boxart.jpg,
     /// background.jpg and icon.png are the box front, the backdrop and the
@@ -24,14 +24,13 @@ namespace Silverdash360.Services
     /// </summary>
     public sealed class CustomArt
     {
-        /// <summary>The folder beside a title's default.xex.</summary>
+        /// <summary>The folder beside a title's executable.</summary>
         public const string FolderName = "Silverdash360Art";
         public const string BoxArt = "boxart.jpg";
         public const string Background = "background.jpg";
         public const string Icon = "icon.png";
         private const string Info = "info.json";
         private const string Artwork = "artwork";
-        private const string DefaultExecutable = "/default.xex";
         // Larger files aren't read: a backdrop is 1280 by 720.
         private const long MaxSize = 8 * 1024 * 1024;
         private const int ReadBlock = 64 * 1024;
@@ -47,8 +46,8 @@ namespace Silverdash360.Services
         public static string FolderOf(ExecutableItem executable)
         {
             string path = executable.Path;
-            return path != null && path.EndsWith(DefaultExecutable, StringComparison.OrdinalIgnoreCase)
-                ? path.Substring(0, path.Length - DefaultExecutable.Length) + "/" + FolderName
+            return executable.InFolder && path != null && path.LastIndexOf('/') > 0
+                ? path.Substring(0, path.LastIndexOf('/')) + "/" + FolderName
                 : null;
         }
 

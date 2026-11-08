@@ -13,7 +13,10 @@ namespace Silverdash360.Services
     /// <summary>
     /// Finds titles kept as plain executables rather than packages: a
     /// default.xex in each folder of a drive's Apps and Games folders, and
-    /// .xex files directly in Apps. The title ID comes from the XEX header.
+    /// .xex files directly in Apps. A folder of Apps without a default.xex
+    /// is an app that starts from another, as Aurora starts from Aurora.xex:
+    /// the .xex named after the folder, or its only one. The title ID comes
+    /// from the XEX header.
     /// </summary>
     public sealed class ExecutableScanner
     {
@@ -84,12 +87,22 @@ namespace Silverdash360.Services
                 UiIdle.WaitWhileMoving(UiIdle.BackgroundQuietMs);
                 string path = null;
                 string name = entry.Name;
+                bool apps = string.Equals(collection, "Apps", StringComparison.OrdinalIgnoreCase);
+                FileEntry file = entry;
                 if (entry.IsDirectory)
                 {
                     path = folder + "/" + entry.Name + "/" + DefaultExecutable;
+                    file = files.Stat(path);
+                    if (file == null && apps)
+                    {
+                        file = AppExecutable(folder + "/" + entry.Name);
+                        if (file != null)
+                        {
+                            path = folder + "/" + entry.Name + "/" + file.Name;
+                        }
+                    }
                 }
-                else if (entry.Name.EndsWith(".xex", StringComparison.OrdinalIgnoreCase) &&
-                         string.Equals(collection, "Apps", StringComparison.OrdinalIgnoreCase))
+                else if (entry.Name.EndsWith(".xex", StringComparison.OrdinalIgnoreCase) && apps)
                 {
                     path = folder + "/" + entry.Name;
                     name = entry.Name.Substring(0, entry.Name.Length - 4);
@@ -98,7 +111,6 @@ namespace Silverdash360.Services
                 {
                     continue;
                 }
-                FileEntry file = entry.IsDirectory ? files.Stat(path) : entry;
                 if (file == null || file.IsDirectory)
                 {
                     continue;
@@ -109,6 +121,7 @@ namespace Silverdash360.Services
                     DevicePath = files.DevicePath(path),
                     DeviceFolder = files.DevicePath(path.Substring(0, path.LastIndexOf('/'))),
                     Name = name,
+                    InFolder = entry.IsDirectory,
                     Collection = collection,
                     Drive = drive,
                     Size = file.Size,
@@ -138,6 +151,27 @@ namespace Silverdash360.Services
                     pace();
                 }
             }
+        }
+
+        // The .xex an app's folder starts from without a default.xex: the one
+        // named after the folder, else its only one; null when it has
+        // neither, or can't be listed.
+        private FileEntry AppExecutable(string folder)
+        {
+            List<FileEntry> entries;
+            try
+            {
+                entries = files.List(folder);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+            string own = folder.Substring(folder.LastIndexOf('/') + 1) + ".xex";
+            List<FileEntry> executables = entries.Where(
+                e => !e.IsDirectory && e.Name.EndsWith(".xex", StringComparison.OrdinalIgnoreCase)).ToList();
+            return executables.FirstOrDefault(e => string.Equals(e.Name, own, StringComparison.OrdinalIgnoreCase)) ??
+                   (executables.Count == 1 ? executables[0] : null);
         }
 
         // The title ID in the XEX header's execution info, or 0.

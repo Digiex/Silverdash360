@@ -14,7 +14,7 @@ The **games** and **apps** sections are shelves of everything installed on the c
 - **Xbox 360 games**: installed discs, Games on Demand and Arcade, Indie and XNA games and demos.
 - **Original Xbox games**, each one its own title.
 - **Apps**, such as media apps, told apart from games by their title ID.
-- **Homebrew**: a `default.xex` in each folder of a drive's `Apps` and `Games` folders (`Hdd1`, `Usb0` to `Usb2`), and `.xex` files right in `Apps`. Each is named after its folder, unless a package or your profile names it, or you name it with [your own art](#your-own-art-and-details).
+- **Homebrew**: a `default.xex` in each folder of a drive's `Apps` and `Games` folders (`Hdd1`, `Usb0` to `Usb2`), and `.xex` files right in `Apps`. A folder of `Apps` without a `default.xex` starts from the `.xex` named after the folder, such as `Aurora\Aurora.xex`, or else from its only `.xex`; one with several and none named after it isn't listed. Each is named after its folder, unless a package or your profile names it, or you name it with [your own art](#your-own-art-and-details).
 - **QuickBoot shortcuts** show as the app or game they start; a shortcut and the folder it starts are listed once.
 - **Titles with nothing to start**, such as a game with only saves or add-ons left, are hidden until you show them with the shelf's options.
 
@@ -24,7 +24,7 @@ Box art and store details are downloaded in the background and kept in the `Data
 
 ## Your own art and details
 
-A game or app kept as a folder, a `default.xex` in a folder of `Apps` or `Games`, can have art, a name and a description of your own. Make a folder named `Silverdash360Art` beside its `default.xex`, laid out as a title's folder in [x360db](https://github.com/xenia-manager/x360db/tree/main/titles) is:
+A game or app kept as a folder, a `default.xex` (or an app's own `.xex`, such as `Aurora.xex`) in a folder of `Apps` or `Games`, can have art, a name and a description of your own. Make a folder named `Silverdash360Art` beside its `.xex`, laid out as a title's folder in [x360db](https://github.com/xenia-manager/x360db/tree/main/titles) is:
 
 ```
 Hdd1\Games\Some Game\

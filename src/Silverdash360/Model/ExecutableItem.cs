@@ -4,7 +4,8 @@ namespace Silverdash360.Model
 {
     /// <summary>
     /// A title's executable found in a drive's Apps or Games folder, such as
-    /// Hdd1\Games\Some Game\default.xex, rather than in a content package.
+    /// Hdd1\Games\Some Game\default.xex or Hdd1\Apps\Aurora\Aurora.xex,
+    /// rather than in a content package.
     /// </summary>
     public sealed class ExecutableItem
     {
@@ -19,6 +20,9 @@ namespace Silverdash360.Model
 
         /// <summary>The folder's name, or the file's for one directly in Apps.</summary>
         public string Name { get; set; }
+
+        /// <summary>In a folder of its own, rather than directly in Apps.</summary>
+        public bool InFolder { get; set; }
 
         /// <summary>"Apps" or "Games", whichever it was found in.</summary>
         public string Collection { get; set; }
