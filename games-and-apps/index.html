@@ -63,6 +63,8 @@
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#whats-listed">What's listed</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#your-own-art-and-details">Your own art and details</a>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#covers-and-lists">Covers and lists</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#the-shelfs-options">The shelf's options</a>
@@ -145,12 +147,67 @@
 <li><strong>Xbox 360 games</strong>: installed discs, Games on Demand and Arcade, Indie and XNA games and demos.</li>
 <li><strong>Original Xbox games</strong>, each one its own title.</li>
 <li><strong>Apps</strong>, such as media apps, told apart from games by their title ID.</li>
-<li><strong>Homebrew</strong>: a <code>default.xex</code> in each folder of a drive's <code>Apps</code> and <code>Games</code> folders (<code>Hdd1</code>, <code>Usb0</code> to <code>Usb2</code>), and <code>.xex</code> files right in <code>Apps</code>. Each is named after its folder, unless a package or your profile names it.</li>
+<li><strong>Homebrew</strong>: a <code>default.xex</code> in each folder of a drive's <code>Apps</code> and <code>Games</code> folders (<code>Hdd1</code>, <code>Usb0</code> to <code>Usb2</code>), and <code>.xex</code> files right in <code>Apps</code>. A folder of <code>Apps</code> without a <code>default.xex</code> starts from the <code>.xex</code> named after the folder, such as <code>Aurora\Aurora.xex</code>, or else from its only <code>.xex</code>; one with several and none named after it isn't listed. Each is named after its folder, unless a package or your profile names it, or you name it with <a href="#your-own-art-and-details">your own art</a>.</li>
+<li><strong>Executables you added</strong> in the <a href="../settings/#file-browser">file browser</a> with Y, wherever they are, on the shelf you picked: <strong>Games</strong> or <strong>Apps</strong>. One already in <code>Apps</code> or <code>Games</code> moves to the shelf you picked. A <code>default.xex</code> is named after its folder, another <code>.xex</code> after itself, and either can have <a href="#your-own-art-and-details">your own art</a> beside it.</li>
 <li><strong>QuickBoot shortcuts</strong> show as the app or game they start; a shortcut and the folder it starts are listed once.</li>
 <li><strong>Titles with nothing to start</strong>, such as a game with only saves or add-ons left, are hidden until you show them with the shelf's options.</li>
 </ul>
 <p>Silverdash360 keeps what it read, so it starts quickly. At a start it shows the library it saved and looks only for what starts games and apps, and for themes, as they come and go; a title's add-ons, updates and saves are listed again when you open its page. <strong>Refresh library</strong> in settings reads everything again.</p>
 <p>Box art and store details are downloaded in the background and kept in the <code>Data\Art</code> folder, so they're there without the internet afterwards. The box art, background, banner and tile come from x360db first, unless they're kept from the Marketplace already, and an original Xbox game's box art that x360db doesn't have from <a href="https://github.com/xemu-project/xdb">xdb</a>. The store details, the description, genre, developer, publisher and release date, come from x360db too, or from the Marketplace for a title x360db hasn't got; screenshots come from the Marketplace. A title neither knows gets a cover of its kind with its icon or its initials.</p>
+<h2 id="your-own-art-and-details">Your own art and details<a class="headerlink" href="#your-own-art-and-details" title="Permanent link">&para;</a></h2>
+<p>A game or app kept as a folder, a <code>default.xex</code> (or an app's own <code>.xex</code>, such as <code>Aurora.xex</code>) in a folder of <code>Apps</code> or <code>Games</code>, can have art, a name and a description of your own. Make a folder named <code>Silverdash360Art</code> beside its <code>.xex</code>, laid out as a title's folder in <a href="https://github.com/xenia-manager/x360db/tree/main/titles">x360db</a> is:</p>
+<pre><code>Hdd1\Games\Some Game\
+    default.xex
+    Silverdash360Art\
+        info.json
+        artwork\
+            boxart.jpg
+            background.jpg
+            icon.png
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What it is</th>
+<th>Size</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>artwork\boxart.jpg</code></td>
+<td>The box front on the title's page</td>
+<td>219 by 300 (or that shape)</td>
+</tr>
+<tr>
+<td><code>artwork\background.jpg</code></td>
+<td>The backdrop behind the title's page</td>
+<td>1280 by 720</td>
+</tr>
+<tr>
+<td><code>artwork\icon.png</code></td>
+<td>The tile on the shelves</td>
+<td>64 by 64 or larger, square</td>
+</tr>
+<tr>
+<td><code>info.json</code></td>
+<td>The name, description, publisher, developer, genre and release date</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Every file is optional, and the images can be right in <code>Silverdash360Art</code> instead of in <code>artwork</code>. Images are JPEG or PNG, up to 8 MB each. A title's folder from x360db can be copied in as it is: its <code>info.json</code> and <code>artwork</code> folder are what Silverdash360 reads.</p>
+<p><code>info.json</code> is x360db's: only <code>title</code> is needed, and anything else can be left out.</p>
+<pre><code class="language-json">{
+    &quot;title&quot;: { &quot;full&quot;: &quot;Some Game&quot; },
+    &quot;description&quot;: { &quot;full&quot;: &quot;What the game is about.&quot; },
+    &quot;publisher&quot;: &quot;Someone&quot;,
+    &quot;developer&quot;: &quot;Someone&quot;,
+    &quot;genre&quot;: [ &quot;Platformer&quot; ],
+    &quot;release_date&quot;: &quot;2024-05-01&quot;
+}
+</code></pre>
+<p>What's in <code>Silverdash360Art</code> comes before anything downloaded and before the name and description the game's files give. Silverdash360 only reads the folder, and the game never looks in it, so it doesn't get in the way of the game's own files. A new name shows once the library is read again, at the next start or with <strong>Refresh library</strong>; art shows the next time the title is shown.</p>
 <h2 id="covers-and-lists">Covers and lists<a class="headerlink" href="#covers-and-lists" title="Permanent link">&para;</a></h2>
 <p>Y switches a shelf between covers, two rows that scroll sideways, and a list with sizes and achievement progress. LT and RT move a screen at a time.</p>
 <p>A shelf sorted by name and long enough has a letter tile heading each letter's titles. A on a letter shows the letters alone, to jump through the shelf; A on a letter again shows everything, with that letter where it was.</p>
@@ -187,7 +244,9 @@
 </tbody>
 </table>
 <h2 id="a-titles-details">A title's details<a class="headerlink" href="#a-titles-details" title="Permanent link">&para;</a></h2>
-<p>A title's page has its backdrop, the store's description, developer, genre and release date, and two lists that LB and RB switch between: <strong>achievements</strong>, your progress in it, when you're signed in and have played it, and <strong>content</strong>, what's stored for it (the game, title updates, add-ons, saves) with sizes. <strong>Play</strong> starts it, with <strong>Play from disc</strong> when its disc is in the drive and a <strong>Play disc</strong> for each disc of a game with several; <strong>Achievements</strong> and <strong>Stored content</strong> go to the lists.</p>
+<p>A title's page has its backdrop, the store's description, developer, genre and release date, and two lists that LB and RB switch between: <strong>achievements</strong>, your progress in it, when you're signed in and have played it, and <strong>content</strong>, what's stored for it (the game, title updates, add-ons, saves) with sizes. <strong>Play</strong> starts it, with <strong>Play from disc</strong> when its disc is in the drive and a <strong>Play disc</strong> for each disc of a game with several, and a <strong>Play version</strong> for each older version of a game kept beside its newest, as arcade games can have; <strong>Achievements</strong> and <strong>Stored content</strong> go to the lists. A title without achievements, such as an original Xbox game or an app, has no achievements list.</p>
+<p><strong>Rename</strong> gives the title a name of your own with the console's keyboard, which the shelves, search and its page show from then on, in place of any other. <strong>Use its own name</strong> puts back the name it had. The names are kept in <code>Data
+ames.txt</code>.</p>
 <table>
 <thead>
 <tr>
